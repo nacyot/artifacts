@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nacyot / artifacts</title>
+<meta name="description" content="공개해도 되는 작업 산출물 모음 — 실측 정리, 리서치, 시각화.">
+<style>
+  :root{--bg:#1e1e2e;--fg:#cdd6f4;--mut:#a6adc8;--card:#282a3a;--bd:#45475a;--blu:#89b4fa;--tea:#94e2d5;--mau:#cba6f7}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.7 -apple-system,"Pretendard","Noto Sans KR",sans-serif;padding:3rem 1.2rem 5rem;word-break:keep-all}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-size:1.9rem;margin:0 0 .3rem;color:#fff}
+  .sub{color:var(--mut);margin:0 0 2.2rem}
+  a{color:var(--blu);text-decoration:none}
+  .item{display:block;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:1.1rem 1.3rem;margin:1rem 0;transition:border-color .15s}
+  .item:hover{border-color:var(--blu)}
+  .item h2{font-size:1.15rem;margin:0 0 .3rem;color:#fff}
+  .item p{margin:0;color:var(--mut);font-size:14px}
+  .meta{font-size:12px;color:var(--mut);margin-top:.5rem}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:.1em .55em;border-radius:20px;border:1px solid var(--tea);color:var(--tea);margin-right:.3rem}
+  footer{margin-top:3rem;color:var(--mut);font-size:13px;border-top:1px solid var(--bd);padding-top:1rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>artifacts</h1>
+<p class="sub">공개해도 되는 작업 산출물 모음 — 실측 정리 · 리서치 · 시각화. 개인 식별 정보와 자격증명은 제거한 것만 올린다.</p>
+
+<a class="item" href="./bambu-p1s-scripting/">
+  <h2>Bambu Lab P1S — UI 없이 프로토콜로 어디까지 되나</h2>
+  <p>3D 프린터를 앱 없이 MQTT·FTPS 프로토콜만으로 제어한 실측 정리. "프린터는 UI 기기가 아니라 네트워크 API를 노출하는 IoT 장치"라는 관점 + d3.js 시각화.</p>
+  <div class="meta"><span class="tag">실측</span><span class="tag">시각화</span> 3D 프린팅 · IoT · MQTT</div>
+</a>
+
+<footer>github.com/nacyot/artifacts</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bambu P1S — UI 없이 프로토콜로 어디까지 되나</title>
+<meta name="description" content="Bambu Lab P1S를 앱 없이 MQTT·FTPS 프로토콜만으로 제어한 실측 정리. 프린터는 UI 기기가 아니라 네트워크 API를 노출하는 IoT 장치라는 관점.">
+<style>
+  :root{--bg:#1e1e2e;--fg:#cdd6f4;--mut:#a6adc8;--card:#282a3a;--bd:#45475a;
+        --grn:#a6e3a1;--yel:#f9e2af;--red:#f38ba8;--blu:#89b4fa;--mau:#cba6f7;--tea:#94e2d5;--pch:#fab387;--pnk:#f5c2e7;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15.5px/1.68 -apple-system,"Pretendard","Noto Sans KR",sans-serif;padding:2.2rem 1rem 4rem;word-break:keep-all;overflow-wrap:anywhere}
+  .wrap{max-width:900px;margin:0 auto}
+  a{color:var(--blu)}
+  h1{font-size:1.75rem;margin:.2rem 0;color:#fff;line-height:1.3}
+  h2{font-size:1.28rem;margin:2.6rem 0 .8rem;padding-bottom:.4rem;border-bottom:2px solid var(--bd);color:var(--blu)}
+  h3{font-size:1.05rem;margin:1.3rem 0 .5rem;color:var(--tea)}
+  .sub{color:var(--mut);margin:.2rem 0 1.5rem}
+  .crumb{font-size:13px;color:var(--mut);margin:0 0 1.2rem}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:1.1rem 1.3rem;margin:1.1rem 0}
+  code,kbd{background:#11111b;border:1px solid var(--bd);border-radius:5px;padding:.08em .4em;font:12.5px/1.5 "JetBrains Mono",ui-monospace,monospace;color:var(--tea)}
+  pre{background:#11111b;border:1px solid var(--bd);border-radius:8px;padding:.8rem 1rem;overflow:auto}
+  pre code{background:none;border:none;padding:0;color:var(--fg)}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:13.5px}
+  th,td{border:1px solid var(--bd);padding:.5rem .65rem;text-align:left;vertical-align:top}
+  th{background:#313244;color:#fff}
+  tr:nth-child(even) td{background:#242536}
+  td code{white-space:normal;word-break:break-all;overflow-wrap:anywhere}
+  table.t3{table-layout:fixed}
+  table.t3 col.c-act{width:20%} table.t3 col.c-how{width:64%} table.t3 col.c-st{width:16%}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:.12em .55em;border-radius:20px;white-space:nowrap}
+  .t-ok{background:rgba(166,227,161,.16);color:var(--grn);border:1px solid var(--grn)}
+  .t-doc{background:rgba(137,180,250,.14);color:var(--blu);border:1px solid var(--blu)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  @media(max-width:680px){.grid{grid-template-columns:1fr}}
+  .big{font-size:1.08rem;color:#fff;margin:0}
+  .key{color:var(--yel)}
+  em.hi{color:var(--yel);font-style:normal;font-weight:600}
+  .stat{display:flex;gap:1.4rem;flex-wrap:wrap;margin:.4rem 0 0}
+  .stat b{display:block;font-size:1.5rem;color:#fff;line-height:1.1}
+  .stat span{font-size:12px;color:var(--mut)}
+  figure{margin:1.2rem 0}
+  figure svg{width:100%;height:auto;display:block;background:#181825;border:1px solid var(--bd);border-radius:12px}
+  figcaption{font-size:12.5px;color:var(--mut);margin-top:.55rem;line-height:1.6}
+  .redact{color:var(--mut);font-style:italic}
+  text{font-family:"Pretendard","Noto Sans KR",-apple-system,sans-serif}
+  footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--bd);color:var(--mut);font-size:13px}
+  ul{margin:.4rem 0 .4rem 1.1rem;padding:0}
+  li{margin:.28rem 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<p class="crumb"><a href="../">← nacyot / artifacts</a></p>
+
+<h1>Bambu Lab P1S — UI 없이 프로토콜로 어디까지 되나</h1>
+<p class="sub">Asahi Linux (ARM) ↔ Bambu P1S · LAN 직결 · 실측 기반 정리</p>
+
+<div class="card">
+<p class="big">핵심 한 줄: <em class="hi">프린터는 "UI 기기"가 아니라 "네트워크 API를 노출하는 IoT 장치"다.</em></p>
+<p style="margin:.6rem 0 0">Bambu Studio·Handy·OrcaSlicer 같은 앱은 전부 그 API 위에 얹힌 <b>껍데기(GUI)</b>일 뿐이다. 그래서 앱 없이 <b>MQTT + FTPS</b> 프로토콜만 직접 말하면 상태 읽기·인쇄·제어가 모두 된다. "완료되면 알림" 같은 자동화가 되는 이유가 바로 이것 — UI 의존이 아니라 <b>프로토콜 기반</b>이기 때문이다.</p>
+</div>
+
+<figure>
+<div id="viz-layers"></div>
+<figcaption>그림 1. 왜 스크립트로 다 되는가. 앱(GUI)은 맨 위 얇은 껍데기일 뿐이고, 그 밑에 프린터가 노출하는 프로토콜 API가 있다. 내 스크립트는 GUI·플러그인을 건너뛰고 이 API에 직접 말하므로, 앱이 없어도(그리고 OS가 무엇이든) 그대로 작동한다.</figcaption>
+</figure>
+
+<h2>1. 어떻게 통신하나 — 프로토콜 4종</h2>
+<table>
+<tr><th>채널</th><th>포트</th><th>용도</th><th>인증</th></tr>
+<tr><td><b>MQTT (TLS)</b></td><td>8883</td><td>상태 구독(<code>report</code>) + 명령 발행(<code>request</code>) — 실시간 텔레메트리·인쇄 제어</td><td><code>bblp</code> / 액세스코드, 자체서명 TLS</td></tr>
+<tr><td><b>FTPS (implicit)</b></td><td>990</td><td>파일 업/다운/삭제 — gcode·3mf·타임랩스·카메라 캡처·로그</td><td><code>bblp</code> / 액세스코드</td></tr>
+<tr><td><b>RTSP (카메라)</b></td><td>6000</td><td>내장 카메라 라이브 스트림(<code>rtsps://…/streaming/live/1</code>)</td><td>액세스코드</td></tr>
+<tr><td><b>SSDP (발견)</b></td><td>2021 UDP</td><td>멀티캐스트로 프린터 자동 탐지(시리얼·모델·IP)</td><td>없음</td></tr>
+</table>
+
+<figure>
+<div id="viz-proto"></div>
+<figcaption>그림 2. 스크립트 ↔ 프린터 통신. MQTT만 양방향이다: <code>request</code> 토픽으로 명령을 쏘고 <code>report</code> 토픽으로 상태 JSON을 계속 돌려받는다. 이 구독→조건→행동 루프가 "완료 알림" 같은 자동화의 뼈대다.</figcaption>
+</figure>
+
+<p class="sub">MQTT 토픽: <code>device/&lt;시리얼&gt;/request</code>(명령) · <code>device/&lt;시리얼&gt;/report</code>(상태). <span class="redact">시리얼은 SSDP 응답에 담겨 자동 획득된다(프린터별 고유값이라 여기선 생략).</span></p>
+
+<h2>2. 읽을 수 있는 정보 — <code>print</code> 객체만 63개 필드</h2>
+<p class="sub"><code>pushall</code> 한 번으로 프린터가 뱉는 상태. 앱 화면에 안 보이는 내부값까지 전부 노출된다. 아래는 그 63개 필드를 성격별로 묶은 것.</p>
+
+<figure>
+<div id="viz-tree"></div>
+<figcaption>그림 3. <code>pushall</code> 응답 63필드의 구성(성격별 묶음, 크기 = 필드 수). 진행 상태와 AMS·필라멘트 정보가 가장 두껍고, 온도·팬·오류·카메라·하드웨어·펌웨어까지 프린터 내부가 통째로 보인다.</figcaption>
+</figure>
+
+<div class="grid">
+  <div class="card"><h3>📊 진행·상태</h3><ul>
+    <li>상태(<code>gcode_state</code>: IDLE/PREPARE/RUNNING/PAUSE/FINISH/FAILED)</li>
+    <li>진행 %, 레이어 <code>n/총</code>, 남은 시간</li>
+    <li>인쇄 단계(<code>mc_print_stage</code>·<code>stg_cur</code>), 현재 gcode 라인, 파일명·task/project ID</li>
+  </ul></div>
+  <div class="card"><h3>🎨 AMS·필라멘트</h3><ul>
+    <li>슬롯별 <b>종류·색(hex)·잔량%·건조도(humidity)</b></li>
+    <li>RFID 상태, K-factor(압력 보정), 권장 노즐 온도 범위</li>
+    <li>외부 스풀(<code>vt_tray</code>), 로드된 트레이(<code>tray_now</code>)</li>
+  </ul></div>
+  <div class="card"><h3>🌡️ 온도</h3><ul>
+    <li>노즐 현재/목표 (<code>nozzle_temper</code>/<code>_target</code>)</li>
+    <li>베드 현재/목표, 챔버 온도(<code>chamber_temper</code>)</li>
+  </ul></div>
+  <div class="card"><h3>🌀 팬 (4종)</h3><ul>
+    <li>파트 쿨링(<code>cooling_fan_speed</code>), 보조/챔버 팬(<code>big_fan1/2</code>)</li>
+    <li>히트브레이크 팬 · 팬 기어</li>
+  </ul></div>
+  <div class="card"><h3>⚠️ 오류·헬스</h3><ul>
+    <li><b>HMS</b> 배열 — 경고·에러 코드 + 심각도(스파게티·필라멘트 런아웃·도어 열림 등)</li>
+    <li><code>print_error</code> 코드, lifecycle</li>
+  </ul></div>
+  <div class="card"><h3>📷 카메라·네트워크</h3><ul>
+    <li>카메라 상태·해상도·타임랩스·녹화(<code>ipcam</code>)</li>
+    <li>WiFi 신호(<code>wifi_signal</code>), 온라인 여부, SD카드 상태, 업로드 진행</li>
+  </ul></div>
+  <div class="card"><h3>🔩 하드웨어</h3><ul>
+    <li>노즐 지름·타입(<code>nozzle_diameter</code>/<code>_type</code>)</li>
+    <li>홈 플래그, 하드웨어 스위치, 조명(<code>lights_report</code>), 속도 레벨(<code>spd_lvl</code>), 캘리브레이션 버전</li>
+  </ul></div>
+  <div class="card"><h3>🛠️ 펌웨어·모듈 (<code>get_version</code>)</h3><ul>
+    <li>ota · esp32(AP) · mc(모션) · th(툴헤드) · ams/0</li>
+    <li>각 모듈의 sn·sw·hw <span class="redact">(구체 버전은 생략)</span></li>
+  </ul></div>
+</div>
+<p class="sub">예를 들어 AMS는 슬롯마다 필라멘트 종류·색·잔량%·건조도가 그대로 나오고, WiFi 신호 세기·노즐 지름 같은 하드웨어 값까지 실시간으로 읽힌다.</p>
+
+<h2>3. 스크립팅으로 제어 가능한 것</h2>
+<div class="stat">
+  <div><b>5</b><span>실제 실행·검증</span></div>
+  <div><b>9</b><span>프로토콜상 가능(문서화)</span></div>
+  <div><b>63</b><span>읽히는 상태 필드</span></div>
+  <div><b>4</b><span>통신 채널</span></div>
+</div>
+<p class="sub" style="margin-top:1rem"><span class="tag t-ok">실행함</span> = 실제로 돌려서 확인 · <span class="tag t-doc">문서화</span> = 프로토콜상 가능(라이브 인쇄 방해하지 않으려 미실행)</p>
+<table class="t3">
+<colgroup><col class="c-act"><col class="c-how"><col class="c-st"></colgroup>
+<tr><th>동작</th><th>방법 (MQTT <code>request</code> 페이로드 / 프로토콜)</th><th>상태</th></tr>
+<tr><td>전체 상태 읽기</td><td><code>{"pushing":{"command":"pushall"}}</code></td><td><span class="tag t-ok">실행함</span></td></tr>
+<tr><td>펌웨어/모듈 조회</td><td><code>{"info":{"command":"get_version"}}</code></td><td><span class="tag t-ok">실행함</span></td></tr>
+<tr><td><b>인쇄 시작</b>(파일)</td><td><code>{"print":{"command":"project_file","url":"file:///sdcard/…","param":"Metadata/plate_1.gcode","use_ams":true,"ams_mapping":[슬롯]}}</code></td><td><span class="tag t-ok">실행함</span></td></tr>
+<tr><td>일시정지 / 재개 / 정지</td><td><code>{"print":{"command":"pause"}}</code> · <code>resume</code> · <code>stop</code></td><td><span class="tag t-doc">문서화</span></td></tr>
+<tr><td>인쇄 속도 변경</td><td><code>{"print":{"command":"print_speed","param":"2"}}</code> (1느림~4최속)</td><td><span class="tag t-doc">문서화</span></td></tr>
+<tr><td><b>임의 G-code 주입</b></td><td><code>{"print":{"command":"gcode_line","param":"M104 S220\n"}}</code> → 노즐/베드 온도(M104/M140)·팬(M106)·이동(G0/G1)·홈(G28)·압출(G1 E) 등 무엇이든</td><td><span class="tag t-doc">문서화</span></td></tr>
+<tr><td>챔버 조명 on/off</td><td><code>{"system":{"command":"ledctrl","led_node":"chamber_light","led_mode":"on"}}</code></td><td><span class="tag t-doc">문서화</span></td></tr>
+<tr><td>AMS 필라멘트 교체/설정</td><td><code>{"print":{"command":"ams_change_filament",…}}</code> / <code>ams_filament_setting</code> / <code>unload_filament</code></td><td><span class="tag t-doc">문서화</span></td></tr>
+<tr><td>캘리브레이션(베드 레벨·공진·플로우)</td><td><code>{"print":{"command":"calibration",…}}</code></td><td><span class="tag t-doc">문서화</span></td></tr>
+<tr><td>AI 모니터링(스파게티 감지) on/off</td><td><code>{"xcam":{"command":"xcam_control_set",…}}</code></td><td><span class="tag t-doc">문서화</span></td></tr>
+<tr><td>파일 업로드/목록/다운/삭제</td><td>FTPS 990 (<code>curl -T</code> / <code>ftplib</code>) — gcode·3mf</td><td><span class="tag t-ok">실행함</span></td></tr>
+<tr><td>타임랩스·카메라 캡처·로그 다운로드</td><td>FTPS <code>/timelapse</code> <code>/image</code> <code>/logger</code></td><td><span class="tag t-doc">문서화</span></td></tr>
+<tr><td>카메라 라이브 보기/녹화</td><td>RTSP 6000 → <code>ffmpeg</code>/<code>mpv</code> <code>rtsps://bblp:&lt;코드&gt;@&lt;프린터-ip&gt;:6000/streaming/live/1</code></td><td><span class="tag t-doc">문서화</span></td></tr>
+<tr><td>프린터 자동 발견</td><td>SSDP 멀티캐스트 → 시리얼·모델·IP</td><td><span class="tag t-ok">실행함</span></td></tr>
+</table>
+<p class="sub">즉 <b>앱이 하는 거의 모든 것</b>(인쇄·모니터·온도/팬/조명 제어·AMS·캘리브·카메라)이 스크립트로 된다. 앱은 이 명령들을 버튼에 매핑한 UI일 뿐이다.</p>
+
+<h2>4. 맥에서도 되나? — <span style="color:var(--grn)">된다. OS 무관.</span></h2>
+<div class="card">
+<p style="margin:0">이 모든 게 되는 이유는 <b>특정 OS라서가 아니라, 표준 네트워크 프로토콜 + 순수 파이썬</b>이기 때문이다.</p>
+<table>
+<tr><th>구성요소</th><th>정체</th><th>macOS</th><th>Windows</th><th>Linux</th></tr>
+<tr><td>MQTT(paho-mqtt)</td><td>순수 파이썬 라이브러리</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td>FTPS(ftplib/curl)</td><td>표준 라이브러리 / curl</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td>RTSP 카메라(ffmpeg)</td><td>크로스플랫폼 툴</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td>SSDP 발견</td><td>UDP 소켓</td><td>✅</td><td>✅</td><td>✅</td></tr>
+</table>
+<p style="margin:.6rem 0 0">같은 스크립트를 그대로 복사해 돌리면 어느 OS에서든 똑같이 작동한다. 같은 WiFi(또는 VPN으로 원격)에 프린터만 있으면 된다. 실제로 Bambu 공식 <code>Handy</code>(폰)·<code>Studio</code>(맥/윈)도 내부적으로는 <b>이 MQTT/FTPS를 그대로</b> 쓴다.</p>
+<p style="margin:.6rem 0 0"><b>차이가 났던 딱 한 가지</b>는 <em class="hi">OrcaSlicer의 "GUI 인쇄 버튼"</em>이었다: 그건 Bambu의 x86 전용 바이너리 플러그인을 GUI가 로드해야 해서 ARM에서 막혔고, 오픈소스 aarch64 플러그인으로 교체해 풀었다. <b>하지만 그건 "GUI 경로" 얘기고, 스크립팅은 애초에 그 플러그인을 거치지 않는다.</b></p>
+</div>
+<p><b>정리:</b> "완료되면 알림" 같은 자동화가 UI 앱에선 어려운 건, 앱이 사람 클릭을 전제한 <b>UI 루프</b>라서다. 프린터 자체는 UI 기기가 아니라 <b>상태를 계속 방송하고 명령을 받는 서버</b>라, 스크립트로 구독→조건→행동(알림·재인쇄·로깅)을 자유롭게 짤 수 있다. <b>OS가 아니라 "UI냐 프로토콜이냐"의 문제다.</b></p>
+
+<h2>5. 만든 도구</h2>
+<table>
+<tr><th>파일</th><th>역할</th></tr>
+<tr><td><code>bambu_print.py</code></td><td><code>list</code> / <code>upload &lt;파일&gt;</code> / <code>print &lt;파일&gt; &lt;AMS슬롯&gt;</code> — FTPS(curl) + MQTT(paho)</td></tr>
+<tr><td><code>watch_print.py</code></td><td>완료 감시 → <b>데스크톱 팝업</b>(<code>notify-send</code>) + 채팅 알림. 실패는 critical</td></tr>
+<tr><td><code>print.sh</code></td><td>원커맨드: STL → 슬라이스(Orca CLI) → 업로드 → 인쇄</td></tr>
+<tr><td><code>.env</code> (600, git 밖)</td><td>접속 정보: 호스트·액세스코드·시리얼 <span class="redact">(비밀값이라 저장소 밖 · 여기 미포함)</span></td></tr>
+</table>
+
+<h2>6. 한계 · 주의</h2>
+<ul>
+<li><b>WiFi가 약하면</b> 원격 MQTT 읽기가 간헐 끊긴다. 단, 인쇄 자체는 프린터 내장으로 돌아가 <b>네트워크와 무관</b>하다. 공유기 가까이 두면 해소.</li>
+<li><b>LAN-only 모드 필수.</b> 클라우드 경유 서드파티는 Bambu Connect(맥/윈 전용)가 필요 — LAN 직결이 답.</li>
+<li>MQTT는 <b>비공식(리버스 엔지니어링) 프로토콜</b>이라, 펌웨어 업데이트로 필드·명령이 바뀔 수 있다.</li>
+<li>일시정지/정지/캘리브 등 <b>쓰기 명령은 라이브 인쇄에 영향</b>을 준다. 실사용 전 조심스레 검증할 것.</li>
+<li>이 접근은 <b>펌웨어의 로컬 API가 열려 있을 때</b> 성립한다. Authorization Control이 켜진 펌웨어에서는 별도 인증 경로가 필요하다.</li>
+</ul>
+
+<footer>
+Bambu Lab P1S 실측(<code>pushall</code> 63필드 + <code>get_version</code>) 기반 · 개인 식별 정보·시리얼·자격증명은 제거함 · 교육/참고용.
+</footer>
+</div>
+
+<script src="../vendor/d3.v7.min.js"></script>
+<script>
+const C={fg:'#cdd6f4',mut:'#a6adc8',bd:'#45475a',card:'#282a3a',ink:'#11111b',
+  grn:'#a6e3a1',yel:'#f9e2af',red:'#f38ba8',blu:'#89b4fa',mau:'#cba6f7',tea:'#94e2d5',pch:'#fab387',pnk:'#f5c2e7'};
+
+/* ===== 그림1. 레이어 스택 (GUI는 껍데기) ===== */
+(function(){
+ const W=820,H=280;
+ const svg=d3.select('#viz-layers').append('svg').attr('viewBox',`0 0 ${W} ${H}`).attr('role','img');
+ const bx=250,bw=W-bx-30;
+ const bands=[
+  {y:34,h:44,t:'앱 (Bambu Studio · Handy · OrcaSlicer)',s:'GUI 껍데기 — 버튼을 명령에 매핑',c:C.bd,fill:'#242536',faint:1},
+  {y:110,h:60,t:'프로토콜 API',s:'MQTT 8883 · FTPS 990 · RTSP 6000 · SSDP 2021',c:C.blu,fill:'#1c2740',hi:1},
+  {y:200,h:52,t:'프린터 (P1S)',s:'상태를 방송하고 명령을 받는 서버',c:C.tea,fill:'#193230'},
+ ];
+ // 세로 연결 화살표 (GUI↔API, API↔Printer)
+ const midx=bx+bw/2;
+ [[78,110],[170,200]].forEach(([y1,y2])=>{
+   svg.append('line').attr('x1',midx).attr('x2',midx).attr('y1',y1).attr('y2',y2).attr('stroke',C.mut).attr('stroke-width',1.4).attr('marker-end','url(#a1)');
+   svg.append('line').attr('x1',midx-14).attr('x2',midx-14).attr('y1',y2).attr('y2',y1).attr('stroke',C.mut).attr('stroke-width',1.4).attr('marker-end','url(#a1)');
+ });
+ svg.append('defs').append('marker').attr('id','a1').attr('viewBox','0 0 8 8').attr('refX',4).attr('refY',4).attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto')
+   .append('path').attr('d','M0,0 L8,4 L0,8 Z').attr('fill',C.mut);
+ bands.forEach(b=>{
+   svg.append('rect').attr('x',bx).attr('y',b.y).attr('width',bw).attr('height',b.h).attr('rx',9).attr('fill',b.fill).attr('stroke',b.c).attr('stroke-width',b.hi?2:1.2);
+   svg.append('text').attr('x',bx+16).attr('y',b.y+(b.s?22:b.h/2+5)).attr('font-size',b.hi?15:13.5).attr('font-weight',700).attr('fill',b.faint?C.mut:'#fff').text(b.t);
+   if(b.s) svg.append('text').attr('x',bx+16).attr('y',b.y+40).attr('font-size',11.5).attr('fill',C.mut).text(b.s);
+ });
+ // 스크립트 → API 직접
+ svg.append('rect').attr('x',24).attr('y',110).attr('width',150).attr('height',60).attr('rx',9).attr('fill','#2a2136').attr('stroke',C.mau).attr('stroke-width',1.6);
+ svg.append('text').attr('x',99).attr('y',134).attr('text-anchor','middle').attr('font-size',13).attr('font-weight',700).attr('fill',C.mau).text('내 스크립트');
+ svg.append('text').attr('x',99).attr('y',152).attr('text-anchor','middle').attr('font-size',10.5).attr('fill',C.mut).text('paho · curl · ffmpeg');
+ svg.append('defs').append('marker').attr('id','am').attr('viewBox','0 0 8 8').attr('refX',4).attr('refY',4).attr('markerWidth',7).attr('markerHeight',7).attr('orient','auto')
+   .append('path').attr('d','M0,0 L8,4 L0,8 Z').attr('fill',C.mau);
+ svg.append('line').attr('x1',174).attr('x2',bx-2).attr('y1',140).attr('y2',140).attr('stroke',C.mau).attr('stroke-width',2).attr('marker-end','url(#am)');
+ svg.append('text').attr('x',(174+bx)/2).attr('y',132).attr('text-anchor','middle').attr('font-size',10.5).attr('fill',C.mau).text('직접 · UI 무관');
+})();
+
+/* ===== 그림2. 프로토콜 채널 ===== */
+(function(){
+ const W=820,H=300;
+ const svg=d3.select('#viz-proto').append('svg').attr('viewBox',`0 0 ${W} ${H}`).attr('role','img');
+ const defs=svg.append('defs');
+ [['ar',C.mut],['arg',C.grn],['arb',C.blu]].forEach(([id,col])=>defs.append('marker').attr('id',id).attr('viewBox','0 0 8 8').attr('refX',4).attr('refY',4).attr('markerWidth',7).attr('markerHeight',7).attr('orient','auto').append('path').attr('d','M0,0 L8,4 L0,8 Z').attr('fill',col));
+ // 좌/우 노드
+ const node=(x,y,w,h,t,s,col)=>{svg.append('rect').attr('x',x).attr('y',y).attr('width',w).attr('height',h).attr('rx',9).attr('fill','#242536').attr('stroke',col).attr('stroke-width',1.6);
+   svg.append('text').attr('x',x+w/2).attr('y',y+(s?h/2-3:h/2+5)).attr('text-anchor','middle').attr('font-size',13).attr('font-weight',700).attr('fill','#fff').text(t);
+   if(s)svg.append('text').attr('x',x+w/2).attr('y',y+h/2+15).attr('text-anchor','middle').attr('font-size',10.5).attr('fill',C.mut).text(s);};
+ node(24,116,150,66,'스크립트','paho · curl · ffmpeg',C.mau);
+ node(W-174,116,150,66,'P1S','네트워크 IoT 서버',C.tea);
+ const chans=[
+  {t:'MQTT 8883',s:'request / report 루프',c:C.blu,bi:1},
+  {t:'FTPS 990',s:'파일 업·다운·삭제',c:C.grn},
+  {t:'RTSP 6000',s:'카메라 라이브',c:C.pch},
+  {t:'SSDP 2021',s:'자동 발견(UDP)',c:C.yel},
+ ];
+ const cx=310,cw=200,ch=44,gap=14,top=40;
+ chans.forEach((ch2,i)=>{const y=top+i*(ch+gap);
+   svg.append('rect').attr('x',cx).attr('y',y).attr('width',cw).attr('height',ch).attr('rx',8).attr('fill','#1b1b28').attr('stroke',ch2.c).attr('stroke-width',1.4);
+   svg.append('text').attr('x',cx+cw/2).attr('y',y+18).attr('text-anchor','middle').attr('font-size',12.5).attr('font-weight',700).attr('fill',ch2.c).text(ch2.t);
+   svg.append('text').attr('x',cx+cw/2).attr('y',y+34).attr('text-anchor','middle').attr('font-size',10.5).attr('fill',C.mut).text(ch2.s);
+   const my=y+ch/2;
+   // script -> channel
+   svg.append('line').attr('x1',174).attr('x2',cx-2).attr('y1',149).attr('y2',my).attr('stroke',C.bd).attr('stroke-width',1.3).attr('marker-end','url(#ar)');
+   // channel -> printer  (MQTT: report 역방향도)
+   svg.append('line').attr('x1',cx+cw+2).attr('x2',W-176).attr('y1',my).attr('y2',149).attr('stroke',C.bd).attr('stroke-width',1.3).attr('marker-end','url(#ar)');
+   if(ch2.bi){ // report 되돌림 강조
+     svg.append('line').attr('x1',W-176).attr('x2',cx+cw+2).attr('y1',163).attr('y2',my+10).attr('stroke',C.grn).attr('stroke-width',1.6).attr('stroke-dasharray','5 3').attr('marker-end','url(#arg)');
+   }
+ });
+ svg.append('text').attr('x',cx+cw/2).attr('y',H-14).attr('text-anchor','middle').attr('font-size',11).attr('fill',C.grn).text('초록 점선 = report(상태 텔레메트리)가 계속 되돌아오는 방향');
+})();
+
+/* ===== 그림3. 텔레메트리 필드 트리맵 ===== */
+(function(){
+ const data={name:'root',children:[
+  {name:'진행·상태',v:12,c:C.blu},{name:'AMS·필라멘트',v:12,c:C.mau},{name:'하드웨어',v:9,c:C.tea},
+  {name:'펌웨어·모듈',v:8,c:C.pnk},{name:'카메라·네트워크',v:7,c:C.pch},{name:'팬',v:6,c:C.grn},
+  {name:'온도',v:5,c:C.red},{name:'오류·헬스',v:4,c:C.yel}]};
+ const W=820,H=340;
+ const root=d3.hierarchy(data).sum(d=>d.v).sort((a,b)=>b.value-a.value);
+ d3.treemap().size([W,H]).paddingInner(4)(root);
+ const svg=d3.select('#viz-tree').append('svg').attr('viewBox',`0 0 ${W} ${H}`).attr('role','img');
+ const g=svg.selectAll('g').data(root.leaves()).join('g').attr('transform',d=>`translate(${d.x0},${d.y0})`);
+ g.append('rect').attr('width',d=>d.x1-d.x0).attr('height',d=>d.y1-d.y0).attr('rx',7).attr('fill',d=>d.data.c).attr('fill-opacity',.9);
+ g.append('text').attr('x',12).attr('y',26).attr('font-size',14).attr('font-weight',700).attr('fill',C.ink).text(d=>d.data.name);
+ g.append('text').attr('x',12).attr('y',46).attr('font-size',12).attr('fill',C.ink).attr('fill-opacity',.7).text(d=>d.data.v+' 필드');
+})();
+</script>
+</body>
+</html>
