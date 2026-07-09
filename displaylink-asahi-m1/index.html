@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Asahi M1 Max — 외장 2대는 되지만, DisplayLink는 안 쓰기로 함</title>
-<meta name="description" content="Apple M1 Max + stock Asahi에서 USB-C DP는 불가, HDMI+DisplayLink로 듀얼 4K@60은 동작했다. 다만 DisplayLinkManager CPU 부하가 실사용에 너무 커서 채택하지 않기로 한 실측 정리.">
+<title>Asahi M1 Max 외장 디스플레이 실측</title>
+<meta name="description" content="Apple M1 Max + stock Asahi에서 USB-C DP, DisplayLink, HDMI 경로를 실측한 정리. 네이티브 실패 지점, 우회 스택, 실사용으로 무엇을 남겼는지.">
 <meta name="author" content="nacyot">
 <meta name="keywords" content="Asahi Linux, Apple M1 Max, DisplayLink, EVDI, Hyprland, USB-C DisplayPort, external monitor, aarch64">
 <meta name="robots" content="index,follow">
@@ -14,13 +14,13 @@
 <meta property="og:site_name" content="nacyot / artifacts">
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://nacyot.github.io/artifacts/displaylink-asahi-m1/">
-<meta property="og:title" content="Asahi M1 Max — 외장 2대는 되지만, DisplayLink는 안 쓰기로 함">
-<meta property="og:description" content="HDMI+DisplayLink로 듀얼 4K@60은 된다. 다만 CPU 부하가 너무 커서 실사용 채택 안 함 — M1 Max Asahi 실측.">
+<meta property="og:title" content="Asahi M1 Max 외장 디스플레이 실측">
+<meta property="og:description" content="USB-C DP · DisplayLink · HDMI — stock Asahi에서 무엇을 붙이고 무엇을 남겼는지. M1 Max · Hyprland 실측.">
 <meta property="og:image" content="https://nacyot.github.io/artifacts/displaylink-asahi-m1/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Asahi M1 Max 외장 디스플레이 — 네이티브 불가, DisplayLink 동작, CPU 미채택 → HDMI 1대">
+<meta property="og:image:alt" content="Asahi M1 Max 외장 디스플레이 실측 — USB-C DP, DisplayLink, HDMI">
 <meta property="article:published_time" content="2026-07-10">
 <meta property="article:modified_time" content="2026-07-10">
 <meta property="article:section" content="Linux">
@@ -29,16 +29,16 @@
 <meta property="article:tag" content="M1 Max">
 <meta property="article:tag" content="Hyprland">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Asahi M1 Max — 외장 2대는 되지만, DisplayLink는 안 쓰기로 함">
-<meta name="twitter:description" content="듀얼 4K@60은 동작. CPU 부하 때문에 실사용 채택 안 함 — Asahi M1 Max 실측.">
+<meta name="twitter:title" content="Asahi M1 Max 외장 디스플레이 실측">
+<meta name="twitter:description" content="USB-C DP · DisplayLink · HDMI — stock Asahi에서 무엇을 붙이고 무엇을 남겼는지.">
 <meta name="twitter:image" content="https://nacyot.github.io/artifacts/displaylink-asahi-m1/og.png">
-<meta name="twitter:image:alt" content="Asahi M1 Max 외장 디스플레이 — 네이티브 불가, DisplayLink 동작, CPU 미채택 → HDMI 1대">
+<meta name="twitter:image:alt" content="Asahi M1 Max 외장 디스플레이 실측 — USB-C DP, DisplayLink, HDMI">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "TechArticle",
-  "headline": "Asahi M1 Max — 외장 2대는 되지만, DisplayLink는 안 쓰기로 함",
-  "description": "HDMI+DisplayLink로 듀얼 4K@60은 동작했으나 DisplayLinkManager CPU 부하가 실사용에 과도해 채택하지 않기로 한 Asahi M1 Max 실측 정리.",
+  "headline": "Asahi M1 Max 외장 디스플레이 실측",
+  "description": "Apple M1 Max + stock Asahi에서 USB-C DP, DisplayLink, HDMI 경로를 실측한 정리. 네이티브 실패 지점, 우회 스택, 실사용 구성.",
   "url": "https://nacyot.github.io/artifacts/displaylink-asahi-m1/",
   "image": "https://nacyot.github.io/artifacts/displaylink-asahi-m1/og.png",
   "datePublished": "2026-07-10",
@@ -109,7 +109,14 @@
   ul{margin:.4rem 0 .4rem 1.1rem;padding:0}
   li{margin:.28rem 0}
   ol{margin:.4rem 0 .4rem 1.3rem;padding:0}
-  .meta-row{display:flex;flex-wrap:wrap;gap:.45rem;margin:.4rem 0 1.2rem}
+  .meta-row{display:flex;flex-wrap:wrap;gap:.45rem;margin:.35rem 0 1.1rem}
+  .lede{color:var(--fg);margin:0;font-size:1.02rem;line-height:1.75}
+  .outline{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin:1.2rem 0 0}
+  @media(max-width:680px){.outline{grid-template-columns:1fr}}
+  .outline .step{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:.85rem 1rem}
+  .outline .step .n{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--mut);text-transform:uppercase;margin:0 0 .35rem}
+  .outline .step p{margin:0;font-size:13.5px;color:var(--fg);line-height:1.55}
+  .outline .step strong{color:#fff;font-weight:600}
 </style>
 </head>
 <body>
@@ -117,45 +124,40 @@
 
 <p class="crumb"><a href="../">← nacyot / artifacts</a></p>
 
-<h1>Asahi M1 Max — 외장 2대는 되지만, DisplayLink는 안 쓰기로 함</h1>
-<p class="sub">Apple M1 Max 14" · stock linux-asahi 7.0 · Hyprland(Aquamarine) · 실측 기반 정리</p>
+<h1>Asahi M1 Max 외장 디스플레이 실측</h1>
+<p class="sub">USB-C DP · DisplayLink · HDMI — stock linux-asahi 7.0 · Hyprland에서 무엇을 붙이고 무엇을 남겼는지</p>
 <div class="meta-row">
   <span class="tag t-ok">실측</span>
-  <span class="tag t-warn">채택 안 함</span>
   <span class="tag t-doc">Asahi</span>
   <span class="tag t-doc">DisplayLink</span>
   <span class="tag t-doc">Hyprland</span>
 </div>
 
 <div class="card">
-<p class="big">핵심 한 줄: <em class="hi">기술적으로는 HDMI + DisplayLink로 외장 2대(듀얼 4K@60)가 된다. 실사용 CPU 부하가 너무 커서 DisplayLink는 쓰지 않기로 했다.</em></p>
-<p style="margin:.6rem 0 0">USB-C DisplayPort는 stock Asahi에서 <code>atcphy_mux_set</code> → <b>EOPNOTSUPP</b>로 막힌다(케이블·모니터 문제 아님). 우회인 DisplayLink(EVDI)는 <b>화면이 나오고 배치까지 된다</b>. 다만 <code>DisplayLinkManager</code>의 USB 전송 경로가 CPU를 과도하게 써서, 이 머신 실사용 구성에서는 <b>본체 HDMI 1대(+ 내장 패널)</b>로 남기기로 했다.</p>
+<p class="lede">목표는 외장 모니터 <b>2대</b>였다. macOS에서는 되던 USB-C 경로가 Asahi stock에서는 안 붙었고, 케이블·독·칩을 바꿔 가며 원인을 갈랐다. 이 글은 그 과정에서 확인한 <b>네이티브 경로</b>, <b>DisplayLink 우회</b>, 그리고 일상 구성으로 무엇을 남겼는지를 같은 머신 실측으로 정리한 기록이다.</p>
 </div>
 
-<div class="stat">
-  <div><b>3</b><span>동시 모니터 실측</span></div>
-  <div><b>4K@60</b><span>×2 외장 (기술 OK)</span></div>
-  <div><b>CPU</b><span>부하 과다 → 미채택</span></div>
-  <div><b>HDMI 1</b><span>실사용 결론</span></div>
-</div>
-
-<div class="card" style="margin-top:1.4rem">
-<p class="big" style="margin:0 0 .7rem">이 글의 주제 — 세 층 판정</p>
-<table>
-<tr><th>층</th><th>질문</th><th>답</th></tr>
-<tr><td><b>1. 네이티브</b></td><td>USB-C DP / TB / MST로 외장 2대가 되나?</td><td><span class="tag t-no">안 됨</span> — 하드웨어 파이프는 있으나 stock 드라이버가 DP mux에서 EOPNOTSUPP</td></tr>
-<tr><td><b>2. 우회</b></td><td>DisplayLink(EVDI)로 우회하면 화면이 나오나?</td><td><span class="tag t-ok">됨</span> — 듀얼 4K@60 · 내장 포함 3모니터 · Hyprland 배치까지 실측</td></tr>
-<tr><td><b>3. 채택</b></td><td>그럼 일상에서 쓸 것인가?</td><td><span class="tag t-warn">안 씀</span> — <code>DisplayLinkManager</code> CPU 부하가 실사용 기준 과다 → <b>본체 HDMI 1대</b></td></tr>
-</table>
-<p class="sub" style="margin:.7rem 0 0">한 문장 주제: <em class="hi">“외장 2대는 stock Asahi에서 네이티브로는 막히고, DisplayLink로는 열리지만, 열어도 CPU 값 때문에 닫는다.”</em> 아래 본문은 이 세 층을 증거로 채운다.</p>
+<div class="outline">
+  <div class="step">
+    <p class="n">1 · 네이티브</p>
+    <p><strong>USB-C DP / TB / MST</strong><br>호스트 DP를 쓰는 경로가 stock에서 어디까지 가는지</p>
+  </div>
+  <div class="step">
+    <p class="n">2 · 우회</p>
+    <p><strong>DisplayLink + EVDI</strong><br>USB 그래픽으로 화면·해상도·배치가 되는지</p>
+  </div>
+  <div class="step">
+    <p class="n">3 · 채택</p>
+    <p><strong>실사용 구성</strong><br>동작 여부와 별개로 무엇을 남길지 (§6)</p>
+  </div>
 </div>
 
 <figure>
 <div id="viz-paths"></div>
-<figcaption>그림 1. 외장 출력 경로 세 갈래. 층1 실패(USB-C DP) · 층3 채택(HDMI) · 층2 동작·미채택(DisplayLink).</figcaption>
+<figcaption>그림 1. 외장 출력 경로 세 갈래 — 네이티브 USB-C DP, 본체 HDMI, DisplayLink USB.</figcaption>
 </figure>
 
-<h2>1. 지도 — 무엇이 되고 무엇이 안 되나</h2>
+<h2>1. 무엇이 되고 무엇이 안 되나</h2>
 <table>
 <tr><th>#</th><th>방법</th><th>결과</th><th>비고</th></tr>
 <tr><td>1</td><td><b>내장 HDMI + DisplayLink USB 어댑터</b></td><td><span class="tag t-ok">동작 실측</span> <span class="tag t-warn">미채택</span></td><td>3모니터·듀얼 4K@60까지 됨. <b>CPU 부하로 실사용 포기</b></td></tr>
