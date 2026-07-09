@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Asahi M1 Max — 외장 2대는 되지만, DisplayLink는 안 쓰기로 함</title>
+<meta name="description" content="Apple M1 Max + stock Asahi에서 USB-C DP는 불가, HDMI+DisplayLink로 듀얼 4K@60은 동작했다. 다만 DisplayLinkManager CPU 부하가 실사용에 너무 커서 채택하지 않기로 한 실측 정리.">
+<meta name="author" content="nacyot">
+<meta name="keywords" content="Asahi Linux, Apple M1 Max, DisplayLink, EVDI, Hyprland, USB-C DisplayPort, external monitor, aarch64">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#1e1e2e">
+<link rel="canonical" href="https://nacyot.github.io/artifacts/displaylink-asahi-m1/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="nacyot / artifacts">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:url" content="https://nacyot.github.io/artifacts/displaylink-asahi-m1/">
+<meta property="og:title" content="Asahi M1 Max — 외장 2대는 되지만, DisplayLink는 안 쓰기로 함">
+<meta property="og:description" content="HDMI+DisplayLink로 듀얼 4K@60은 된다. 다만 CPU 부하가 너무 커서 실사용 채택 안 함 — M1 Max Asahi 실측.">
+<meta property="og:image" content="https://nacyot.github.io/artifacts/displaylink-asahi-m1/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Asahi M1 Max 외장 디스플레이 — 네이티브 불가, DisplayLink 동작, CPU 미채택 → HDMI 1대">
+<meta property="article:published_time" content="2026-07-10">
+<meta property="article:modified_time" content="2026-07-10">
+<meta property="article:section" content="Linux">
+<meta property="article:tag" content="Asahi Linux">
+<meta property="article:tag" content="DisplayLink">
+<meta property="article:tag" content="M1 Max">
+<meta property="article:tag" content="Hyprland">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Asahi M1 Max — 외장 2대는 되지만, DisplayLink는 안 쓰기로 함">
+<meta name="twitter:description" content="듀얼 4K@60은 동작. CPU 부하 때문에 실사용 채택 안 함 — Asahi M1 Max 실측.">
+<meta name="twitter:image" content="https://nacyot.github.io/artifacts/displaylink-asahi-m1/og.png">
+<meta name="twitter:image:alt" content="Asahi M1 Max 외장 디스플레이 — 네이티브 불가, DisplayLink 동작, CPU 미채택 → HDMI 1대">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Asahi M1 Max — 외장 2대는 되지만, DisplayLink는 안 쓰기로 함",
+  "description": "HDMI+DisplayLink로 듀얼 4K@60은 동작했으나 DisplayLinkManager CPU 부하가 실사용에 과도해 채택하지 않기로 한 Asahi M1 Max 실측 정리.",
+  "url": "https://nacyot.github.io/artifacts/displaylink-asahi-m1/",
+  "image": "https://nacyot.github.io/artifacts/displaylink-asahi-m1/og.png",
+  "datePublished": "2026-07-10",
+  "dateModified": "2026-07-10",
+  "inLanguage": "ko",
+  "author": {
+    "@type": "Person",
+    "name": "nacyot",
+    "url": "https://github.com/nacyot"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "nacyot",
+    "url": "https://github.com/nacyot"
+  },
+  "keywords": ["Asahi Linux", "Apple M1 Max", "DisplayLink", "EVDI", "Hyprland", "USB-C DisplayPort"],
+  "about": [
+    {"@type": "Thing", "name": "Asahi Linux"},
+    {"@type": "Thing", "name": "DisplayLink"},
+    {"@type": "Thing", "name": "Apple M1 Max"}
+  ],
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "nacyot / artifacts",
+    "url": "https://nacyot.github.io/artifacts/"
+  }
+}
+</script>
+<style>
+  :root{--bg:#1e1e2e;--fg:#cdd6f4;--mut:#a6adc8;--card:#282a3a;--bd:#45475a;
+        --grn:#a6e3a1;--yel:#f9e2af;--red:#f38ba8;--blu:#89b4fa;--mau:#cba6f7;--tea:#94e2d5;--pch:#fab387;--pnk:#f5c2e7;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15.5px/1.68 -apple-system,"Pretendard","Noto Sans KR",sans-serif;padding:2.2rem 1rem 4rem;word-break:keep-all;overflow-wrap:anywhere}
+  .wrap{max-width:900px;margin:0 auto}
+  a{color:var(--blu)}
+  h1{font-size:1.75rem;margin:.2rem 0;color:#fff;line-height:1.3}
+  h2{font-size:1.28rem;margin:2.6rem 0 .8rem;padding-bottom:.4rem;border-bottom:2px solid var(--bd);color:var(--blu)}
+  h3{font-size:1.05rem;margin:1.3rem 0 .5rem;color:var(--tea)}
+  .sub{color:var(--mut);margin:.2rem 0 1.5rem}
+  .crumb{font-size:13px;color:var(--mut);margin:0 0 1.2rem}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:1.1rem 1.3rem;margin:1.1rem 0}
+  code,kbd{background:#11111b;border:1px solid var(--bd);border-radius:5px;padding:.08em .4em;font:12.5px/1.5 "JetBrains Mono",ui-monospace,monospace;color:var(--tea)}
+  pre{background:#11111b;border:1px solid var(--bd);border-radius:8px;padding:.8rem 1rem;overflow:auto}
+  pre code{background:none;border:none;padding:0;color:var(--fg)}
+  table{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:13.5px}
+  th,td{border:1px solid var(--bd);padding:.5rem .65rem;text-align:left;vertical-align:top}
+  th{background:#313244;color:#fff}
+  tr:nth-child(even) td{background:#242536}
+  td code{white-space:normal;word-break:break-all;overflow-wrap:anywhere}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:.12em .55em;border-radius:20px;white-space:nowrap}
+  .t-ok{background:rgba(166,227,161,.16);color:var(--grn);border:1px solid var(--grn)}
+  .t-no{background:rgba(243,139,168,.14);color:var(--red);border:1px solid var(--red)}
+  .t-warn{background:rgba(249,226,175,.14);color:var(--yel);border:1px solid var(--yel)}
+  .t-doc{background:rgba(137,180,250,.14);color:var(--blu);border:1px solid var(--blu)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  @media(max-width:680px){.grid{grid-template-columns:1fr}}
+  .big{font-size:1.08rem;color:#fff;margin:0}
+  em.hi{color:var(--yel);font-style:normal;font-weight:600}
+  .stat{display:flex;gap:1.4rem;flex-wrap:wrap;margin:.8rem 0 0}
+  .stat b{display:block;font-size:1.5rem;color:#fff;line-height:1.1}
+  .stat span{font-size:12px;color:var(--mut)}
+  figure{margin:1.2rem 0}
+  figure svg{width:100%;height:auto;display:block;background:#181825;border:1px solid var(--bd);border-radius:12px}
+  figcaption{font-size:12.5px;color:var(--mut);margin-top:.55rem;line-height:1.6}
+  .redact{color:var(--mut);font-style:italic}
+  text{font-family:"Pretendard","Noto Sans KR",-apple-system,sans-serif}
+  footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--bd);color:var(--mut);font-size:13px}
+  ul{margin:.4rem 0 .4rem 1.1rem;padding:0}
+  li{margin:.28rem 0}
+  ol{margin:.4rem 0 .4rem 1.3rem;padding:0}
+  .meta-row{display:flex;flex-wrap:wrap;gap:.45rem;margin:.4rem 0 1.2rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<p class="crumb"><a href="../">← nacyot / artifacts</a></p>
+
+<h1>Asahi M1 Max — 외장 2대는 되지만, DisplayLink는 안 쓰기로 함</h1>
+<p class="sub">Apple M1 Max 14" · stock linux-asahi 7.0 · Hyprland(Aquamarine) · 실측 기반 정리</p>
+<div class="meta-row">
+  <span class="tag t-ok">실측</span>
+  <span class="tag t-warn">채택 안 함</span>
+  <span class="tag t-doc">Asahi</span>
+  <span class="tag t-doc">DisplayLink</span>
+  <span class="tag t-doc">Hyprland</span>
+</div>
+
+<div class="card">
+<p class="big">핵심 한 줄: <em class="hi">기술적으로는 HDMI + DisplayLink로 외장 2대(듀얼 4K@60)가 된다. 실사용 CPU 부하가 너무 커서 DisplayLink는 쓰지 않기로 했다.</em></p>
+<p style="margin:.6rem 0 0">USB-C DisplayPort는 stock Asahi에서 <code>atcphy_mux_set</code> → <b>EOPNOTSUPP</b>로 막힌다(케이블·모니터 문제 아님). 우회인 DisplayLink(EVDI)는 <b>화면이 나오고 배치까지 된다</b>. 다만 <code>DisplayLinkManager</code>의 USB 전송 경로가 CPU를 과도하게 써서, 이 머신 실사용 구성에서는 <b>본체 HDMI 1대(+ 내장 패널)</b>로 남기기로 했다.</p>
+</div>
+
+<div class="stat">
+  <div><b>3</b><span>동시 모니터 실측</span></div>
+  <div><b>4K@60</b><span>×2 외장 (기술 OK)</span></div>
+  <div><b>CPU</b><span>부하 과다 → 미채택</span></div>
+  <div><b>HDMI 1</b><span>실사용 결론</span></div>
+</div>
+
+<div class="card" style="margin-top:1.4rem">
+<p class="big" style="margin:0 0 .7rem">이 글의 주제 — 세 층 판정</p>
+<table>
+<tr><th>층</th><th>질문</th><th>답</th></tr>
+<tr><td><b>1. 네이티브</b></td><td>USB-C DP / TB / MST로 외장 2대가 되나?</td><td><span class="tag t-no">안 됨</span> — 하드웨어 파이프는 있으나 stock 드라이버가 DP mux에서 EOPNOTSUPP</td></tr>
+<tr><td><b>2. 우회</b></td><td>DisplayLink(EVDI)로 우회하면 화면이 나오나?</td><td><span class="tag t-ok">됨</span> — 듀얼 4K@60 · 내장 포함 3모니터 · Hyprland 배치까지 실측</td></tr>
+<tr><td><b>3. 채택</b></td><td>그럼 일상에서 쓸 것인가?</td><td><span class="tag t-warn">안 씀</span> — <code>DisplayLinkManager</code> CPU 부하가 실사용 기준 과다 → <b>본체 HDMI 1대</b></td></tr>
+</table>
+<p class="sub" style="margin:.7rem 0 0">한 문장 주제: <em class="hi">“외장 2대는 stock Asahi에서 네이티브로는 막히고, DisplayLink로는 열리지만, 열어도 CPU 값 때문에 닫는다.”</em> 아래 본문은 이 세 층을 증거로 채운다.</p>
+</div>
+
+<figure>
+<div id="viz-paths"></div>
+<figcaption>그림 1. 외장 출력 경로 세 갈래. 층1 실패(USB-C DP) · 층3 채택(HDMI) · 층2 동작·미채택(DisplayLink).</figcaption>
+</figure>
+
+<h2>1. 지도 — 무엇이 되고 무엇이 안 되나</h2>
+<table>
+<tr><th>#</th><th>방법</th><th>결과</th><th>비고</th></tr>
+<tr><td>1</td><td><b>내장 HDMI + DisplayLink USB 어댑터</b></td><td><span class="tag t-ok">동작 실측</span> <span class="tag t-warn">미채택</span></td><td>3모니터·듀얼 4K@60까지 됨. <b>CPU 부하로 실사용 포기</b></td></tr>
+<tr><td>2</td><td><b>내장 HDMI만</b> (실사용)</td><td><span class="tag t-ok">채택</span></td><td>외장 1대 · GPU 스캔아웃 · CPU≈0. <b>현재 결론</b></td></tr>
+<tr><td>3</td><td>USB-C → DP/HDMI 직결 (alt mode)</td><td><span class="tag t-no">불가</span></td><td><code>atcphy_mux_set</code> EOPNOTSUPP. No Signal, DP-* 미생성</td></tr>
+<tr><td>4</td><td>USB-C MST 분배기 (1포트 2대)</td><td><span class="tag t-no">불가</span></td><td>MST 미지원 + 위 alt mode 동일 장벽</td></tr>
+<tr><td>5</td><td>Thunderbolt / USB4 디스플레이 터널 독</td><td><span class="tag t-no">불가</span></td><td>Asahi에 Thunderbolt 서브시스템 자체 없음</td></tr>
+<tr><td>6</td><td>TB4 독의 “모니터 포트” (호스트 DP 소비형)</td><td><span class="tag t-no">디스플레이 불가</span></td><td>DisplayLink GPU 없으면 호스트 DP 필요. USB 허브·데이터는 됨</td></tr>
+<tr><td>7</td><td>SM768 등 비-DisplayLink USB 그래픽</td><td><span class="tag t-no">불가</span></td><td>aarch64 드라이버 경로 없음 (<code>090c</code> 등)</td></tr>
+<tr><td>8</td><td>실험 커널 <code>fairydust</code> USB-C DP</td><td><span class="tag t-warn">미검증·비추</span></td><td>개발자용, blessed 포트 1개, 미패키지. 이 문서 범위 밖</td></tr>
+</table>
+<p class="sub">이 머신은 “HDMI 전용 맥”이 아니다. USB-C DP용 DCP·crossbar·ATC/DPTX PHY 인프라는 stock에 있다. <b>막는 곳은 드라이버 한 함수</b>다.</p>
+
+<h2>2. 근본 원인 — 로컬에서 재현한 실패 지점</h2>
+<p>macOS에서는 되던 DP 케이블을 같은 포트에 꽂으면, stock Asahi에서는 대략 이렇게 진행된다.</p>
+<ol>
+  <li>포트에 전원·USB(xHCI 허브)는 올라온다. SMC connector event까지는 간다.</li>
+  <li>포트 컨트롤러(<code>tps6598x</code>)가 DisplayPort alt mode를 요청한다.</li>
+  <li><code>phy_apple_atc</code>의 <code>atcphy_mux_set</code>(<code>drivers/phy/apple/atc.c</code>)가 <b>EOPNOTSUPP (−95)</b>로 실패하고 WARNING을 남긴다.</li>
+  <li>DP PHY가 안 잡히니 <code>DP-*</code> DRM 커넥터가 생기지 않고, 모니터는 No Signal.</li>
+</ol>
+<div class="card">
+<pre><code>WARNING: drivers/phy/apple/atc.c:… at atcphy_mux_set+… [phy_apple_atc]
+Workqueue: events cd321x_update_work [tps6598x]
+# 레지스터에 -95 = EOPNOTSUPP (“미지원”)</code></pre>
+<p style="margin:.6rem 0 0">같은 구성으로 <b>여러 차례 재현</b>됐다. 충전 전용 케이블이면 partner/alt-mode 자체가 안 뜨고, <em class="hi">제대로 된 DP 케이블일 때 비로소</em> 위 WARNING이 나온다 — “요청은 되는데 드라이버가 못 받는다”.</p>
+</div>
+
+<figure>
+<div id="viz-fail"></div>
+<figcaption>그림 2. USB-C DP 협상 흐름. 포트 컨트롤러까지는 살아 있고, ATC PHY mux 전환에서 끊긴다.</figcaption>
+</figure>
+
+<h2>3. 칩 판별 — “USB 그래픽”이라고 다 되는 게 아니다</h2>
+<table>
+<tr><th>판별</th><th>예</th><th>Asahi</th><th>메모</th></tr>
+<tr><td>USB <code>idVendor</code> <b><code>17e9</code></b></td><td>DisplayLink DL-3xxx~7xxx</td><td><span class="tag t-ok">가능</span></td><td>EVDI + DisplayLink 유저스페이스. 제품명에 DisplayLink/DL-6xxx 명시가 안전</td></tr>
+<tr><td>USB <code>idVendor</code> <b><code>090c</code></b> (예: <code>090c:0768</code>)</td><td>Silicon Motion SM768 등</td><td><span class="tag t-no">불가</span></td><td>리눅스 스택이 x86 중심. aarch64 경로 사실상 없음</td></tr>
+<tr><td>Parade/VIA <b>Billboard</b> 장치만 노출</td><td>DP alt mode 실패 폴백</td><td><span class="tag t-no">디스플레이 실패</span></td><td>독이 잠깐 잡혔다 사라지는 패턴과 자주 동반</td></tr>
+<tr><td>TB4 / “DP Alt Mode only” 독</td><td>호스트 DP 소비형</td><td><span class="tag t-no">불가</span></td><td>독 안에 DisplayLink GPU가 없으면 이 문서의 우회가 아님</td></tr>
+</table>
+<p class="sub">수령 직후: <code>lsusb | grep -i 17e9</code>. 안 보이면 반품 후보. 리스팅에 “DL6950/SM768”이 한 줄에 섞인 건 두 라인을 SEO로 묶은 경우가 많아 <b>모델명·드라이버 페이지 버킷</b>으로 가른다.</p>
+
+<figure>
+<div id="viz-chip"></div>
+<figcaption>그림 3. 구매 전 의사결정. “M1 호환” 문구보다 USB VID와 칩 계열이 진실에 가깝다.</figcaption>
+</figure>
+
+<div class="grid">
+  <div class="card">
+    <h3>실측 통과 하드웨어</h3>
+    <ul>
+      <li>제품 문자열: <b>USB-A-C To Dual HDMI 4K Graphic Adapter</b></li>
+      <li>USB ID: <code>17e9:6000</code> (Manufacturer: DisplayLink)</li>
+      <li>듀얼 HDMI, 헤드당 <b>3840×2160@60</b> 실측</li>
+      <li>120/144Hz 모드는 EVDI가 pixel clock 초과로 거부 (예상 범위)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>리서치상 안전한 구매 축</h3>
+    <ul>
+      <li>칩 명확: <b>DL-6950</b> 등 DL-6xxx 명시 어댑터</li>
+      <li>Asahi/Hyprland 커뮤니티 보고가 있는 DL 독 계열</li>
+      <li>동일 모델명의 <b>변형</b> 주의 (DisplayLink 변형 vs alt-mode 변형)</li>
+      <li>회피: SM768 / InstantView / MS2109 / FL2000 / “MST only”</li>
+    </ul>
+  </div>
+</div>
+
+<h2>4. 소프트웨어 스택 (Arch aarch64 / Asahi)</h2>
+<p>DisplayLink = 커널 <b>EVDI</b> DRM 장치 + 유저스페이스 <code>DisplayLinkManager</code>. 커널 7.x에서는 오래된 번들 EVDI로는 부족하고, <b>Asahi 컴파일 픽스가 들어간 EVDI 1.14.16+</b> 가 필요하다.</p>
+<table>
+<tr><th>구성</th><th>실측 버전</th><th>역할</th></tr>
+<tr><td>커널</td><td>linux-asahi 7.0.x (stock)</td><td>호스트. 헤더 패키지로 DKMS 빌드</td></tr>
+<tr><td>EVDI</td><td><code>evdi-dkms</code> 1.15.0</td><td>가상 DRM 카드. DKMS로 현재 커널에 설치</td></tr>
+<tr><td>DisplayLink</td><td>AUR <code>displaylink</code> 6.3 (aarch64 바이너리)</td><td>USB 인코딩·전송 데몬, systemd 유닛</td></tr>
+<tr><td>컴포지터</td><td>Hyprland + Aquamarine</td><td>멀티 카드. 필요 시 <code>AQ_DRM_DEVICES</code>(primary 먼저, EVDI 나중)</td></tr>
+</table>
+
+<pre><code># 의존성 → EVDI → DisplayLink → 서비스 (개념 순서)
+sudo pacman -S --needed base-devel dkms linux-asahi-headers
+# AUR: evdi-dkms (또는 evdi-git) 후 displaylink
+sudo systemctl enable --now displaylink.service
+modprobe evdi   # 보통 서비스 ExecStartPre가 수행
+lsmod | grep evdi
+lsusb | grep -i 17e9
+hyprctl monitors all</code></pre>
+<p class="sub">설치 직후 udev 스크립트가 exit 2를 몇 번 찍어도, 서비스가 재기동되며 EVDI attach·mode set까지 간 경우가 있었다. <b>최종 판정은 DRM 커넥터 연결과 실제 화면</b>으로 한다.</p>
+
+<h2>5. 동작 실측 — 기술적으로는 된다</h2>
+<p>실패만 있는 문서가 아니다. DisplayLink 경로는 <b>설치·출력·3모니터 배치까지 성공</b>했다. (채택 여부는 §6.)</p>
+
+<figure>
+<div id="viz-success"></div>
+<figcaption>그림 4. DisplayLink 성공 파이프라인 (실측). USB 인식 → 스택 기동 → EVDI attach → 4K@60 mode set → 컴포지터 배치.</figcaption>
+</figure>
+
+<h3>5.1 타임라인 (요약)</h3>
+<table>
+<tr><th>단계</th><th>관측</th><th>판정</th></tr>
+<tr><td>어댑터 연결</td><td><code>lsusb</code>에 <code>17e9:6000</code> · 제품명 Dual HDMI 4K Graphic Adapter</td><td><span class="tag t-ok">인식</span></td></tr>
+<tr><td>드라이버 없음</td><td>EVDI 미로드 · <code>displaylink.service</code> inactive → 화면 미부착</td><td>(설치 전 상태)</td></tr>
+<tr><td>패키지 설치</td><td><code>evdi-dkms</code> 1.15.0 DKMS 빌드 성공 → <code>displaylink</code> 6.3</td><td><span class="tag t-ok">OK</span></td></tr>
+<tr><td>서비스 기동</td><td><code>systemctl enable --now displaylink</code> · 모듈 로드 · Manager 기동</td><td><span class="tag t-ok">OK</span></td></tr>
+<tr><td>1st head</td><td>커널: <code>Initialized evdi …</code> → <code>mode changed: 3840x2160@60</code></td><td><span class="tag t-ok">4K60</span></td></tr>
+<tr><td>2nd head</td><td>두 번째 EVDI card · 동일 4K60. 120/144Hz는 pixel clock 거절</td><td><span class="tag t-ok">듀얼</span></td></tr>
+<tr><td>컴포지터</td><td>Hyprland가 내장 eDP + HDMI + EVDI(DVI-I-*) 3출력 배치</td><td><span class="tag t-ok">3모니터</span></td></tr>
+<tr><td>재부팅 후</td><td>서비스 enabled 유지, 스택 재기동 가능</td><td><span class="tag t-ok">유지</span></td></tr>
+</table>
+
+<h3>5.2 최종 모니터 구성 (실측)</h3>
+<table>
+<tr><th>출력</th><th>경로</th><th>모드</th></tr>
+<tr><td>노트북 패널 (<code>eDP-1</code>)</td><td>apple-drm (내장)</td><td>~3K급 @ 60Hz (패널 고주사율 가능, 외장과 맞춰 60 고정 가능)</td></tr>
+<tr><td>외장 A (<code>HDMI-A-1</code>)</td><td>본체 HDMI · GPU 스캔아웃</td><td><b>3840×2160@60</b> · CPU 거의 0</td></tr>
+<tr><td>외장 B (EVDI, 예: <code>DVI-I-*</code>)</td><td>DisplayLink USB</td><td><b>3840×2160@60</b> · 이름은 DVI여도 USB 그래픽</td></tr>
+</table>
+<p>커널 로그에 헤드마다 <code>Notifying mode changed: 3840x2160@60</code> 이 남았고, EDID로 두 외장을 각각 인식했다. <span class="redact">모니터 시리얼·EDID 원문은 공개하지 않는다.</span></p>
+
+<figure>
+<div id="viz-layout"></div>
+<figcaption>그림 5. 동작 실측 당시 논리 레이아웃 예(외장 2대 + 내장). 기술적으로 배치 가능했으나 §6 CPU 이유로 미채택. DL 커넥터명(DVI-I-*)은 재연결 시 변동.</figcaption>
+</figure>
+
+<div class="grid">
+  <div class="card">
+    <h3>확인된 동작</h3>
+    <ul>
+      <li>플러그 후 EVDI 카드 생성 · connector connected</li>
+      <li>외장 듀얼 4K@60 (HDMI 네이티브 + DisplayLink)</li>
+      <li>내장 포함 3모니터 · Hyprland 워크스페이스</li>
+      <li><code>displaylink.service</code> enable + 재부팅 후 스택 유지</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>부수 함정 (채택 전 이슈)</h3>
+    <ul>
+      <li><b>오디오 샘</b>: 어댑터 HDMI 오디오가 default sink를 가로채 모니터로 새는 경우 → 카드 프로파일 off</li>
+      <li><b>커넥터 이름</b>: <code>DVI-I-n</code> 재부팅·재연결 시 변동 → 레이아웃 하드코딩 취약</li>
+      <li><b>핫플러그·슬립</b>: 커뮤니티 잔버그 보고 있음</li>
+    </ul>
+  </div>
+</div>
+
+<h2>6. 결론 — CPU 부하 때문에 쓰지 않기로 함</h2>
+<div class="card">
+<p class="big" style="margin:0 0 .6rem">판정: <em class="hi">“된다” ≠ “쓸 만하다”. DisplayLink는 이 머신에서 미채택.</em></p>
+<p style="margin:0"><b>DisplayLink ≠ CPU로 화면을 그린다</b>에 가깝다. 구조는 이렇다:</p>
+<ol>
+  <li>컴포지터(Hyprland)가 Apple GPU로 프레임을 그린다.</li>
+  <li>본체 HDMI는 디스플레이 엔진 스캔아웃 → <b>CPU≈0</b>.</li>
+  <li>DisplayLink는 프레임버퍼 <b>readback → 소프트웨어 압축 → USB bulk</b> 를 <code>DisplayLinkManager</code>가 CPU로 처리한다.</li>
+</ol>
+<p style="margin:.6rem 0 0">실측에서 이 3번 구간의 부하가 <b>실사용 기준에서 용납하기 어려울 정도로 컸다</b>(4K·화면 변화가 있을 때 특히). 정적 창만 DL에 두는 식의 완화는 가능하지만, 그 제약을 안고 외장 2대를 유지할 가치는 이 환경에서 없다고 판단했다.</p>
+<p style="margin:.6rem 0 0"><b>실사용 결론:</b> 외장은 <em class="hi">본체 HDMI 1대</em>만. 내장 패널 + HDMI. DisplayLink 스택은 실험·재현용으로 남겨 둘 수 있으나 일상 구성에서는 빼기로 함. 네이티브 USB-C DP가 stock에서 열리기 전까지 외장 2대는 보류.</p>
+</div>
+
+<h2>7. 최소 검증 체크리스트</h2>
+<pre><code># 1) 진짜 DisplayLink인가
+lsusb | grep -i 17e9
+
+# 2) 스택
+systemctl is-active displaylink
+lsmod | grep evdi
+dkms status | grep -i evdi
+
+# 3) 화면
+hyprctl monitors all
+ls /sys/class/drm
+
+# 4) 실패 시 (네이티브 DP 의심 경로)
+dmesg | grep -iE 'atcphy_mux_set|EOPNOTSUPP|phy_apple_atc'</code></pre>
+
+<h2>8. 한계 · 범위</h2>
+<ul>
+  <li>이 문서는 <b>특정 M1 Max + stock Asahi 7.0 + Hyprland</b> 실측이다. 다른 SoC·커널·컴포지터·해상도에서는 CPU 체감이 달라질 수 있다.</li>
+  <li>“동작 OK / 채택 안 함”은 <b>이 환경의 실사용 판단</b>이다. 저해상도·정적 UI만이면 다른 결론이 날 수 있다.</li>
+  <li>DisplayLink 공식 전 플랫폼 보장이 아니라, EVDI + 벤더 바이너리 조합 기록이다.</li>
+  <li>네이티브 USB-C DP가 stock에서 열리면 외장 2대 문제를 다시 열 수 있다.</li>
+  <li>개인 식별 정보·모니터 시리얼·호스트명·내부 네트워크 주소는 포함하지 않았다.</li>
+</ul>
+
+<footer>
+Asahi Linux on Apple M1 Max · DisplayLink 동작 실측 + CPU 미채택 결론 · 교육/참고용 · 시리얼·자격증명·개인 식별 정보 제외 · <a href="https://github.com/nacyot/artifacts">nacyot/artifacts</a>
+</footer>
+</div>
+
+<script src="../vendor/d3.v7.min.js"></script>
+<script>
+(function(){
+  if (typeof d3 === 'undefined') {
+    document.querySelectorAll('figure [id^="viz-"]').forEach(function(el){
+      el.innerHTML = '<p style="margin:1rem;color:#f38ba8;font-size:13px">시각화 로드 실패: d3.js를 불러오지 못했습니다. <code>../vendor/d3.v7.min.js</code> 경로를 확인하세요.</p>';
+    });
+    return;
+  }
+
+  const C = {
+    fg:'#cdd6f4', mut:'#a6adc8', bd:'#45475a',
+    grn:'#a6e3a1', yel:'#f9e2af', red:'#f38ba8', blu:'#89b4fa',
+    mau:'#cba6f7', tea:'#94e2d5'
+  };
+
+  /** Per-SVG marker defs (IDs must be unique across the page). */
+  function markers(svg, prefix, pairs) {
+    const defs = svg.append('defs');
+    pairs.forEach(function(p) {
+      const id = prefix + '-' + p[0];
+      defs.append('marker')
+        .attr('id', id).attr('viewBox', '0 0 8 8')
+        .attr('refX', 6).attr('refY', 4)
+        .attr('markerWidth', 7).attr('markerHeight', 7)
+        .attr('orient', 'auto')
+        .append('path').attr('d', 'M0,0 L8,4 L0,8 Z').attr('fill', p[1]);
+    });
+    return function(name) { return 'url(#' + prefix + '-' + name + ')'; };
+  }
+
+  function box(svg, x, y, w, h, title, sub, col, fill) {
+    svg.append('rect').attr('x', x).attr('y', y).attr('width', w).attr('height', h)
+      .attr('rx', 9).attr('fill', fill || '#242536').attr('stroke', col).attr('stroke-width', 1.6);
+    svg.append('text').attr('x', x + w / 2).attr('y', sub ? y + h / 2 - 6 : y + h / 2 + 5)
+      .attr('text-anchor', 'middle').attr('font-size', 13).attr('font-weight', 700)
+      .attr('fill', '#fff').text(title);
+    if (sub) {
+      svg.append('text').attr('x', x + w / 2).attr('y', y + h / 2 + 14)
+        .attr('text-anchor', 'middle').attr('font-size', 11)
+        .attr('fill', C.mut).text(sub);
+    }
+  }
+
+  function line(svg, x1, y1, x2, y2, col, marker, dash) {
+    const l = svg.append('line')
+      .attr('x1', x1).attr('y1', y1).attr('x2', x2).attr('y2', y2)
+      .attr('stroke', col).attr('stroke-width', 1.8);
+    if (dash) l.attr('stroke-dasharray', dash);
+    if (marker) l.attr('marker-end', marker);
+  }
+
+  /* ===== 그림 1: 세 경로 ===== */
+  (function() {
+    const W = 820, H = 340;
+    const svg = d3.select('#viz-paths').append('svg')
+      .attr('viewBox', '0 0 ' + W + ' ' + H).attr('role', 'img')
+      .attr('aria-label', 'USB-C DP 차단, HDMI 정상, DisplayLink USB 우회');
+    const m = markers(svg, 'p1', [
+      ['r', C.red], ['g', C.grn], ['b', C.blu]
+    ]);
+
+    box(svg, 24, 130, 140, 72, 'M1 Max', 'Asahi + Hyprland', C.tea, '#193230');
+
+    // fail path
+    box(svg, 230, 28, 180, 58, 'USB-C DP alt', 'atcphy mux', C.red, '#2a1a22');
+    box(svg, 500, 28, 160, 58, '모니터', 'No Signal', C.red, '#2a1a22');
+    line(svg, 164, 150, 228, 57, C.red, m('r'));
+    line(svg, 410, 57, 498, 57, C.red, m('r'), '5 3');
+    svg.append('text').attr('x', 355).attr('y', 20).attr('text-anchor', 'middle')
+      .attr('font-size', 12).attr('font-weight', 700).attr('fill', C.red).text('X  EOPNOTSUPP');
+
+    // HDMI ok
+    box(svg, 230, 137, 180, 58, '본체 HDMI', 'GPU 스캔아웃', C.grn, '#1a2a20');
+    box(svg, 500, 137, 160, 58, '외장 A', '4K@60 실측', C.grn, '#1a2a20');
+    line(svg, 164, 166, 228, 166, C.grn, m('g'));
+    line(svg, 410, 166, 498, 166, C.grn, m('g'));
+    svg.append('text').attr('x', 355).attr('y', 128).attr('text-anchor', 'middle')
+      .attr('font-size', 12).attr('font-weight', 700).attr('fill', C.grn).text('OK  네이티브 · CPU ~0');
+
+    // DisplayLink ok
+    box(svg, 230, 246, 180, 58, 'DisplayLink USB', 'EVDI + 압축', C.blu, '#1c2740');
+    box(svg, 500, 246, 160, 58, '외장 B', '4K@60 실측', C.blu, '#1c2740');
+    line(svg, 164, 185, 228, 275, C.blu, m('b'));
+    line(svg, 410, 275, 498, 275, C.blu, m('b'));
+    svg.append('text').attr('x', 355).attr('y', 237).attr('text-anchor', 'middle')
+      .attr('font-size', 12).attr('font-weight', 700).attr('fill', C.blu).text('동작 · CPU 과다 → 미채택');
+
+    svg.append('text').attr('x', W / 2).attr('y', H - 14).attr('text-anchor', 'middle')
+      .attr('font-size', 11).attr('fill', C.mut)
+      .text('stock Asahi 기준 · fairydust 실험 커널은 범위 밖');
+  })();
+
+  /* ===== 그림 2: 실패 파이프라인 (자체 마커) ===== */
+  (function() {
+    const W = 820, H = 180;
+    const svg = d3.select('#viz-fail').append('svg')
+      .attr('viewBox', '0 0 ' + W + ' ' + H).attr('role', 'img');
+    const m = markers(svg, 'p2', [['m', C.bd]]);
+    const steps = [
+      {t: '케이블 연결', s: '전원·USB OK', c: C.grn, bad: false},
+      {t: 'tps6598x', s: 'DP alt 요청', c: C.yel, bad: false},
+      {t: 'atcphy_mux', s: 'EOPNOTSUPP', c: C.red, bad: true},
+      {t: 'DP 신호', s: '미출력', c: C.red, bad: true},
+      {t: 'DRM DP-*', s: '미생성', c: C.red, bad: true}
+    ];
+    const bw = 128, gap = 22;
+    const total = steps.length * bw + (steps.length - 1) * gap;
+    const x0 = (W - total) / 2;
+    steps.forEach(function(st, i) {
+      const x = x0 + i * (bw + gap);
+      svg.append('rect').attr('x', x).attr('y', 36).attr('width', bw).attr('height', 72).attr('rx', 9)
+        .attr('fill', st.bad ? '#2a1a22' : '#1a2a20')
+        .attr('stroke', st.c).attr('stroke-width', st.bad ? 2 : 1.4);
+      svg.append('text').attr('x', x + bw / 2).attr('y', 66).attr('text-anchor', 'middle')
+        .attr('font-size', 12.5).attr('font-weight', 700).attr('fill', '#fff').text(st.t);
+      svg.append('text').attr('x', x + bw / 2).attr('y', 88).attr('text-anchor', 'middle')
+        .attr('font-size', 11).attr('fill', C.mut).text(st.s);
+      if (i < steps.length - 1) {
+        line(svg, x + bw + 1, 72, x + bw + gap - 3, 72, C.bd, m('m'));
+      }
+    });
+    svg.append('text').attr('x', W / 2).attr('y', 148).attr('text-anchor', 'middle')
+      .attr('font-size', 11.5).attr('fill', C.mut)
+      .text('빨간 칸부터 드라이버 WIP — 케이블을 바꿔도 여기서 멈춘다');
+  })();
+
+  /* ===== 그림 3: 칩 판별 ===== */
+  (function() {
+    const W = 820, H = 250;
+    const svg = d3.select('#viz-chip').append('svg')
+      .attr('viewBox', '0 0 ' + W + ' ' + H).attr('role', 'img');
+    box(svg, 300, 18, 220, 54, 'USB 어댑터/독 수령', 'lsusb 먼저', C.mau, '#2a2136');
+    box(svg, 40, 115, 210, 72, 'VID 17e9', 'DisplayLink → 구매 OK', C.grn, '#1a2a20');
+    box(svg, 305, 115, 210, 72, 'VID 090c', 'SM768 등 → 반품', C.red, '#2a1a22');
+    box(svg, 570, 115, 210, 72, 'Billboard only', 'alt mode 실패', C.yel, '#2a2818');
+    [[410, 72, 145, 115], [410, 72, 410, 115], [410, 72, 675, 115]].forEach(function(p) {
+      svg.append('line').attr('x1', p[0]).attr('y1', p[1]).attr('x2', p[2]).attr('y2', p[3])
+        .attr('stroke', C.bd).attr('stroke-width', 1.5);
+    });
+    svg.append('text').attr('x', W / 2).attr('y', 218).attr('text-anchor', 'middle')
+      .attr('font-size', 12).attr('fill', C.mut)
+      .text('“M1/M2/M3 호환” 문구는 양쪽에 다 붙는다 → VID로 판정');
+    svg.append('text').attr('x', W / 2).attr('y', 238).attr('text-anchor', 'middle')
+      .attr('font-size', 12).attr('fill', C.tea)
+      .text('실측 통과 예: 17e9:6000 · USB-A-C To Dual HDMI 4K Graphic Adapter');
+  })();
+
+  /* ===== 그림 4: 성공 파이프라인 ===== */
+  (function() {
+    const W = 820, H = 180;
+    const svg = d3.select('#viz-success').append('svg')
+      .attr('viewBox', '0 0 ' + W + ' ' + H).attr('role', 'img');
+    const m = markers(svg, 'p4', [['g', C.grn]]);
+    const steps = [
+      {t: 'USB 17e9', s: '어댑터 인식'},
+      {t: 'evdi-dkms', s: '1.15.0 빌드'},
+      {t: 'displaylink', s: 'service active'},
+      {t: 'EVDI attach', s: 'card + EDID'},
+      {t: '4K@60 ×2', s: 'Hyprland 3모니터'}
+    ];
+    const bw = 128, gap = 22;
+    const total = steps.length * bw + (steps.length - 1) * gap;
+    const x0 = (W - total) / 2;
+    steps.forEach(function(st, i) {
+      const x = x0 + i * (bw + gap);
+      svg.append('rect').attr('x', x).attr('y', 36).attr('width', bw).attr('height', 72).attr('rx', 9)
+        .attr('fill', '#1a2a20').attr('stroke', C.grn).attr('stroke-width', 1.6);
+      svg.append('text').attr('x', x + bw / 2).attr('y', 66).attr('text-anchor', 'middle')
+        .attr('font-size', 12.5).attr('font-weight', 700).attr('fill', '#fff').text(st.t);
+      svg.append('text').attr('x', x + bw / 2).attr('y', 88).attr('text-anchor', 'middle')
+        .attr('font-size', 11).attr('fill', C.mut).text(st.s);
+      if (i < steps.length - 1) {
+        line(svg, x + bw + 1, 72, x + bw + gap - 3, 72, C.grn, m('g'));
+      }
+    });
+    svg.append('text').attr('x', W / 2).attr('y', 148).attr('text-anchor', 'middle')
+      .attr('font-size', 11.5).attr('fill', C.grn)
+      .text('전부 같은 세션에서 관측 · 듀얼 4K@60 mode set 확인');
+  })();
+
+  /* ===== 그림 5: 레이아웃 — viewBox 안에 픽셀 좌표로 직접 배치 ===== */
+  (function() {
+    const W = 820, H = 310;
+    const svg = d3.select('#viz-layout').append('svg')
+      .attr('viewBox', '0 0 ' + W + ' ' + H)
+      .attr('role', 'img')
+      .attr('aria-label', '외장 B DisplayLink, 외장 A HDMI, 내장 eDP 레이아웃');
+
+    function mon(x, y, w, h, title, sub, col) {
+      svg.append('rect').attr('x', x).attr('y', y).attr('width', w).attr('height', h)
+        .attr('rx', 10).attr('fill', '#1b1b28').attr('stroke', col).attr('stroke-width', 2);
+      svg.append('text').attr('x', x + w / 2).attr('y', y + h / 2 - 8)
+        .attr('text-anchor', 'middle').attr('font-size', 14).attr('font-weight', 700)
+        .attr('fill', col).text(title);
+      svg.append('text').attr('x', x + w / 2).attr('y', y + h / 2 + 14)
+        .attr('text-anchor', 'middle').attr('font-size', 11.5)
+        .attr('fill', C.mut).text(sub);
+    }
+
+    // 두 외장 나란히 + 노트북을 오른쪽 외장 아래 중앙 (전부 viewBox 안)
+    mon(40, 20, 360, 150, '외장 B · DisplayLink', '4K@60 · scale 1.6', C.blu);
+    mon(420, 20, 360, 150, '외장 A · HDMI', '4K@60 · GPU scanout', C.grn);
+    mon(470, 185, 260, 80, '내장 eDP', 'scale 1.575', C.tea);
+
+    svg.append('text').attr('x', W / 2).attr('y', 288).attr('text-anchor', 'middle')
+      .attr('font-size', 12).attr('fill', C.mut)
+      .text('논리 해상도 예: 외장 2400×1350 · 노트북 1920×1200  ·  DL 커넥터명(DVI-I-*)은 재연결 시 변동');
+  })();
+})();
+</script>
+</body>
+</html>

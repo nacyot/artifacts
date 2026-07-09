@@ -11,6 +11,7 @@
 | 산출물 | 설명 |
 |---|---|
 | [bambu-p1s-scripting](./bambu-p1s-scripting/) | Bambu Lab P1S를 앱 없이 MQTT·FTPS 프로토콜만으로 제어한 실측 정리 + d3.js 시각화 |
+| [displaylink-asahi-m1](./displaylink-asahi-m1/) | Asahi M1 Max: USB-C DP 불가, HDMI+DisplayLink 듀얼 4K@60은 동작하나 CPU 부하로 미채택 |
 
 ## 구조
 
