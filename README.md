@@ -11,7 +11,7 @@
 
 | 날짜 | 산출물 | 설명 |
 |---|---|---|
-| 2026-07-10 | [displaylink-asahi-m1](./displaylink-asahi-m1/) | Asahi M1 Max 외장 디스플레이 실측 — USB-C DP · DisplayLink · HDMI |
+| 2026-07-10 | [displaylink-asahi-m1](./displaylink-asahi-m1/) | Asahi M1 Max 외장 2대 — 막힌 지점과 접은 이유 (DP 드라이버 · DisplayLink CPU · HDMI) |
 | 2026-07-05 | [bambu-p1s-scripting](./bambu-p1s-scripting/) | Bambu Lab P1S를 앱 없이 MQTT·FTPS 프로토콜만으로 제어한 실측 정리 + d3.js 시각화 |
 
 ## 구조

@@ -10,11 +10,11 @@
 
     <!-- newest first -->
     <item>
-      <title>Asahi M1 Max 외장 디스플레이 실측</title>
+      <title>Asahi M1 Max 외장 2대 — 막힌 지점과 접은 이유</title>
       <link>https://nacyot.github.io/artifacts/displaylink-asahi-m1/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/displaylink-asahi-m1/</guid>
       <pubDate>Fri, 10 Jul 2026 00:00:00 +0000</pubDate>
-      <description><![CDATA[USB-C DP · DisplayLink · HDMI 경로를 stock Asahi + Hyprland에서 재현·실측한 정리. 무엇이 붙고, 무엇이 남았는지.]]></description>
+      <description><![CDATA[stock Asahi M1 Max에서 외장 2대를 열어 본 실측. USB-C DP는 드라이버(atcphy)에서 끊기고, DisplayLink 우회는 듀얼 4K@60까지 되지만 CPU 부하로 채택하지 않았다. 실사용은 본체 HDMI 1대.]]></description>
       <category>Asahi</category>
       <category>Linux</category>
       <category>DisplayLink</category>

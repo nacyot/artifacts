@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Asahi M1 Max 외장 디스플레이 실측</title>
-<meta name="description" content="Apple M1 Max + stock Asahi에서 USB-C DP, DisplayLink, HDMI 경로를 실측한 정리. 네이티브 실패 지점, 우회 스택, 실사용으로 무엇을 남겼는지.">
+<title>Asahi M1 Max 외장 2대 — 막힌 지점과 접은 이유</title>
+<meta name="description" content="stock Asahi M1 Max에서 외장 2대를 열어 본 실측. USB-C DP는 드라이버(atcphy)에서 끊기고, DisplayLink 우회는 듀얼 4K@60까지 되지만 CPU 부하로 채택하지 않았다. 실사용은 본체 HDMI 1대.">
 <meta name="author" content="nacyot">
-<meta name="keywords" content="Asahi Linux, Apple M1 Max, DisplayLink, EVDI, Hyprland, USB-C DisplayPort, external monitor, aarch64">
+<meta name="keywords" content="Asahi Linux, Apple M1 Max, DisplayLink, EVDI, Hyprland, USB-C DisplayPort, external monitor, aarch64, EOPNOTSUPP">
 <meta name="robots" content="index,follow">
 <meta name="theme-color" content="#1e1e2e">
 <link rel="canonical" href="https://nacyot.github.io/artifacts/displaylink-asahi-m1/">
@@ -15,13 +15,13 @@
 <meta property="og:site_name" content="nacyot / artifacts">
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://nacyot.github.io/artifacts/displaylink-asahi-m1/">
-<meta property="og:title" content="Asahi M1 Max 외장 디스플레이 실측">
-<meta property="og:description" content="USB-C DP · DisplayLink · HDMI — stock Asahi에서 무엇을 붙이고 무엇을 남겼는지. M1 Max · Hyprland 실측.">
+<meta property="og:title" content="Asahi M1 Max 외장 2대 — 막힌 지점과 접은 이유">
+<meta property="og:description" content="DP는 드라이버에서 끊기고, DisplayLink는 4K까지 열리지만 CPU가 비싸다. 그래서 실사용은 HDMI 하나. M1 Max · stock Asahi 실측.">
 <meta property="og:image" content="https://nacyot.github.io/artifacts/displaylink-asahi-m1/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Asahi M1 Max 외장 디스플레이 실측 — USB-C DP, DisplayLink, HDMI">
+<meta property="og:image:alt" content="Asahi M1 Max 외장 2대 — DP 드라이버 한계 · DisplayLink CPU 한계 · HDMI 1대">
 <meta property="article:published_time" content="2026-07-10">
 <meta property="article:modified_time" content="2026-07-10">
 <meta property="article:section" content="Linux">
@@ -30,16 +30,16 @@
 <meta property="article:tag" content="M1 Max">
 <meta property="article:tag" content="Hyprland">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Asahi M1 Max 외장 디스플레이 실측">
-<meta name="twitter:description" content="USB-C DP · DisplayLink · HDMI — stock Asahi에서 무엇을 붙이고 무엇을 남겼는지.">
+<meta name="twitter:title" content="Asahi M1 Max 외장 2대 — 막힌 지점과 접은 이유">
+<meta name="twitter:description" content="DP는 드라이버에서 끊기고, DisplayLink는 CPU가 비싸다. 실사용은 HDMI 하나.">
 <meta name="twitter:image" content="https://nacyot.github.io/artifacts/displaylink-asahi-m1/og.png">
-<meta name="twitter:image:alt" content="Asahi M1 Max 외장 디스플레이 실측 — USB-C DP, DisplayLink, HDMI">
+<meta name="twitter:image:alt" content="Asahi M1 Max 외장 2대 — DP 드라이버 한계 · DisplayLink CPU 한계 · HDMI 1대">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "TechArticle",
-  "headline": "Asahi M1 Max 외장 디스플레이 실측",
-  "description": "Apple M1 Max + stock Asahi에서 USB-C DP, DisplayLink, HDMI 경로를 실측한 정리. 네이티브 실패 지점, 우회 스택, 실사용 구성.",
+  "headline": "Asahi M1 Max 외장 2대 — 막힌 지점과 접은 이유",
+  "description": "stock Asahi M1 Max에서 외장 2대를 열어 본 실측. USB-C DP는 드라이버에서 끊기고, DisplayLink는 듀얼 4K까지 되지만 CPU 부하로 미채택. 실사용은 본체 HDMI 1대.",
   "url": "https://nacyot.github.io/artifacts/displaylink-asahi-m1/",
   "image": "https://nacyot.github.io/artifacts/displaylink-asahi-m1/og.png",
   "datePublished": "2026-07-10",
@@ -118,6 +118,8 @@
   .outline .step .n{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--mut);text-transform:uppercase;margin:0 0 .35rem}
   .outline .step p{margin:0;font-size:13.5px;color:var(--fg);line-height:1.55}
   .outline .step strong{color:#fff;font-weight:600}
+  .outline .step .find{display:block;margin-top:.45rem;font-size:12.5px;color:var(--mut);line-height:1.45}
+  .outline .step .find b{font-weight:600;color:var(--tea)}
 </style>
 </head>
 <body>
@@ -125,8 +127,8 @@
 
 <p class="crumb"><a href="../">← nacyot / artifacts</a></p>
 
-<h1>Asahi M1 Max 외장 디스플레이 실측</h1>
-<p class="sub">USB-C DP · DisplayLink · HDMI — stock linux-asahi 7.0 · Hyprland에서 무엇을 붙이고 무엇을 남겼는지</p>
+<h1>Asahi M1 Max 외장 2대 — 막힌 지점과 접은 이유</h1>
+<p class="sub">DP는 드라이버에서 끊기고 · DisplayLink는 4K까지 열리지만 CPU가 비싸다 · 실사용은 본체 HDMI 1대</p>
 <div class="meta-row">
   <span class="tag t-ok">실측</span>
   <span class="tag t-doc">Asahi</span>
@@ -135,27 +137,30 @@
 </div>
 
 <div class="card">
-<p class="lede">목표는 외장 모니터 <b>2대</b>였다. macOS에서는 되던 USB-C 경로가 Asahi stock에서는 안 붙었고, 케이블·독·칩을 바꿔 가며 원인을 갈랐다. 이 글은 그 과정에서 확인한 <b>네이티브 경로</b>, <b>DisplayLink 우회</b>, 그리고 일상 구성으로 무엇을 남겼는지를 같은 머신 실측으로 정리한 기록이다.</p>
+<p class="lede">이 글이 전하는 것은 “DisplayLink 설치법”이 아니다. stock Asahi M1 Max에서 <b>외장 2대</b>를 노렸을 때, 경로마다 <em class="hi">어디서 끝나는지</em>를 갈라 본 기록이다. 케이블·독 문제가 아니라 <b>드라이버 한 곳</b>에서 네이티브 DP가 끊기고, USB 우회는 화면까지 가지만 <b>CPU 비용</b>에서 일상을 접었다.</p>
 </div>
 
 <div class="outline">
   <div class="step">
     <p class="n">1 · 네이티브</p>
-    <p><strong>USB-C DP / TB / MST</strong><br>호스트 DP를 쓰는 경로가 stock에서 어디까지 가는지</p>
+    <p><strong>USB-C DP / TB / MST</strong></p>
+    <span class="find">천장: <b>atcphy EOPNOTSUPP</b> — 하드웨어 부재가 아님</span>
   </div>
   <div class="step">
     <p class="n">2 · 우회</p>
-    <p><strong>DisplayLink + EVDI</strong><br>USB 그래픽으로 화면·해상도·배치가 되는지</p>
+    <p><strong>DisplayLink + EVDI</strong></p>
+    <span class="find">천장: <b>듀얼 4K@60 동작</b> · 전송 경로 CPU</span>
   </div>
   <div class="step">
-    <p class="n">3 · 채택</p>
-    <p><strong>실사용 구성</strong><br>동작 여부와 별개로 무엇을 남길지 (§6)</p>
+    <p class="n">3 · 실사용</p>
+    <p><strong>무엇을 남겼나</strong></p>
+    <span class="find">선택: <b>본체 HDMI 1대</b> (+ 내장 패널)</span>
   </div>
 </div>
 
 <figure>
 <div id="viz-paths"></div>
-<figcaption>그림 1. 외장 출력 경로 세 갈래 — 네이티브 USB-C DP, 본체 HDMI, DisplayLink USB.</figcaption>
+<figcaption>그림 1. 세 경로의 끝 — 네이티브는 드라이버에서, DisplayLink는 CPU 비용에서, HDMI는 그대로 쓴다.</figcaption>
 </figure>
 
 <h2>1. 무엇이 되고 무엇이 안 되나</h2>
