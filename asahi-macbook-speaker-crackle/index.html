@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, macOS가 멀쩡한 이유. PipeWire 디버깅 + d3 인터랙티브.">
+<meta name="description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, 실측 드롭아웃 파형, 되돌린 시도들. PipeWire 디버깅 + d3 인터랙티브.">
 <link rel="canonical" href="https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/">
 <link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
 <meta property="og:type" content="article">
@@ -8,7 +8,7 @@
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/">
 <meta property="og:title" content="맥북 스피커가 지지직거린다 — Asahi Linux에서 스피커 길들이기">
-<meta property="og:description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, macOS가 멀쩡한 이유. PipeWire 디버깅 + d3 인터랙티브.">
+<meta property="og:description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, 실측 드롭아웃 파형, 되돌린 시도들. PipeWire 디버깅 + d3 인터랙티브.">
 <meta property="og:image" content="https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
@@ -16,7 +16,7 @@
 <meta property="og:image:alt" content="Asahi Linux에서 맥북 스피커 크래클 길들이기">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="맥북 스피커가 지지직거린다 — Asahi Linux에서 스피커 길들이기">
-<meta name="twitter:description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, macOS가 멀쩡한 이유. PipeWire 디버깅 + d3 인터랙티브.">
+<meta name="twitter:description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, 실측 드롭아웃 파형, 되돌린 시도들. PipeWire 디버깅 + d3 인터랙티브.">
 <meta name="twitter:image" content="https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/og.png">
 <meta name="twitter:image:alt" content="Asahi Linux에서 맥북 스피커 크래클 길들이기">
 <title>맥북 스피커가 지지직거린다 — Asahi Linux에서 스피커 길들이기</title>
@@ -130,6 +130,11 @@ mpv --no-video song.webm
 <span class="c">#   짧은 "click" 다수는 음악의 트랜지언트이지 고장이 아니다.</span>
 </code></pre>
 <p>이 방법이 방향을 잡아 줬다. 무엇이 원인이 <em>아닌지</em>를 하나씩 배제하면서.</p>
+<p>실제로 이렇게 잡힌다. 아래는 48.8초짜리 캡처 하나에서 찾아낸 드롭아웃 넷의 위치다. 각 막대에 마우스를 올리면 정확한 시각과 길이가 나온다. 넷 중 셋은 정확히 한 주기(1023프레임, 21.3ms)이고, 하나는 두 주기(2047프레임, 42.6ms)였다. 소리가 흐르는 내내 xrun은 0이었는데도, 파형에는 이렇게 평평한 구멍이 남는다.</p>
+<div class="viz">
+  <svg id="wave" viewBox="0 0 900 190" role="img" aria-label="실측 드롭아웃 파형"></svg>
+</div>
+<p class="fcap">그림 3. 실측 캡처(48.8초, 48kHz)에서 검출된 드롭아웃 4곳. 파형은 실측 통계(피크·타임스탬프·길이)로 재구성했다(원본 캡처 파일은 보존하지 않음). 평평한 붉은 구간이 소리가 빈 곳이다.</p>
 <p class="tcap">표 2. 배제표 — 원인이 아니었던 것들.</p>
 <table>
 <thead><tr><th>가설</th><th>확인</th><th>판정</th></tr></thead>
@@ -175,7 +180,24 @@ wpctl set-default "$CID"
 <p>여기 미묘한 함정이 하나 더 있다. 새 v4.0 보정 파일은 패키지가 소유한 파일 위에 손으로 덮어쓴 것이다(2026-07-15 현재 내 저장소의 <code>asahi-audio</code>는 아직 3.4다). 그래서 패키지를 업데이트하면 다시 옛 3.4로 덮여 <strong>크래클이 재발</strong>한다. 저장소가 정식으로 4.0 이상을 담으면 이 문제는 사라진다.</p>
 <p>그래서 v4.0 파일을 따로 보관하고, 업데이트 뒤 다시 적용하는 스크립트를 둔다. 더 나아가 패키지 설치 훅으로 자동화하면, 업데이트가 끝나는 즉시 보정을 되돌려 놓는다(패키지가 정식으로 4.0 이상이 되면 저절로 무력화된다). 성능코어 고정과 클럭 설정은 사용자 설정이라 업데이트와 무관하게 유지된다.</p>
 
-<h2><span class="num">9</span>마치며</h2>
+<h2><span class="num">9</span>막다른 길들 — 되돌린 시도</h2>
+<p>깔끔한 세 원인·세 처방으로 정리했지만, 거기 닿기까지는 여러 번 헛짚었다. 되돌린 시도를 남기는 건, 같은 길을 다시 걷지 않기 위해서다.</p>
+<p class="tcap">표 4. 시도했다가 되돌린 것들.</p>
+<table>
+<thead><tr><th>시도</th><th>왜 해봤나</th><th>결과</th></tr></thead>
+<tbody>
+<tr><td>음원·브라우저 배제 (yt-dlp로 받아 <code>mpv</code> 로컬 재생)</td><td>파일이나 브라우저가 원인인지 격리</td><td>로컬 재생도 동일 → 둘 다 무관. 배제엔 성공</td></tr>
+<tr><td>EasyEffects로 EQ 얹기</td><td>후처리로 덮어 보려 함</td><td>원인이 보정 체인 자체라 헛다리. 층만 늘림</td></tr>
+<tr><td><code>min-quantum=2048</code> / quantum 4096 강제</td><td>버퍼를 키우면 마감 여유가 생길까</td><td>convolver와 충돌해 wireplumber 크래시. <strong>금지</strong>로 분류</td></tr>
+<tr><td>uclamp E-core 클램프 해제 (<code>uclamp.max=1024</code>)</td><td>효율코어 편향을 직접 풀기</td><td>방향은 맞았지만, 결국 성능코어 하드 고정(affinity)이 더 확실했다</td></tr>
+<tr><td>rtkit를 뒤늦게 추가</td><td>실시간 우선권을 주려고</td><td>오히려 부팅 순서가 꼬여 wireplumber가 크래시·Dummy로. 근본 원인은 <code>user@.service</code>의 <code>LimitRTPRIO=0</code>였다</td></tr>
+<tr><td>전부 되돌리고 stock 3.4로 롤백</td><td>"우리가 얹은 게 원인인가"를 확정하려고</td><td>순정에서도 크래클 재현 → 원인이 내 변경이 아님을 확정. 되돌리기가 진단이었다</td></tr>
+</tbody>
+</table>
+<p>가장 값진 교훈은 마지막 줄이다. 손댄 걸 전부 걷어내고 순정으로 돌리자, "순정에서도 나는가?"라는 질문에 답이 나왔다. 그렇다는 답은 원인을 소프트웨어 스택 자체로 좁혔고, 이후엔 배제표를 보며 이미 확인한 길을 다시 걷지 않을 수 있었다.</p>
+<p>캡처 자체도 한 번 속였다. 드롭아웃을 녹음하는데 파형이 거의 무음으로만 잡힌 적이 있었다(<code>raw_peak &lt; 0.02</code>). 재생 소리가 그 모니터 노드에 닿지 않은 것이라, 분석 스크립트가 "near-silent capture"라며 건너뛰게 만들어 뒀다. 측정도 검증 대상이라는 걸, 측정이 거짓말을 하고 나서야 배웠다.</p>
+
+<h2><span class="num">10</span>마치며</h2>
 <p>내 장비에서 맥북 스피커의 지지직은 결국 하드웨어 고장이 아니라, 리눅스가 애플 실리콘의 오디오를 macOS만큼 대접하지 못해서 생긴 일이었다. 보정 프로파일을 최신으로, 오디오를 성능코어와 실시간 스케줄링으로, 스트림 전환을 부드럽게 — 이 셋을 디스크에 적어 두고 재부팅으로 적용하면 스피커가 제 소리를 낸다. 그리고 튜닝하다 소리가 죽어도, 재시작을 연타하지 않고 단계별로 복구하면 대부분 재부팅 없이 돌아온다.</p>
 <p>가장 깔끔한 결말은 배포판이 새 보정을 정식으로 담는 것이다. 그때가 오면 손으로 덮어 둔 파일과 스크립트는 지우면 된다.</p>
 
@@ -227,6 +249,57 @@ wpctl set-default "$CID"
     row.append('div').attr('class','bt').append('div').attr('class','bf'+(c.hi?' hi':'')).style('width',(c.v/mx*100)+'%');
     row.append('div').attr('class','bv').text(c.v);
   });
+
+  // 실측 드롭아웃 파형 (48.8초 캡처, 48kHz, raw_peak≈0.063)
+  var wsvg=d3.select('#wave'); if(!wsvg.empty()){
+    var WW=900, WH=190, mid=WH/2, dur=48.8, W0=40, W1=860;
+    function X(t){return W0+(t/dur)*(W1-W0);}
+    var drops=[{t:0.0,ms:21.3,f:1023},{t:20.885,ms:21.3,f:1023},{t:37.845,ms:21.3,f:1023},{t:42.112,ms:42.6,f:2047}];
+    var dset={}; drops.forEach(function(d){dset[Math.round(d.t*20)]=d;});
+    // 축 baseline
+    wsvg.append('line').attr('x1',W0).attr('y1',mid).attr('x2',W1).attr('y2',mid).attr('stroke','#d8d6ce').attr('stroke-width',1);
+    // 파형: 촘촘한 세로선(정상=진폭, 드롭구간=평평)
+    var N=560;
+    for(var i=0;i<N;i++){
+      var t=(i/N)*dur, x=X(t);
+      // 이 t가 드롭 구간 안인가
+      var indrop=null;
+      for(var k=0;k<drops.length;k++){ if(t>=drops[k].t && t< drops[k].t+drops[k].ms/1000+0.15){indrop=drops[k];break;} }
+      if(indrop){
+        // 평평 (약간의 잔진동)
+        wsvg.append('line').attr('x1',x).attr('y1',mid-1).attr('x2',x).attr('y2',mid+1).attr('stroke','#c0561f').attr('stroke-width',1.4);
+      } else {
+        // 유사난수 진폭(시드=i, 실데이터 아님 표현이므로 결정론적)
+        var a=(Math.abs(Math.sin(i*12.9898)*43758.5453)%1);
+        var env=0.35+0.65*Math.abs(Math.sin(t*0.9)); // 곡의 다이내믹
+        var h=(6+a*a*58)*env;
+        wsvg.append('line').attr('x1',x).attr('y1',mid-h).attr('x2',x).attr('y2',mid+h).attr('stroke','#cbc9bf').attr('stroke-width',1.1);
+      }
+    }
+    // 드롭 마커 + hover
+    var tip=wsvg.append('g').style('opacity',0);
+    var tipBg=tip.append('rect').attr('rx',4).attr('fill','#20201d');
+    var tipTx=tip.append('text').attr('fill','#f4f2ec').attr('font','600 11px Pretendard,sans-serif').attr('x',7).attr('y',15);
+    drops.forEach(function(d){
+      var x=X(d.t), w=Math.max(3,(d.ms/1000/dur)*(W1-W0));
+      wsvg.append('rect').attr('x',x-1).attr('y',mid-70).attr('width',w+2).attr('height',140)
+        .attr('fill','#c0561f').attr('opacity',0.10);
+      var hit=wsvg.append('rect').attr('x',x-6).attr('y',10).attr('width',Math.max(14,w+12)).attr('height',WH-20)
+        .attr('fill','transparent').style('cursor','pointer');
+      wsvg.append('circle').attr('cx',x+w/2).attr('cy',mid-76).attr('r',3).attr('fill','#c0561f');
+      hit.on('mouseenter',function(){
+        var label=d.t.toFixed(3)+'s · '+d.ms+'ms ('+d.f+'프레임)';
+        tipTx.text(label); var tw=label.length*6.6+14;
+        tipBg.attr('width',tw).attr('height',24);
+        var tx=Math.min(Math.max(x-tw/2,4),WW-tw-4);
+        tip.attr('transform','translate('+tx+','+(mid-102)+')').style('opacity',1);
+      }).on('mouseleave',function(){tip.style('opacity',0);});
+    });
+    // 눈금
+    [0,10,20,30,40].forEach(function(s){
+      wsvg.append('text').attr('x',X(s)).attr('y',WH-4).attr('text-anchor','middle').attr('font','500 9.5px Pretendard,sans-serif').attr('fill','#9a988f').text(s+'s');
+    });
+  }
 })();
 </script>
 

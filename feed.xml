@@ -14,7 +14,7 @@
       <link>https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/</guid>
       <pubDate>Wed, 15 Jul 2026 12:00:00 +0000</pubDate>
-      <description><![CDATA[M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커가 복잡한 음악에서 크래클·끊김을 낸다. 하드웨어가 아니라 세 겹의 소프트웨어 문제(DSP 프로파일·효율코어 스케줄링·스트림 전환)였다. 원인과 처방, macOS가 멀쩡한 이유, PipeWire 복구 런북 + d3 인터랙티브.]]></description>
+      <description><![CDATA[M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커가 복잡한 음악에서 크래클·끊김을 낸다. 하드웨어가 아니라 세 겹의 소프트웨어 문제(DSP 프로파일·효율코어 스케줄링·스트림 전환)였다. 원인과 처방, 실측 드롭아웃 파형(48.8초에 4번, 21.3ms), 되돌린 시도들, macOS가 멀쩡한 이유 + d3 인터랙티브.]]></description>
       <category>Asahi</category>
       <category>Audio</category>
       <category>PipeWire</category>
