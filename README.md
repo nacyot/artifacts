@@ -11,6 +11,7 @@
 
 | 날짜 | 산출물 | 설명 |
 |---|---|---|
+| 2026-07-15 | [tailscale-per-app-exit-node](./tailscale-per-app-exit-node/) | Tailscale exit node를 앱 단위로 — 브라우저 하나만 다른 리전으로 (유저스페이스 SOCKS5 · fail-closed · d3 인터랙티브) |
 | 2026-07-10 | [displaylink-asahi-m1](./displaylink-asahi-m1/) | Asahi M1 Max 외장 2대 — 막힌 지점과 접은 이유 (DP 드라이버 · DisplayLink CPU · HDMI) |
 | 2026-07-05 | [bambu-p1s-scripting](./bambu-p1s-scripting/) | Bambu Lab P1S를 앱 없이 MQTT·FTPS 프로토콜만으로 제어한 실측 정리 + d3.js 시각화 |
 

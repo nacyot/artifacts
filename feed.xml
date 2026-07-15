@@ -5,10 +5,20 @@
     <link>https://nacyot.github.io/artifacts/</link>
     <description>공개해도 되는 작업 산출물 모음 — 실측 정리 · 리서치 · 시각화.</description>
     <language>ko</language>
-    <lastBuildDate>Fri, 10 Jul 2026 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Wed, 15 Jul 2026 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://nacyot.github.io/artifacts/feed.xml" rel="self" type="application/rss+xml"/>
 
     <!-- newest first -->
+    <item>
+      <title>브라우저 한 개만 미국으로: Tailscale exit node를 앱 단위로 쪼개기</title>
+      <link>https://nacyot.github.io/artifacts/tailscale-per-app-exit-node/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/tailscale-per-app-exit-node/</guid>
+      <pubDate>Wed, 15 Jul 2026 00:00:00 +0000</pubDate>
+      <description><![CDATA[Tailscale exit node는 켜는 순간 기기 인터넷을 통째로 가져간다. 유저스페이스 SOCKS5 프록시로 특정 앱(브라우저) 하나만 exit node로 내보내고 나머지는 그대로 두는 법. 구축·검증·fail-closed 분석과 d3 인터랙티브 시각화.]]></description>
+      <category>Tailscale</category>
+      <category>Networking</category>
+      <category>Hyprland</category>
+    </item>
     <item>
       <title>Asahi M1 Max 외장 2대 — 막힌 지점과 접은 이유</title>
       <link>https://nacyot.github.io/artifacts/displaylink-asahi-m1/</link>
