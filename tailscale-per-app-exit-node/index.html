@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="유저스페이스 SOCKS5 프록시로 특정 앱만 exit node로 내보내는 법. 구축·검증·fail-closed 분석 + d3 인터랙티브 시각화.">
+<meta name="description" content="Omarchy(Arch·Hyprland)에서 유저스페이스 SOCKS5 프록시로 특정 앱만 AWS Lightsail exit node로 내보내는 법. 구축·검증·fail-closed 분석 + d3 인터랙티브.">
 <link rel="canonical" href="https://nacyot.github.io/artifacts/tailscale-per-app-exit-node/">
 <link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
 <meta property="og:type" content="article">
@@ -8,7 +8,7 @@
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://nacyot.github.io/artifacts/tailscale-per-app-exit-node/">
 <meta property="og:title" content="브라우저 한 개만 미국으로: Tailscale exit node를 앱 단위로 쪼개기">
-<meta property="og:description" content="유저스페이스 SOCKS5 프록시로 특정 앱만 exit node로 내보내는 법. 구축·검증·fail-closed 분석 + d3 인터랙티브 시각화.">
+<meta property="og:description" content="Omarchy(Arch·Hyprland)에서 유저스페이스 SOCKS5 프록시로 특정 앱만 AWS Lightsail exit node로 내보내는 법. 구축·검증·fail-closed 분석 + d3 인터랙티브.">
 <meta property="og:image" content="https://nacyot.github.io/artifacts/tailscale-per-app-exit-node/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
@@ -16,7 +16,7 @@
 <meta property="og:image:alt" content="Tailscale exit node를 앱 단위로 쪼개기">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="브라우저 한 개만 미국으로: Tailscale exit node를 앱 단위로 쪼개기">
-<meta name="twitter:description" content="유저스페이스 SOCKS5 프록시로 특정 앱만 exit node로 내보내는 법. 구축·검증·fail-closed 분석 + d3 인터랙티브 시각화.">
+<meta name="twitter:description" content="Omarchy(Arch·Hyprland)에서 유저스페이스 SOCKS5 프록시로 특정 앱만 AWS Lightsail exit node로 내보내는 법. 구축·검증·fail-closed 분석 + d3 인터랙티브.">
 <meta name="twitter:image" content="https://nacyot.github.io/artifacts/tailscale-per-app-exit-node/og.png">
 <meta name="twitter:image:alt" content="Tailscale exit node를 앱 단위로 쪼개기">
 <title>브라우저 한 개만 미국으로: Tailscale exit node를 앱 단위로 쪼개기</title>
@@ -88,8 +88,11 @@
 <p class="lede">Tailscale의 exit node는 켜는 순간 기기의 공용 인터넷 경로를 통째로 가져간다. 정작 필요한 건 브라우저 <em>하나만</em> 클라우드를 거치고 나머지는 그대로 두는 것이었다. 이 글은 그걸 어떻게 풀었는지, 그리고 그 과정에서 배운 것들을 정리한 기록이자 따라 할 수 있는 튜토리얼이다.</p>
 <p class="meta">2026-07-15 · 실제 구축·검증 기록에서 개인 식별 정보(공인 IP·내부 주소·호스트명·계정·토큰)를 제거한 공개용 문서</p>
 
+<p><strong>환경.</strong> 이 글은 <strong>Omarchy</strong>(Arch Linux 기반, Hyprland/Wayland 데스크톱)에서 작업했다. 대부분이 쓰는 Windows·macOS와 달라서, 데스크톱에 얽힌 부분은 리눅스 기준으로 읽어 달라. 핵심 아이디어(유저스페이스 tailscaled + SOCKS5 프록시)는 OS를 가리지 않지만, systemd 사용자 서비스·<code>.desktop</code> 런처 항목·앱 런처(Walker)·창 규칙 같은 통합 예시는 리눅스/Omarchy에 맞춘 것이다. macOS·Windows에서도 원리는 같고, 브라우저 실행과 자동 시작만 그 플랫폼 방식(런치 에이전트, 작업 스케줄러, 바로가기)으로 바꾸면 된다.</p>
+
 <h2><span class="num">1</span>발단: 왜 이게 필요했나</h2>
-<p>가끔 특정 사이트를 “다른 나라에서 접속한 것처럼” 열어야 할 때가 있다. 지역이 갈리는 서비스를 확인하거나, 집이 아닌 곳에서 나가는 것처럼 보이게 하고 싶을 때다. 마침 tailnet 안에 인터넷 출구 역할을 해 주는 클라우드 노드(AWS 미국 리전)가 하나 있었다. exit node로 지정만 하면 그쪽으로 나갈 수 있다.</p>
+<p>가끔 특정 사이트를 “다른 나라에서 접속한 것처럼” 열어야 할 때가 있다. 지역이 갈리는 서비스를 확인하거나, 집이 아닌 곳에서 나가는 것처럼 보이게 하고 싶을 때다. 마침 tailnet 안에 인터넷 출구 역할을 해 주는 클라우드 노드가 하나 있었다. <strong>AWS Lightsail</strong> 인스턴스인데, 월정액이 저렴한 소형 VPS다. 여기에 Tailscale을 깔고 <code>tailscale up --advertise-exit-node</code>로 exit node를 광고해 두면, tailnet의 다른 기기가 그 노드를 골라 인터넷 출구로 쓸 수 있다.</p>
+<p>Lightsail은 여러 리전에서 인스턴스를 만들 수 있어, “어느 나라에서 나가는 것처럼 보일지”를 리전 선택으로 정할 수 있다. 기본으로 켜져 있는 리전만 해도 미국(버지니아·오하이오·오리건), 도쿄·서울·싱가포르·시드니·뭄바이, 프랑크푸르트·아일랜드·런던·파리·스톡홀름, 캐나다 중부, 상파울루가 있고, 홍콩·자카르타·말레이시아·스페인은 옵트인으로 켜서 쓴다. 이 글은 미국 리전을 예로 든다.</p>
 <p>문제는 “정도”였다. exit node를 켜면 노트북의 <strong>모든</strong> 트래픽이 미국을 거친다. 업무용 통신, 로컬 개발 서버, 집 안 기기 접근까지 전부 한 다리를 더 건넌다. 필요한 건 그게 아니었다. 브라우저 창 하나만 미국으로 보내고, 시스템의 나머지는 평소처럼 집 회선을 그대로 쓰는 것. 말하자면 “앱 단위 exit node”다.</p>
 
 <h2><span class="num">2</span>막다른 길: exit node는 전부 아니면 전무</h2>
