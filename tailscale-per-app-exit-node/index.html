@@ -85,26 +85,26 @@
 
 <p class="kicker">TAILSCALE · 네트워킹</p>
 <h1>브라우저 한 개만 미국으로: Tailscale exit node를 앱 단위로 쪼개기</h1>
-<p class="lede">Tailscale의 exit node는 켜는 순간 기기의 공용 인터넷 경로를 통째로 가져간다. 정작 필요한 건 브라우저 <em>하나만</em> 클라우드를 거치고 나머지는 그대로 두는 것이었다. 이 글은 그걸 어떻게 풀었는지, 그리고 그 과정에서 배운 것들을 정리한 기록이자 따라 할 수 있는 튜토리얼이다.</p>
+<p class="lede">Tailscale의 exit node는 켜는 순간 기기의 공용 인터넷 경로를 통째로 가져간다. 정작 필요한 건 브라우저 <em>하나만</em> 클라우드를 거치고 나머지는 그대로 두는 것이었다. 답은 유저스페이스 SOCKS5 프록시 하나였다.</p>
 <p class="meta">2026-07-15 · 실제 구축·검증 기록에서 개인 식별 정보(공인 IP·내부 주소·호스트명·계정·토큰)를 제거한 공개용 문서</p>
 
-<p><strong>환경.</strong> 이 글은 <strong>Omarchy</strong>(Arch Linux 기반, Hyprland/Wayland 데스크톱)에서 작업했다. 대부분이 쓰는 Windows·macOS와 달라서, 데스크톱에 얽힌 부분은 리눅스 기준으로 읽어 달라. 핵심 아이디어(유저스페이스 tailscaled + SOCKS5 프록시)는 OS를 가리지 않지만, systemd 사용자 서비스·<code>.desktop</code> 런처 항목·앱 런처(Walker)·창 규칙 같은 통합 예시는 리눅스/Omarchy에 맞춘 것이다. macOS·Windows에서도 원리는 같고, 브라우저 실행과 자동 시작만 그 플랫폼 방식(런치 에이전트, 작업 스케줄러, 바로가기)으로 바꾸면 된다.</p>
+<p><strong>환경.</strong> Omarchy(Arch Linux + Hyprland/Wayland)에서 작업했다. 프록시 자체(유저스페이스 tailscaled + SOCKS5)는 OS를 가리지 않고, <code>systemd</code> 사용자 서비스·<code>.desktop</code> 런처·창 규칙 같은 부분만 리눅스에 맞춰져 있다. macOS·Windows에서도 원리는 같지만, 보조 tailscaled 구성과 브라우저 실행·자동 시작 방식은 플랫폼마다 달라 확인이 필요하다.</p>
 
 <h2><span class="num">1</span>발단: 왜 이게 필요했나</h2>
 <p>가끔 특정 사이트를 “다른 나라에서 접속한 것처럼” 열어야 할 때가 있다. 지역이 갈리는 서비스를 확인하거나, 집이 아닌 곳에서 나가는 것처럼 보이게 하고 싶을 때다. 마침 tailnet 안에 인터넷 출구 역할을 해 주는 클라우드 노드가 하나 있었다. <strong>AWS Lightsail</strong> 인스턴스인데, 월정액이 저렴한 소형 VPS다. 여기에 Tailscale을 깔고 <code>tailscale up --advertise-exit-node</code>로 exit node를 광고해 두면, tailnet의 다른 기기가 그 노드를 골라 인터넷 출구로 쓸 수 있다.</p>
-<p>Lightsail은 여러 리전에서 인스턴스를 만들 수 있어, “어느 나라에서 나가는 것처럼 보일지”를 리전 선택으로 정할 수 있다. 기본으로 켜져 있는 리전만 해도 미국(버지니아·오하이오·오리건), 도쿄·서울·싱가포르·시드니·뭄바이, 프랑크푸르트·아일랜드·런던·파리·스톡홀름, 캐나다 중부, 상파울루가 있고, 홍콩·자카르타·말레이시아·스페인은 옵트인으로 켜서 쓴다. 이 글은 미국 리전을 예로 든다.</p>
+<p>Lightsail은 여러 리전에서 인스턴스를 만들 수 있어, “어느 나라에서 나가는 것처럼 보일지”를 리전 선택으로 정할 수 있다. Lightsail 지원 리전 중 기본 활성만 해도 미국(버지니아·오하이오·오리건), 도쿄·서울·싱가포르·시드니·뭄바이, 프랑크푸르트·아일랜드·런던·파리·스톡홀름, 캐나다 중부, 상파울루가 있고, 홍콩·자카르타·말레이시아·스페인은 옵트인으로 켜서 쓴다. 이 글은 미국 리전을 예로 든다.</p>
 <p>문제는 “정도”였다. exit node를 켜면 노트북의 <strong>모든</strong> 트래픽이 미국을 거친다. 업무용 통신, 로컬 개발 서버, 집 안 기기 접근까지 전부 한 다리를 더 건넌다. 필요한 건 그게 아니었다. 브라우저 창 하나만 미국으로 보내고, 시스템의 나머지는 평소처럼 집 회선을 그대로 쓰는 것. 말하자면 “앱 단위 exit node”다.</p>
 
-<h2><span class="num">2</span>막다른 길: exit node는 전부 아니면 전무</h2>
+<h2><span class="num">2</span>막다른 길: exit node엔 “일부만”이 없다</h2>
 <p>먼저 Tailscale이 exit node를 어떻게 거는지 들여다봤다. exit node를 켜면 클라이언트는 정책 라우팅 규칙 하나를 심는다. 리눅스에서 라우팅 규칙을 뽑아 보면 <code>from all</code>, 즉 “출발지 불문 모든 트래픽”을 Tailscale 전용 테이블로 몰아넣는 규칙이 보인다. 그 테이블의 기본 경로가 exit node를 향한다. 설계가 이렇다 보니 “목적지 A만 통과, 나머지는 직접” 같은 갈래를 낼 여지가 없다.</p>
 <p>이 단순한 구성에서 눈에 띄는 예외는 둘이다. 같은 tailnet 안 기기끼리의 통신은 원래 exit node를 거치지 않고, <code>--exit-node-allow-lan-access</code>로 열어 둔 로컬망도 직접 닿는다. 그 밖의 인터넷 트래픽은 exit node로 간다. 더 복잡한 tailnet이라면 subnet router나 app connector로 향하는 경로도 별도로 고려해야 한다.</p>
 <p>“그럼 라우팅 규칙을 손으로 고쳐 일부만 우회시키면?” 하고 잠깐 생각했지만 접었다. 그 규칙들은 Tailscale이 스스로 계속 조정하는 상태다. 사람이 끼어들면 다음 갱신에서 덮이거나 충돌한다. 선택적 우회는 Tailscale의 라우팅 안에서가 아니라 <em>밖에서</em> 풀어야 했다.</p>
 
 <h2><span class="num">3</span>실마리: TUN을 안 만드는 tailscale</h2>
 <p>돌파구는 <code>tailscaled --help</code> 안에 있었다. Tailscale 데몬에는 <code>--tun=userspace-networking</code> 모드가 있고, 같이 <code>--socks5-server</code>와 <code>--outbound-http-proxy-listen</code> 옵션이 딸려 온다.</p>
-<p>이 모드의 핵심은 이름 그대로다. 커널 TUN 장치(<code>tailscale0</code>)를 <strong>만들지 않는다</strong>. 시스템 라우팅 테이블에 손을 대지 않는다는 뜻이다. 대신 tailnet으로 오가는 연결을 로컬 SOCKS5(그리고 HTTP) 프록시로 노출한다. 여기까지 오니 그림이 그려졌다. 이 유저스페이스 인스턴스에 exit node를 걸면, <em>그 프록시를 통과하는 트래픽만</em> exit node로 나간다. 커널 라우팅은 그대로니 시스템의 나머지는 영향이 없다.</p>
+<p>이 모드의 핵심은 이름 그대로다. 커널 TUN 장치(<code>tailscale0</code>)를 <strong>만들지 않는다</strong>. 시스템 라우팅 테이블에 손을 대지 않는다는 뜻이다. 대신 tailnet으로 오가는 연결을 로컬 SOCKS5(그리고 HTTP) 프록시로 노출한다. 여기서 방법이 보였다. 이 유저스페이스 인스턴스에 exit node를 걸면, <em>그 프록시를 통과하는 트래픽만</em> exit node로 나간다. 커널 라우팅은 그대로니 시스템의 나머지는 영향이 없다.</p>
 <p>확신이 서기 전에 먼저 시험했다. 두 번째 <code>tailscaled</code>를 유저스페이스 모드로 잠깐 띄워 보니, root 없이도 떴다. TUN을 안 만드니 특권이 필요 없다. 로그에 <code>tun "userspace-networking"</code>과 SOCKS5 리스닝이 찍히는 걸 확인하고 나서야 본 구축에 들어갔다.</p>
-<blockquote><p>배운 것: exit node의 “전부 아니면 전무”는 <em>커널 라우팅을 잡기 때문</em>이다. 커널 라우팅을 안 잡는 유저스페이스 인스턴스를 하나 더 두면, 같은 기기에서 “전부”와 “이것만”을 공존시킬 수 있다.</p></blockquote>
+<blockquote><p>exit node가 트래픽을 통째로 가져가는 건 <em>커널 라우팅을 잡기 때문</em>이다. 커널 라우팅을 안 건드리는 유저스페이스 인스턴스를 하나 더 두면, 같은 기기에서 “통째로”와 “이것만”이 공존한다.</p></blockquote>
 
 <h2><span class="num">4</span>만들기: 두 번째 tailscaled를 프록시로</h2>
 <p>이제 구조는 단순하다. 본체 Tailscale은 평소처럼 커널 모드로 두고, 프록시 전용 <code>tailscaled</code>를 하나 더 사용자 서비스로 돌린다. 상태 파일·소켓·포트를 본체와 분리하는 게 핵심이다. 이 인스턴스는 tailnet에 별도의 노드로 등록된다.</p>
@@ -161,7 +161,7 @@ tsproxy up --exit-node=&lt;EXIT_NODE_TS_IP_OR_NAME&gt; --hostname=my-exitproxy \
 </code></pre>
 <p>여기서 exit node는 AWS 공인 IP가 아니라 tailnet 안의 Tailscale IP(또는 노드 이름)다. <code>--shields-up</code>은 이 노드로 들어오는 연결을 막는다. 순수하게 나가는 프록시이므로 인바운드는 필요 없다. 데몬만 계속 돌리고 <code>tailscale up</code>을 다시 부르지 않는 게 중요하다. 이유는 뒤에서 설명한다.</p>
 
-<h2><span class="num">5</span>경로가 정말 갈라지는지 두 눈으로 확인</h2>
+<h2><span class="num">5</span>경로가 정말 갈라지는지 확인</h2>
 <p>구축이 됐다고 믿지 말고, 같은 시각에 두 경로로 각각 공인 IP를 물어보면 끝난다. 직접 경로와 프록시 경로가 서로 다른 IP로 나오면 성공이다.</p>
 <pre><code><span class="c"># 직접(시스템 기본 경로)</span>
 curl -s https://ifconfig.me
@@ -332,7 +332,8 @@ curl -s --socks5-hostname 127.0.0.1:1055 https://ifconfig.me
 <span class="c"># 4) 전용 브라우저</span>
 chromium --user-data-dir=~/.local/share/exit-browser \
   --proxy-server=socks5://127.0.0.1:1055 \
-  --install-autogenerated-theme="255,153,0" --class=exit-browser
+  --install-autogenerated-theme="255,153,0" \
+  --force-webrtc-ip-handling-policy="disable_non_proxied_udp" --class=exit-browser
 
 <span class="c"># 5) 헤드리스: 서비스 상시 기동</span>
 loginctl enable-linger "$USER"</code></pre>
