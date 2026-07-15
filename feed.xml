@@ -5,10 +5,20 @@
     <link>https://nacyot.github.io/artifacts/</link>
     <description>공개해도 되는 작업 산출물 모음 — 실측 정리 · 리서치 · 시각화.</description>
     <language>ko</language>
-    <lastBuildDate>Wed, 15 Jul 2026 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Wed, 15 Jul 2026 12:00:00 +0000</lastBuildDate>
     <atom:link href="https://nacyot.github.io/artifacts/feed.xml" rel="self" type="application/rss+xml"/>
 
     <!-- newest first -->
+    <item>
+      <title>맥북 스피커가 지지직거린다 — Asahi Linux에서 스피커 길들이기</title>
+      <link>https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/</guid>
+      <pubDate>Wed, 15 Jul 2026 12:00:00 +0000</pubDate>
+      <description><![CDATA[M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커가 복잡한 음악에서 크래클·끊김을 낸다. 하드웨어가 아니라 세 겹의 소프트웨어 문제(DSP 프로파일·효율코어 스케줄링·스트림 전환)였다. 원인과 처방, macOS가 멀쩡한 이유, PipeWire 복구 런북 + d3 인터랙티브.]]></description>
+      <category>Asahi</category>
+      <category>Audio</category>
+      <category>PipeWire</category>
+    </item>
     <item>
       <title>브라우저 한 개만 미국으로: Tailscale exit node를 앱 단위로 쪼개기</title>
       <link>https://nacyot.github.io/artifacts/tailscale-per-app-exit-node/</link>

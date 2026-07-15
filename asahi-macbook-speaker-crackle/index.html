@@ -1,0 +1,233 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, macOS가 멀쩡한 이유. PipeWire 디버깅 + d3 인터랙티브.">
+<link rel="canonical" href="https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/">
+<link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="nacyot / artifacts">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:url" content="https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/">
+<meta property="og:title" content="맥북 스피커가 지지직거린다 — Asahi Linux에서 스피커 길들이기">
+<meta property="og:description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, macOS가 멀쩡한 이유. PipeWire 디버깅 + d3 인터랙티브.">
+<meta property="og:image" content="https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Asahi Linux에서 맥북 스피커 크래클 길들이기">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="맥북 스피커가 지지직거린다 — Asahi Linux에서 스피커 길들이기">
+<meta name="twitter:description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, macOS가 멀쩡한 이유. PipeWire 디버깅 + d3 인터랙티브.">
+<meta name="twitter:image" content="https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/og.png">
+<meta name="twitter:image:alt" content="Asahi Linux에서 맥북 스피커 크래클 길들이기">
+<title>맥북 스피커가 지지직거린다 — Asahi Linux에서 스피커 길들이기</title>
+<style>
+  :root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--box:#f3f2ec;
+    --accent:#c0561f;--bar:#cbc9bf;--bar-hi:#c0561f;--code:#f1efe8;--sig:#eef2f6;--sigbd:#9db4c7}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Pretendard GOV",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+    font-size:18px;line-height:1.75;word-break:keep-all;overflow-wrap:anywhere}
+  .doc{max-width:44em;margin:0 auto;padding:4.2rem 1.5rem 7rem}
+  .crumb{font-size:.85rem;color:var(--soft);margin:0 0 1.4rem}
+  .crumb a{color:var(--soft)} .crumb a:hover{color:var(--accent)}
+  .kicker{font-size:.82rem;letter-spacing:.02em;color:var(--accent);font-weight:700;margin:0 0 .8rem}
+  h1{font-size:1.92rem;font-weight:800;line-height:1.3;margin:0 0 1rem;letter-spacing:-.01em}
+  .lede{font-size:1.05rem;color:#3a3a38;margin:0 0 1.3rem}
+  .meta{font-size:.84rem;color:var(--soft);border-bottom:1px solid var(--rule);padding-bottom:1.3rem;margin-bottom:2rem}
+  a{color:var(--accent)}
+  h2{font-size:1.26rem;font-weight:700;margin:2.9rem 0 .7rem}
+  h2 .num{color:var(--faint);margin-right:.5rem}
+  h3{font-size:1.03rem;font-weight:700;margin:1.7rem 0 .5rem}
+  p{margin:0 0 1rem} strong{font-weight:700}
+  ul,ol{margin:.4rem 0 1.1rem;padding-left:1.15rem} li{margin:.5rem 0}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8em;color:#46443f;background:var(--code);padding:.05em .3em;border-radius:3px}
+  pre{background:#20201d;color:#e8e6df;border-radius:7px;padding:.9rem 1.1rem;overflow-x:auto;margin:0 0 1.2rem;font-size:.79rem;line-height:1.6}
+  pre code{background:none;padding:0;color:inherit;font-size:.82rem}
+  pre .c{color:#8f8b7f}
+  blockquote{margin:1.1rem 0;padding:.3rem 0 .3rem 1.1rem;border-left:3px solid var(--accent);color:#41403c}
+  blockquote p:last-child{margin-bottom:0}
+  .tcap,.fcap{font-size:.85rem;color:var(--soft);margin:1.5rem 0 .5rem}
+  table{width:100%;border-collapse:collapse;font-size:.88rem;line-height:1.55;margin:0 0 1.2rem}
+  th,td{text-align:left;vertical-align:top;padding:.52rem .8rem .52rem 0}
+  thead th{border-bottom:1px solid var(--ink);font-weight:700;font-size:.82rem}
+  tbody tr+tr td{border-top:1px solid var(--rule)} td:first-child,th:first-child{font-weight:600}
+  .viz{border:1px solid var(--rule);border-radius:9px;padding:1rem 1rem 1.1rem;margin:1.5rem 0;background:#fcfbf8}
+  .viz svg{width:100%;height:auto;display:block}
+  .n rect{fill:var(--sig);stroke:var(--sigbd);stroke-width:1.5;cursor:pointer}
+  .n.sel rect{stroke:var(--accent);stroke-width:2.6}
+  .n.bad rect{fill:#f7ece6;stroke:#d3a184}
+  .n text{font:600 12px "Pretendard","Noto Sans KR",sans-serif;fill:var(--ink);pointer-events:none}
+  .edge{fill:none;stroke:#9b9a92;stroke-width:1.8}
+  .badge{font:700 10px "Pretendard",sans-serif;fill:var(--accent)}
+  .detail{margin-top:.7rem;background:#fff;border:1px solid var(--rule);border-radius:7px;padding:.9rem 1.1rem;font-size:.9rem}
+  .detail h4{margin:0 0 .4rem;font-size:1rem}
+  .detail .role{display:inline-block;font-size:.72rem;font-weight:700;color:var(--soft);border:1px solid var(--faint);border-radius:20px;padding:.05em .6em;margin-left:.4rem}
+  .detail p{margin:.2rem 0}
+  .detail .fix{color:#5a3416;background:#f7ede2;border-radius:5px;padding:.5rem .7rem;margin-top:.5rem;font-size:.86rem}
+  .bars{margin:.6rem 0 1rem}
+  .bar{display:grid;grid-template-columns:8rem 1fr auto;gap:.7rem;align-items:center;margin:.42rem 0;font-size:.88rem}
+  .bar .bl{text-align:right} .bar .bt{background:#eceae2;height:.85rem;border-radius:2px}
+  .bar .bf{height:100%;border-radius:2px;background:var(--bar)} .bar .bf.hi{background:var(--bar-hi)}
+  .bar .bv{color:var(--soft);font-size:.8rem}
+  @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.15rem 5rem}h1{font-size:1.55rem}.bar{grid-template-columns:1fr auto}.bar .bl{text-align:left;grid-column:1/-1}}
+</style></head><body><div class="doc">
+
+<p class="crumb"><a href="../">← nacyot / artifacts</a></p>
+<p class="kicker">ASAHI · 오디오</p>
+<h1>맥북 스피커가 지지직거린다 — Asahi Linux에서 스피커 길들이기</h1>
+<p class="lede">M1 Max 맥북 프로를 Asahi Linux(Omarchy)로 쓰면, 내장 스피커가 복잡한 음악에서 "칙칙" 끓고 순간순간 끊긴다. 적어도 내 장비에서는 하드웨어 고장이 아니라 세 겹의 소프트웨어 문제였다. 원인과 처방, 그리고 macOS는 왜 멀쩡한지.</p>
+<p class="meta">M1 Max MacBook Pro 14"(코드명 J314) · Asahi Arch Linux · Omarchy/Hyprland · PipeWire</p>
+
+<h2><span class="num">1</span>증상</h2>
+<p>사인파 한 음을 재생하면 깨끗하다. 그런데 악기가 여럿 겹치는 음악이나 영상 소리를 틀면 "칙/틱" 하는 잡음이 섞이고, 이따금 소리가 순간(약 21밀리초) 뚝 끊긴다. 로그에는 아무 흔적도 없다. ALSA 언더런(xrun) 카운터는 0, CPU 부하도 한가하다.</p>
+<p>흔적 없는 고장은 방향을 흐린다. 음원이 문제인지, 브라우저인지, 앰프인지, 커널인지. 하나씩 잘라내고 나니, 내 환경에서는 원인이 하드웨어 고장이 아니라 <strong>소프트웨어 오디오 경로</strong>에 있었다. 그것도 서로 다른 세 곳에.</p>
+
+<h2><span class="num">2</span>왜 스피커에 보정(convolver)이 필요한가</h2>
+<p>맥북의 작은 내장 스피커는 그대로 울리면 얇고 저음이 없다. macOS든 Asahi든, 스피커로 나가기 전에 소리를 한 번 <strong>보정</strong>한다. 가상 오디오 장치 위에 FIR/임펄스 응답으로 주파수 특성(EQ)을 바로잡고, Bankstown 같은 DSP 플러그인으로 저역·라우드니스까지 보정하는 체인을 건다. Asahi에서는 <code>asahi-audio</code> 패키지가 이 보정을 <code>j314-convolver</code>라는 필터 노드로 PipeWire 그래프에 끼워 넣는다.</p>
+<p>즉 앱에서 스피커까지 소리는 여러 단계를 지난다. 아래 그림에서 각 단계를 눌러, 무슨 일을 하고 어디서 무엇이 깨지는지 확인한다. 갈색으로 표시된 단계가 이번에 문제가 났던 곳이다.</p>
+
+<div class="viz">
+  <svg id="sig" viewBox="0 0 900 220" role="img" aria-label="오디오 신호 경로"></svg>
+  <div class="detail" id="sig-detail"></div>
+</div>
+<p class="fcap">그림 1. 앱에서 스피커까지의 오디오 경로. 내 장비에서 크래클은 하드웨어가 아니라 중간 세 단계(스트림 전환·PipeWire 스케줄링·DSP 보정)에서 났다.</p>
+
+<h2><span class="num">3</span>세 갈래 원인과 처방</h2>
+<p>증상은 하나처럼 들렸지만 원인은 셋이었고, 각각 다른 곳을 고쳐야 했다.</p>
+<p class="tcap">표 1. 세 원인과 처방.</p>
+<table>
+<thead><tr><th>원인</th><th>증상</th><th>처방</th></tr></thead>
+<tbody>
+<tr><td>① 낡은 DSP 프로파일</td><td>메인 크래클("칙칙")</td><td><code>asahi-audio</code> v4.0의 새 J314 FIR + 완화된 저음 보정</td></tr>
+<tr><td>② 효율코어 스케줄링</td><td>연속 재생 중 약 21ms 끊김</td><td>PipeWire를 성능코어(cpu2–9)에 고정 + rtkit 실시간 우선권</td></tr>
+<tr><td>③ 스트림 전환 튐</td><td>영상↔음악 전환 시 순간 팝</td><td>convolver 유휴 정지 끄기 + 허용 클럭을 48kHz 하나로 단일화</td></tr>
+</tbody>
+</table>
+
+<h3>왜 효율코어가 소리를 끊나</h3>
+<p>둘째 원인이 가장 뜻밖이었다. Asahi는 전력을 아끼려고 오디오 프로세스가 효율코어(E-core) 쪽에 머물도록 유도한다. 이건 코어를 못박는 고정(affinity)이 아니라, 스케줄러가 보는 최대 사용률 상한(<code>uclamp.max</code>)을 낮춰 두는 힌트다. 그런데 스피커 보정 convolver는 무거운 연산이라, 느린 효율코어에서는 실시간 마감을 놓쳐 한 주기(48kHz·1024프레임 기준 약 21ms) 분량의 샘플 공급이 늦어진다. 버퍼 언더런이 아니라 <em>마감 초과</em>라서 로그에 흔적이 남지 않는다.</p>
+<p>성능코어(P-core)와 효율코어의 처리 능력 차이가 이 마감 초과를 설명한다.</p>
+<p class="fcap">그림 2. 코어 종류별 처리 능력(capacity). 효율코어는 성능코어의 절반 이하라, 무거운 보정 연산이 실시간 마감을 놓친다.</p>
+<div class="bars" id="corebars"></div>
+<p>처방은 오디오 프로세스를 성능코어에 고정하는 것이다(아래 <code>cpu2-9</code>는 J314 10코어에서 cpu0–1이 효율코어, cpu2–9가 성능코어인 전제다. <code>lscpu -e</code>나 <code>cpu_capacity</code>로 확인한다).</p>
+<pre><code><span class="c"># ~/.config/systemd/user/pipewire.service.d/cpuaffinity.conf (pipewire-pulse·wireplumber도 동일)</span>
+[Service]
+CPUAffinity=2-9
+</code></pre>
+<p>여기에 rtkit를 켜면 PipeWire가 RTKit를 거쳐 오디오 처리 스레드에 실시간 스케줄링을 요청할 수 있다. 실제 정책·우선순위는 배포판 설정과 RTKit 한도에 따라 달라지니 <code>chrt</code>·<code>pw-top</code>으로 확인한다(내 환경에서는 SCHED_RR·rtprio 20으로 관찰됐다).</p>
+<pre><code>sudo systemctl enable --now rtkit-daemon</code></pre>
+
+<h2><span class="num">4</span>macOS는 왜 멀쩡한가</h2>
+<p>같은 하드웨어인데 macOS에서는 이런 일이 없다. CoreAudio의 실시간 오디오 스레드가 오디오 워크그룹에 합류해, 커널과 성능 컨트롤러가 오디오의 마감(deadline)을 알고 CPU 배정·주파수를 결정하기 때문이다. 그래서 같은 하드웨어에서도 마감 초과가 잘 드러나지 않는다. Asahi는 반대로 전력을 위해 오디오를 효율코어 쪽에 밀어 둔다. 그래서 리눅스에서는 오디오를 마감 중심으로 다루도록 <strong>손으로 재현</strong>해야 한다. 성능코어 고정과 rtkit 우선권이 그 대접을 손으로 되살리는 방법이다.</p>
+
+<h2><span class="num">5</span>귀 없이 잡기 — 객관적 탐지</h2>
+<p>"칙칙"은 주관적이라 고쳤는지 아닌지 귀로만 판단하기 어렵다. 그래서 보정을 거친 뒤의 소리를 그대로 녹음해, 파형에서 끊김을 기계적으로 찾았다.</p>
+<pre><code><span class="c"># 보정(DSP)을 거친 출력을 녹음하며 동시에 재생</span>
+pw-record --target alsa_output.platform-sound.RawSpeakers.monitor \
+  --channels 2 --format s32 post.wav &amp;
+mpv --no-video song.webm
+<span class="c"># → 약 21ms(한 주기) 동안 평평한 구간 = 진짜 끊김.</span>
+<span class="c">#   짧은 "click" 다수는 음악의 트랜지언트이지 고장이 아니다.</span>
+</code></pre>
+<p>이 방법이 방향을 잡아 줬다. 무엇이 원인이 <em>아닌지</em>를 하나씩 배제하면서.</p>
+<p class="tcap">표 2. 배제표 — 원인이 아니었던 것들.</p>
+<table>
+<thead><tr><th>가설</th><th>확인</th><th>판정</th></tr></thead>
+<tbody>
+<tr><td>음원 파일 잡음</td><td>파형 통계상 피크 −1.4dB, 평평 구간 0</td><td>깨끗함</td></tr>
+<tr><td>브라우저</td><td>로컬 <code>mpv</code> 재생도 동일</td><td>무관</td></tr>
+<tr><td>버퍼 언더런·CPU 용량</td><td>xrun 0, 부하 약 1.5/10</td><td>스케줄링 문제(용량 아님)</td></tr>
+<tr><td>앰프 보호(speakersafetyd)</td><td>트립 0</td><td>무관</td></tr>
+<tr><td>저음 과다</td><td>고역통과 250Hz로 올려도 여전</td><td>저음 아님</td></tr>
+</tbody>
+</table>
+<p>정리하면 시그니처는 이렇다. 사인음은 깨끗하고, 복잡한 음악에서만 깨지고, 로그엔 흔적이 없다. 이 조합이 "하드웨어·용량이 아니라 실시간 스케줄링"을 가리켰다.</p>
+
+<h2><span class="num">6</span>진짜 함정 — restart 연타가 오디오를 죽인다</h2>
+<p>가장 값진 교훈은 정작 튜닝 과정에서 나왔다. 설정을 바꿔 볼 때마다 <code>systemctl --user restart pipewire pipewire-pulse wireplumber</code>를 짧은 간격으로 여러 번 눌렀는데, 이게 오디오를 통째로 죽였다.</p>
+<blockquote><p>systemd에는 짧은 시간 안의 재시작 횟수 상한이 있다(기본 10초에 5번, 수동 start에도 적용된다). 이걸 넘기면 systemd가 추가 기동을 거부해 wireplumber가 다시 뜨지 못하고, 그 결과 진짜 스피커 싱크가 만들어지지 않아 기본 출력이 <strong>Dummy Output만 남아 무음</strong>이 된다. 더 심하면 PipeWire 데몬까지 무응답으로 멈춘다.</p></blockquote>
+<p>불안정의 원인은 새 설정이 아니라 <strong>재시작 연타</strong>였다. 설정은 디스크에 적어 두고, 적용은 재부팅(또는 <code>reset-failed</code> 후 딱 한 번의 재시작)으로 한다. 그러면 같은 설정도 멀쩡하게 돌아간다.</p>
+
+<h2><span class="num">7</span>복구 런북 — 재부팅 전에</h2>
+<p>소리가 안 나거나 출력이 Dummy로 잡히면, 재부팅 전에 낮은 단계부터 하나씩 시도한다. 핵심은 <strong>연속 재시작 금지</strong>다.</p>
+<p class="tcap">표 3. 단계별 복구.</p>
+<table>
+<thead><tr><th>단계</th><th>증상</th><th>조치</th></tr></thead>
+<tbody>
+<tr><td>1. wireplumber만 죽음</td><td><code>failed</code> + Dummy</td><td><code>reset-failed</code> 후 <code>start</code>(restart 아님)</td></tr>
+<tr><td>2. 데몬 멈춤</td><td><code>wpctl</code>이 무응답</td><td>정확한 이름으로 종료 후 소켓에서 재기동, 기본 싱크를 convolver로 지정</td></tr>
+<tr><td>3. 디지털은 정상, 소리만 없음</td><td>체인은 붙었는데 무음</td><td><code>sudo systemctl restart speakersafetyd</code>(스피커 보호 데몬·앰프 상태 재초기화)</td></tr>
+<tr><td>4. 그래도 무음</td><td>커널/앰프가 멈춤</td><td>재부팅(부끄러운 일 아니다)</td></tr>
+</tbody>
+</table>
+<p>2단계 명령은 이렇다.</p>
+<pre><code>systemctl --user reset-failed pipewire pipewire-pulse wireplumber
+<span class="c"># ★ -x(정확한 이름)만. -f(명령줄 매칭)는 자기 셸까지 죽여 명령이 끊긴다.</span>
+pkill -x wireplumber; pkill -x pipewire-pulse; pkill -x pipewire
+systemctl --user start pipewire pipewire-pulse wireplumber
+<span class="c"># 기본 싱크가 Dummy면 convolver로 지정. 검증 명령은 timeout 으로 감싼다(데몬이 멈춰 있을 수 있다).</span>
+CID=$(timeout 6 pw-dump | jq -r '.[]|select(.info.props."node.name"=="audio_effect.j314-convolver")|.id' | head -1)
+wpctl set-default "$CID"
+</code></pre>
+<p>두 가지 함정을 특히 조심한다. <code>pkill</code>은 반드시 <code>-x</code>(정확한 프로세스 이름)로 쓴다. <code>-f</code>는 전체 명령줄을 매칭해서, 그 문자열이 든 래퍼 셸이나 실행 중인 명령열까지 걸려 명령이 끊길 수 있다. 그리고 데몬이 멈춰 있을 수 있으니 진단·검증 명령은 <code>timeout</code>으로 감싸 무한 대기를 막는다.</p>
+
+<h2><span class="num">8</span>영속성 함정 — 업데이트가 되돌린다</h2>
+<p>여기 미묘한 함정이 하나 더 있다. 새 v4.0 보정 파일은 패키지가 소유한 파일 위에 손으로 덮어쓴 것이다(2026-07-15 현재 내 저장소의 <code>asahi-audio</code>는 아직 3.4다). 그래서 패키지를 업데이트하면 다시 옛 3.4로 덮여 <strong>크래클이 재발</strong>한다. 저장소가 정식으로 4.0 이상을 담으면 이 문제는 사라진다.</p>
+<p>그래서 v4.0 파일을 따로 보관하고, 업데이트 뒤 다시 적용하는 스크립트를 둔다. 더 나아가 패키지 설치 훅으로 자동화하면, 업데이트가 끝나는 즉시 보정을 되돌려 놓는다(패키지가 정식으로 4.0 이상이 되면 저절로 무력화된다). 성능코어 고정과 클럭 설정은 사용자 설정이라 업데이트와 무관하게 유지된다.</p>
+
+<h2><span class="num">9</span>마치며</h2>
+<p>내 장비에서 맥북 스피커의 지지직은 결국 하드웨어 고장이 아니라, 리눅스가 애플 실리콘의 오디오를 macOS만큼 대접하지 못해서 생긴 일이었다. 보정 프로파일을 최신으로, 오디오를 성능코어와 실시간 스케줄링으로, 스트림 전환을 부드럽게 — 이 셋을 디스크에 적어 두고 재부팅으로 적용하면 스피커가 제 소리를 낸다. 그리고 튜닝하다 소리가 죽어도, 재시작을 연타하지 않고 단계별로 복구하면 대부분 재부팅 없이 돌아온다.</p>
+<p>가장 깔끔한 결말은 배포판이 새 보정을 정식으로 담는 것이다. 그때가 오면 손으로 덮어 둔 파일과 스크립트는 지우면 된다.</p>
+
+<script src="../vendor/d3.v7.min.js"></script>
+<script>
+(function(){
+  if(!window.d3){return;}
+  // 신호 경로 인터랙티브
+  var svg=d3.select('#sig');
+  var N=[
+    {k:'app', x:70, label:'앱', sub:'음악·영상', bad:1},
+    {k:'pw',  x:222,label:'PipeWire', sub:'그래프·스케줄링', bad:1},
+    {k:'conv',x:390,label:'convolver', sub:'DSP 보정', bad:1},
+    {k:'raw', x:545,label:'RawSpeakers', sub:'ALSA 싱크'},
+    {k:'safe',x:700,label:'speakersafetyd', sub:'앰프 게인'},
+    {k:'spk', x:845,label:'스피커', sub:'하드웨어'}
+  ];
+  var W=118,H=48,Y=70;
+  var D={
+    app:{t:'앱 — 소리 소스',role:'입력',does:'음악·영상이 소리를 낸다. 영상과 음악을 오가면 오디오 스트림이 재시작된다.',fix:'문제 ③ 전환 튐: 스트림 재시작 때 resume 팝과 재클럭이 튄다. → convolver 유휴 정지를 끄고, 기본은 48kHz를 두되 허용 레이트를 48kHz 하나로 단일화해 재협상을 없앤다.'},
+    pw:{t:'PipeWire — 그래프·스케줄링',role:'라우팅',does:'오디오 노드를 잇고, 각 처리 스레드를 어느 CPU 코어에서 언제 돌릴지 스케줄링한다.',fix:'문제 ② 끊김: Asahi가 오디오를 효율코어에 묶어(uclamp.max=128) 무거운 보정이 실시간 마감을 놓친다. → 성능코어(cpu2–9) 고정 + rtkit 실시간 우선권.'},
+    conv:{t:'j314-convolver — DSP 보정',role:'필터',does:'작은 스피커를 위한 주파수 보정(FIR)과 저음 처리(Bankstown)를 건다. macOS가 하는 보정을 리눅스에서 재현하는 자리.',fix:'문제 ① 메인 크래클: 낡은 3.4 프로파일의 FIR와 과한 저음 보정이 끓는 소리를 낸다. → asahi-audio v4.0의 새 FIR + 완화된 보정.'},
+    raw:{t:'RawSpeakers — ALSA 싱크',role:'출력 싱크',does:'보정을 거친 소리가 실제 하드웨어 싱크로 나간다.',fix:'여기가 "Dummy Output"으로 폴백하면 무음이다. 보통 convolver 필터체인이 안 떠서 생기며, 복구 런북으로 되살린다.'},
+    safe:{t:'speakersafetyd — 앰프 게인·보호',role:'앰프',does:'스피커 앰프의 게인을 걸고 과열·과출력을 막는다.',fix:'디지털 체인은 정상인데 소리만 안 나면 스피커 보호 데몬을 재초기화한다. → sudo systemctl restart speakersafetyd.'},
+    spk:{t:'스피커 — 하드웨어',role:'출력',does:'최종 소리. 사인음은 깨끗하고 복잡한 음악만 깨진다면, 고장은 여기가 아니라 앞 단계다.',fix:'하드웨어는 원인이 아니었다 — 배제표 참고.'}
+  };
+  N.forEach(function(n,i){ if(i<N.length-1){ svg.append('line').attr('class','edge').attr('marker-end','url(#a)')
+      .attr('x1',n.x+W/2).attr('y1',Y).attr('x2',N[i+1].x-W/2-8).attr('y2',Y); } });
+  svg.append('defs').html('<marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9b9a92"/></marker>');
+  var sel=null;
+  N.forEach(function(n){
+    var g=svg.append('g').attr('class','n'+(n.bad?' bad':''));
+    g.append('rect').attr('x',n.x-W/2).attr('y',Y-H/2).attr('width',W).attr('height',H).attr('rx',8);
+    g.append('text').attr('x',n.x).attr('y',Y-3).attr('text-anchor','middle').text(n.label);
+    g.append('text').attr('x',n.x).attr('y',Y+13).attr('text-anchor','middle').style('font','500 10px Pretendard,sans-serif').style('fill','#7a7973').text(n.sub);
+    if(n.bad) g.append('text').attr('class','badge').attr('x',n.x).attr('y',Y-H/2-6).attr('text-anchor','middle').text('●');
+    g.style('cursor','pointer').on('click',function(){pick(n.k,g);}); n.g=g;
+  });
+  function pick(k,g){ if(sel) sel.classed('sel',false); sel=g; g.classed('sel',true); var d=D[k];
+    d3.select('#sig-detail').html('<h4>'+d.t+'<span class="role">'+d.role+'</span></h4><p>'+d.does+'</p><p class="fix">'+d.fix+'</p>'); }
+  pick('conv', N[2].g);
+
+  // 코어 용량 막대
+  var cores=[{n:'성능코어 (P-core)',v:1024,hi:1},{n:'효율코어 (E-core)',v:485,hi:0}];
+  var mx=1024, wrap=d3.select('#corebars');
+  cores.forEach(function(c){
+    var row=wrap.append('div').attr('class','bar');
+    row.append('div').attr('class','bl').text(c.n);
+    row.append('div').attr('class','bt').append('div').attr('class','bf'+(c.hi?' hi':'')).style('width',(c.v/mx*100)+'%');
+    row.append('div').attr('class','bv').text(c.v);
+  });
+})();
+</script>
+
+</div></body></html>
