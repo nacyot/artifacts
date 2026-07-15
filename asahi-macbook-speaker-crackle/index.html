@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, 실측 드롭아웃 파형, 되돌린 시도들. PipeWire 디버깅 + d3 인터랙티브.">
+<meta name="description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, 실측 드롭아웃 파형, 되돌린 시도들, 남은 잔여 크래클. PipeWire + d3 인터랙티브.">
 <link rel="canonical" href="https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/">
 <link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
 <meta property="og:type" content="article">
@@ -8,7 +8,7 @@
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/">
 <meta property="og:title" content="맥북 스피커가 지지직거린다 — Asahi Linux에서 스피커 길들이기">
-<meta property="og:description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, 실측 드롭아웃 파형, 되돌린 시도들. PipeWire 디버깅 + d3 인터랙티브.">
+<meta property="og:description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, 실측 드롭아웃 파형, 되돌린 시도들, 남은 잔여 크래클. PipeWire + d3 인터랙티브.">
 <meta property="og:image" content="https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
@@ -16,7 +16,7 @@
 <meta property="og:image:alt" content="Asahi Linux에서 맥북 스피커 크래클 길들이기">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="맥북 스피커가 지지직거린다 — Asahi Linux에서 스피커 길들이기">
-<meta name="twitter:description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, 실측 드롭아웃 파형, 되돌린 시도들. PipeWire 디버깅 + d3 인터랙티브.">
+<meta name="twitter:description" content="M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커 크래클·끊김의 세 원인(DSP 프로파일·효율코어 스케줄링·스트림 전환)과 처방, 실측 드롭아웃 파형, 되돌린 시도들, 남은 잔여 크래클. PipeWire + d3 인터랙티브.">
 <meta name="twitter:image" content="https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/og.png">
 <meta name="twitter:image:alt" content="Asahi Linux에서 맥북 스피커 크래클 길들이기">
 <title>맥북 스피커가 지지직거린다 — Asahi Linux에서 스피커 길들이기</title>
@@ -75,7 +75,7 @@
 <p class="crumb"><a href="../">← nacyot / artifacts</a></p>
 <p class="kicker">ASAHI · 오디오</p>
 <h1>맥북 스피커가 지지직거린다 — Asahi Linux에서 스피커 길들이기</h1>
-<p class="lede">M1 Max 맥북 프로를 Asahi Linux(Omarchy)로 쓰면, 내장 스피커가 복잡한 음악에서 "칙칙" 끓고 순간순간 끊긴다. 적어도 내 장비에서는 하드웨어 고장이 아니라 세 겹의 소프트웨어 문제였다. 원인과 처방, 그리고 macOS는 왜 멀쩡한지.</p>
+<p class="lede">M1 Max 맥북 프로를 Asahi Linux(Omarchy)로 쓰면, 내장 스피커가 복잡한 음악에서 "칙칙" 끓고 순간순간 끊긴다. 적어도 이 장비에서는 하드웨어 고장이 아니라 세 겹의 소프트웨어 문제였다. 세 곳을 손보면 크게 줄지만, 완전히 사라지지는 않았다. 원인과 처방, 남은 잔여, 그리고 macOS는 왜 멀쩡한지.</p>
 <p class="meta">M1 Max MacBook Pro 14"(코드명 J314) · Asahi Arch Linux · Omarchy/Hyprland · PipeWire</p>
 
 <h2><span class="num">1</span>증상</h2>
@@ -90,7 +90,7 @@
   <svg id="sig" viewBox="0 0 900 220" role="img" aria-label="오디오 신호 경로"></svg>
   <div class="detail" id="sig-detail"></div>
 </div>
-<p class="fcap">그림 1. 앱에서 스피커까지의 오디오 경로. 내 장비에서 크래클은 하드웨어가 아니라 중간 세 단계(스트림 전환·PipeWire 스케줄링·DSP 보정)에서 났다.</p>
+<p class="fcap">그림 1. 앱에서 스피커까지의 오디오 경로. 이 장비에서 크래클은 하드웨어가 아니라 중간 세 단계(스트림 전환·PipeWire 스케줄링·DSP 보정)에서 났다.</p>
 
 <h2><span class="num">3</span>세 갈래 원인과 처방</h2>
 <p>증상은 하나처럼 들렸지만 원인은 셋이었고, 각각 다른 곳을 고쳐야 했다.</p>
@@ -198,8 +198,8 @@ wpctl set-default "$CID"
 <p>캡처 자체도 한 번 속였다. 드롭아웃을 녹음하는데 파형이 거의 무음으로만 잡힌 적이 있었다(<code>raw_peak &lt; 0.02</code>). 재생 소리가 그 모니터 노드에 닿지 않은 것이라, 분석 스크립트가 "near-silent capture"라며 건너뛰게 만들어 뒀다. 측정도 검증 대상이라는 걸, 측정이 거짓말을 하고 나서야 배웠다.</p>
 
 <h2><span class="num">10</span>마치며</h2>
-<p>내 장비에서 맥북 스피커의 지지직은 결국 하드웨어 고장이 아니라, 리눅스가 애플 실리콘의 오디오를 macOS만큼 대접하지 못해서 생긴 일이었다. 보정 프로파일을 최신으로, 오디오를 성능코어와 실시간 스케줄링으로, 스트림 전환을 부드럽게 — 이 셋을 디스크에 적어 두고 재부팅으로 적용하면 스피커가 제 소리를 낸다. 그리고 튜닝하다 소리가 죽어도, 재시작을 연타하지 않고 단계별로 복구하면 대부분 재부팅 없이 돌아온다.</p>
-<p>가장 깔끔한 결말은 배포판이 새 보정을 정식으로 담는 것이다. 그때가 오면 손으로 덮어 둔 파일과 스크립트는 지우면 된다.</p>
+<p>이 장비에서 맥북 스피커의 지지직은 결국 하드웨어 고장이 아니라, 리눅스가 애플 실리콘의 오디오를 macOS만큼 대접하지 못해서 생긴 일이었다. 보정 프로파일을 최신으로, 오디오를 성능코어와 실시간 스케줄링으로, 스트림 전환을 부드럽게 — 이 셋을 디스크에 적어 두고 재부팅으로 적용하면 스피커가 제 소리를 낸다. 그리고 튜닝하다 소리가 죽어도, 재시작을 연타하지 않고 단계별로 복구하면 대부분 재부팅 없이 돌아온다.</p>
+<p>다만 완전히 사라지진 않았다. 평소에는 깨끗하고, 세 처방 전보다 훨씬 덜하지만, CPU가 크게 바쁠 때(무거운 앱이 성능코어를 함께 치는 상황) 여전히 이따금 "칙" 하는 소리가 섞인다. 실시간 우선권을 더 끌어올리는 여지가 남아 있고, 근본적으로는 배포판이 새 보정을 정식으로 담아 이 손질 전체가 필요 없어지는 게 가장 깔끔한 결말이다. 그때가 오면 손으로 덮어 둔 파일과 스크립트는 지우면 된다.</p>
 
 <script src="../vendor/d3.v7.min.js"></script>
 <script>
