@@ -88,7 +88,7 @@
 <p class="lede">Tailscale의 exit node는 켜는 순간 기기의 공용 인터넷 경로를 통째로 가져간다. 정작 필요한 건 브라우저 <em>하나만</em> 클라우드를 거치고 나머지는 그대로 두는 것이었다. 답은 유저스페이스 SOCKS5 프록시 하나였다.</p>
 <p class="meta">2026-07-15 · 실제 구축·검증 기록에서 개인 식별 정보(공인 IP·내부 주소·호스트명·계정·토큰)를 제거한 공개용 문서</p>
 
-<p><strong>환경.</strong> Omarchy(Arch Linux + Hyprland/Wayland)에서 작업했다. 프록시 자체(유저스페이스 tailscaled + SOCKS5)는 OS를 가리지 않고, <code>systemd</code> 사용자 서비스·<code>.desktop</code> 런처·창 규칙 같은 부분만 리눅스에 맞춰져 있다. macOS·Windows에서도 원리는 같지만, 보조 tailscaled 구성과 브라우저 실행·자동 시작 방식은 플랫폼마다 달라 확인이 필요하다.</p>
+<p><strong>환경.</strong> Omarchy(Arch Linux + Hyprland/Wayland)에서 작업했다. 프록시 자체(유저스페이스 tailscaled + SOCKS5)는 OS를 가리지 않고, <code>systemd</code> 사용자 서비스·<code>.desktop</code> 런처·창 규칙 같은 부분만 리눅스에 맞춰져 있다.</p>
 
 <h2><span class="num">1</span>발단: 왜 이게 필요했나</h2>
 <p>가끔 특정 사이트를 “다른 나라에서 접속한 것처럼” 열어야 할 때가 있다. 지역이 갈리는 서비스를 확인하거나, 집이 아닌 곳에서 나가는 것처럼 보이게 하고 싶을 때다. 마침 tailnet 안에 인터넷 출구 역할을 해 주는 클라우드 노드가 하나 있었다. <strong>AWS Lightsail</strong> 인스턴스인데, 월정액이 저렴한 소형 VPS다. 여기에 Tailscale을 깔고 <code>tailscale up --advertise-exit-node</code>로 exit node를 광고해 두면, tailnet의 다른 기기가 그 노드를 골라 인터넷 출구로 쓸 수 있다.</p>
