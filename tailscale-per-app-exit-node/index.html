@@ -37,6 +37,8 @@
   h3{font-size:1.04rem;font-weight:700;margin:1.8rem 0 .5rem}
   p{margin:0 0 1rem} strong{font-weight:700}
   a{color:var(--accent)}
+  .crumb{font-size:.85rem;color:var(--soft);margin:0 0 1.5rem}
+  .crumb a{color:var(--soft)} .crumb a:hover{color:var(--accent)}
   ul,ol{margin:.5rem 0 1.2rem;padding-left:1.2rem} li{margin:.5rem 0}
   code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8em;color:#46443f;background:var(--code);padding:.05em .3em;border-radius:3px}
   pre{background:#20201d;color:#e8e6df;border-radius:7px;padding:1rem 1.1rem;overflow-x:auto;margin:0 0 1.2rem;font-size:.8rem;line-height:1.6}
@@ -83,6 +85,7 @@
   @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.15rem 5rem}h1{font-size:1.6rem}}
 </style></head><body><div class="doc">
 
+<p class="crumb"><a href="../">← nacyot / artifacts</a></p>
 <p class="kicker">TAILSCALE · 네트워킹</p>
 <h1>브라우저 한 개만 미국으로: Tailscale exit node를 앱 단위로 쪼개기</h1>
 <p class="lede">Tailscale의 exit node는 켜는 순간 기기의 공용 인터넷 경로를 통째로 가져간다. 정작 필요한 건 브라우저 <em>하나만</em> 클라우드를 거치고 나머지는 그대로 두는 것이었다. 답은 유저스페이스 SOCKS5 프록시 하나였다.</p>
