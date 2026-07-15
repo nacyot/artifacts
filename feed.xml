@@ -3,18 +3,18 @@
   <channel>
     <title>nacyot / artifacts</title>
     <link>https://nacyot.github.io/artifacts/</link>
-    <description>공개해도 되는 작업 산출물 모음 — 실측 정리 · 리서치 · 시각화.</description>
+    <description>공개해도 되는 작업 산출물 모음 — 실측 정리, 리서치, 시각화.</description>
     <language>ko</language>
     <lastBuildDate>Wed, 15 Jul 2026 12:00:00 +0000</lastBuildDate>
     <atom:link href="https://nacyot.github.io/artifacts/feed.xml" rel="self" type="application/rss+xml"/>
 
     <!-- newest first -->
     <item>
-      <title>맥북 스피커가 지지직거린다 — Asahi Linux에서 스피커 길들이기</title>
+      <title>맥북 스피커가 지지직거린다: Asahi Linux에서 스피커 길들이기</title>
       <link>https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/</guid>
       <pubDate>Wed, 15 Jul 2026 12:00:00 +0000</pubDate>
-      <description><![CDATA[M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커가 복잡한 음악에서 크래클·끊김을 낸다. 하드웨어가 아니라 세 겹의 소프트웨어 문제(DSP 프로파일·효율코어 스케줄링·스트림 전환)였다. 원인과 처방, 실측 드롭아웃 파형(48.8초에 4번, 21.3ms), 되돌린 시도들, macOS가 멀쩡한 이유 + d3 인터랙티브.]]></description>
+      <description><![CDATA[M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커가 복잡한 음악에서 크래클·끊김을 낸다. 하드웨어가 아니라 세 겹의 소프트웨어 문제(DSP 프로파일, 효율코어 스케줄링, 스트림 전환)였다. 원인과 처방, 실측 드롭아웃 파형(48.8초에 4번, 21.3ms), 되돌린 시도들, macOS가 멀쩡한 이유.]]></description>
       <category>Asahi</category>
       <category>Audio</category>
       <category>PipeWire</category>
@@ -24,7 +24,7 @@
       <link>https://nacyot.github.io/artifacts/tailscale-per-app-exit-node/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/tailscale-per-app-exit-node/</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 +0000</pubDate>
-      <description><![CDATA[Tailscale exit node는 켜는 순간 기기 인터넷을 통째로 가져간다. 유저스페이스 SOCKS5 프록시로 특정 앱(브라우저) 하나만 exit node로 내보내고 나머지는 그대로 두는 법. 구축·검증·fail-closed 분석과 d3 인터랙티브 시각화.]]></description>
+      <description><![CDATA[Tailscale exit node는 켜는 순간 기기 인터넷을 통째로 가져간다. 유저스페이스 SOCKS5 프록시로 특정 앱(브라우저) 하나만 exit node로 내보내고 나머지는 그대로 두는 법. 구축·검증·fail-closed 분석.]]></description>
       <category>Tailscale</category>
       <category>Networking</category>
       <category>Hyprland</category>
