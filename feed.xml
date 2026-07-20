@@ -5,10 +5,20 @@
     <link>https://nacyot.github.io/artifacts/</link>
     <description>공개해도 되는 작업 산출물 모음 — 실측 정리, 리서치, 시각화.</description>
     <language>ko</language>
-    <lastBuildDate>Mon, 20 Jul 2026 12:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 20 Jul 2026 13:00:00 +0000</lastBuildDate>
     <atom:link href="https://nacyot.github.io/artifacts/feed.xml" rel="self" type="application/rss+xml"/>
 
     <!-- newest first -->
+    <item>
+      <title>리눅스 노트북이 여행지 시간대를 스스로 맞추게 만들기</title>
+      <link>https://nacyot.github.io/artifacts/linux-auto-timezone/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/linux-auto-timezone/</guid>
+      <pubDate>Mon, 20 Jul 2026 13:00:00 +0000</pubDate>
+      <description><![CDATA[macOS엔 있고 Omarchy(Arch/Hyprland) 리눅스엔 없는 자동 시간대를 직접 만든다. IP로 현재 위치를 판별하고, tailscale exit node를 켜 둔 채로도 ip rule로 조회 하나만 실회선(main 테이블)에 태워 진짜 위치를 얻고, 폴링 없이 nmcli 이벤트에 반응하며 재부팅에도 살아남는 systemd user 서비스로 자동화한다. 우선순위 5100 규칙과 유닛 함정 셋, 여행 저널 실측까지.]]></description>
+      <category>Linux</category>
+      <category>Tailscale</category>
+      <category>systemd</category>
+    </item>
     <item>
       <title>중국 여행 중 tailscale 최적화: 끊김·느림을 원인별로 나눠 고치기</title>
       <link>https://nacyot.github.io/artifacts/tailscale-china-travel/</link>
