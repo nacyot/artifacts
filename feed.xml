@@ -5,7 +5,7 @@
     <link>https://nacyot.github.io/artifacts/</link>
     <description>공개해도 되는 작업 산출물 모음 — 실측 정리, 리서치, 시각화.</description>
     <language>ko</language>
-    <lastBuildDate>Mon, 20 Jul 2026 13:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 20 Jul 2026 13:38:14 +0000</lastBuildDate>
     <atom:link href="https://nacyot.github.io/artifacts/feed.xml" rel="self" type="application/rss+xml"/>
 
     <!-- newest first -->
@@ -14,7 +14,7 @@
       <link>https://nacyot.github.io/artifacts/linux-auto-timezone/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/linux-auto-timezone/</guid>
       <pubDate>Mon, 20 Jul 2026 13:00:00 +0000</pubDate>
-      <description><![CDATA[macOS엔 있고 Omarchy(Arch/Hyprland) 리눅스엔 없는 자동 시간대를 직접 만든다. IP로 현재 위치를 판별하고, tailscale exit node를 켜 둔 채로도 ip rule로 조회 하나만 실회선(main 테이블)에 태워 진짜 위치를 얻고, 폴링 없이 nmcli 이벤트에 반응하며 재부팅에도 살아남는 systemd user 서비스로 자동화한다. 우선순위 5100 규칙과 유닛 함정 셋, 여행 저널 실측까지.]]></description>
+      <description><![CDATA[macOS는 주변 WiFi로 위치를 잡아 시간대를 바꾼다. 그 방식(Google Geolocation API)을 리눅스에서 그대로 만들어 서울의 건물을 20m 오차로 짚었지만, 정작 중국에선 WiFi 데이터가 없어 실패했다. 그래서 IP 지오로 되돌리되 tailscale exit node는 ip rule 우선순위 5100 한 줄로 우회하고, nmcli 이벤트에 반응하며 재부팅에도 살아남는 systemd user 서비스로 자동화했다. 주변 AP 제조사·국가코드로 나라를 가려내는 보완책과 실측 데이터까지.]]></description>
       <category>Linux</category>
       <category>Tailscale</category>
       <category>systemd</category>

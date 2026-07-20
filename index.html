@@ -58,7 +58,7 @@
 
 <a class="item" href="./linux-auto-timezone/">
   <h2>리눅스 노트북이 여행지 시간대를 스스로 맞추게 만들기</h2>
-  <p>macOS엔 있고 Omarchy 리눅스엔 없는 자동 시간대. IP로 현재 위치를 판별하고, exit node를 켜 둔 채로도 ip rule로 조회 하나만 실회선에 태워 진짜 위치를 얻고, 폴링 없이 네트워크 이벤트에 반응하며 재부팅에도 살아남는 systemd 서비스로 자동화한다. 여행 저널 실측까지.</p>
+  <p>macOS는 주변 WiFi로 위치를 잡아 시간대를 바꾼다. 그 방식을 리눅스에서 그대로 만들어 서울의 건물을 20m 오차로 짚었지만 중국에선 데이터가 없어 실패했다. 그래서 IP로 되돌리되 exit node는 ip rule로 우회하고, systemd 서비스로 자동화했다. 주변 AP 제조사로 나라를 가려내는 보완책과 실측 데이터까지.</p>
   <div class="meta">
     <span class="tag">실측</span><span class="tag">시각화</span>
     <span>Linux, tailscale, systemd</span>

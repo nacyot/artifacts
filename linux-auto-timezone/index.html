@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="macOS엔 있고 Omarchy(Arch/Hyprland) 리눅스엔 없는 자동 시간대를 직접 만든다. IP로 현재 위치를 판별하고, tailscale exit node를 켜 둔 채로도 ip rule로 조회만 실회선에 태워 진짜 위치를 얻고, 폴링 없이 네트워크 이벤트에 반응하며 재부팅에도 살아남는 systemd user 서비스로 자동화한다. 여행 저널 실측까지.">
+<meta name="description" content="macOS는 주변 WiFi로 위치를 잡아 시간대를 자동으로 바꾼다. 그 방식(Google Geolocation API)을 리눅스에서 그대로 만들어 봤더니 서울에서 건물 단위로 맞았지만 정작 중국에서는 WiFi 데이터가 없어 실패했다. 그래서 IP 지오로 되돌리되, tailscale exit node를 켜 둔 채로도 ip rule로 조회만 실회선에 태워 진짜 위치를 얻고, 네트워크 이벤트에 반응하며 재부팅에도 살아남는 systemd user 서비스로 자동화한다. 주변 AP 제조사로 나라를 가려내는 보완책과 실측 데이터까지.">
 <link rel="canonical" href="https://nacyot.github.io/artifacts/linux-auto-timezone/">
 <link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
 <meta property="og:type" content="article">
@@ -8,7 +8,7 @@
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://nacyot.github.io/artifacts/linux-auto-timezone/">
 <meta property="og:title" content="리눅스 노트북이 여행지 시간대를 스스로 맞추게 만들기">
-<meta property="og:description" content="IP로 현재 위치를 판별해 리눅스 시스템 시간대를 자동으로 맞춘다. tailscale exit node를 켜 둔 채로도 ip rule로 조회만 실회선에 태워 진짜 위치를 얻고, 폴링 없이 네트워크 이벤트에 반응하며 재부팅에도 살아남는 systemd user 서비스로 자동화한다.">
+<meta property="og:description" content="macOS는 WiFi로 위치를 잡는다. 그 방식을 리눅스에서 만들어 보고, 왜 IP 지오로 되돌렸는지. exit node를 켜 둔 채로도 ip rule로 진짜 위치를 얻고 systemd 서비스로 자동화한다. 주변 AP 제조사로 나라를 가려내는 보완책과 실측 데이터.">
 <meta property="og:image" content="https://nacyot.github.io/artifacts/linux-auto-timezone/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
@@ -16,118 +16,169 @@
 <meta property="og:image:alt" content="리눅스 자동 시간대">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="리눅스 노트북이 여행지 시간대를 스스로 맞추게 만들기">
-<meta name="twitter:description" content="IP로 위치를 판별해 리눅스 시간대를 자동으로 맞춘다. exit node를 켜 둔 채로도 ip rule로 진짜 위치를 얻고, systemd 서비스로 자동화한다.">
+<meta name="twitter:description" content="macOS는 WiFi로 위치를 잡는다. 그 방식을 리눅스에서 만들어 보고 왜 IP 지오로 되돌렸는지. exit node를 켜 둔 채로도 진짜 위치를 얻고 systemd 서비스로 자동화한다.">
 <meta name="twitter:image" content="https://nacyot.github.io/artifacts/linux-auto-timezone/og.png">
 <meta name="twitter:image:alt" content="리눅스 자동 시간대">
 <title>리눅스 노트북 자동 시간대</title>
 <style>
-  :root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--barbg:#eceae2;--bar:#cbc9bf;--bar-hi:#4a4a46;--box:#f3f2ec}
+  :root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--barbg:#eceae2;--bar:#cbc9bf;--bar-hi:#4a4a46;--box:#f3f2ec;--good:#3f7d5e;--warn:#a98a3c;--bad:#b0553f}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--paper);color:var(--ink);
+  body{margin:0;background:var(--paper);color:#1c1c1c;
     font-family:"Pretendard GOV",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
     font-size:18px;line-height:1.72;word-break:keep-all;overflow-wrap:anywhere}
   .doc{max-width:42em;margin:0 auto;padding:4.5rem 1.5rem 7rem}
   h1{font-size:1.7rem;font-weight:700;line-height:1.36;margin:0 0 1.4rem}
-  h2{font-size:1.18rem;font-weight:700;margin:2.6rem 0 .7rem;padding-top:.7rem;border-top:1px solid var(--rule)}
+  h2{font-size:1.18rem;font-weight:700;margin:2.6rem 0 .7rem;padding-top:.7rem;border-top:1px solid #e4e2da}
   h3{font-size:1.02rem;font-weight:700;margin:1.6rem 0 .5rem}
   p{margin:0 0 .95rem} strong{font-weight:700}
   ul,ol{margin:.4rem 0 1.1rem;padding-left:1.1rem} li{margin:.5rem 0}
   code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8em;color:#46443f;background:#efeee7;padding:0 .25em;border-radius:2px}
-  pre{background:#f4f3ec;border:1px solid var(--rule);border-radius:5px;padding:.9rem 1rem;overflow-x:auto;font-size:.8rem;line-height:1.5;margin:0 0 1.2rem}
+  pre{background:#f4f3ec;border:1px solid #e4e2da;border-radius:5px;padding:.9rem 1rem;overflow-x:auto;font-size:.8rem;line-height:1.5;margin:0 0 1.2rem}
   pre code{background:none;padding:0;font-size:1em;color:#33322e}
-  .lead{color:var(--soft)}
-  .sum{background:var(--box);border-radius:6px;padding:1rem 1.15rem;margin:1.4rem 0 1.6rem;font-size:.95rem}
+  .lead{color:#5b5b57}
+  .sum{background:#f3f2ec;border-radius:6px;padding:1rem 1.15rem;margin:1.4rem 0 1.6rem;font-size:.95rem}
   .sum p{margin:.35rem 0}
-  .tcap,.fcap{font-size:.84rem;color:var(--soft);margin:1.5rem 0 .55rem}
+  .tcap,.fcap{font-size:.84rem;color:#5b5b57;margin:1.5rem 0 .55rem}
   table{width:100%;border-collapse:collapse;font-size:.88rem;line-height:1.55;margin:0 0 1.2rem}
   th,td{text-align:left;vertical-align:top;padding:.52rem .8rem .52rem 0}
-  thead th{border-bottom:1px solid var(--ink);font-weight:700;font-size:.82rem}
-  tbody tr+tr td{border-top:1px solid var(--rule)} td:first-child,th:first-child{font-weight:600}
-  .flow{display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;margin:.6rem 0 1rem;font-size:.85rem}
-  .flow .b{border:1px solid var(--faint);background:var(--box);border-radius:4px;padding:.38rem .65rem}
-  .flow .a{color:var(--faint)} .flow .out{border-color:var(--ink);font-weight:600}
-  details{margin:1rem 0;border-top:1px solid var(--rule);padding-top:.7rem}
-  summary{cursor:pointer;font-weight:700;list-style:none} summary::before{content:"▸ ";color:var(--faint)}
+  thead th{border-bottom:1px solid #1c1c1c;font-weight:700;font-size:.82rem}
+  tbody tr+tr td{border-top:1px solid #e4e2da} td:first-child,th:first-child{font-weight:600}
+  details{margin:1rem 0;border-top:1px solid #e4e2da;padding-top:.7rem}
+  summary{cursor:pointer;font-weight:700;list-style:none} summary::before{content:"▸ ";color:#b7b5ad}
   details[open] summary::before{content:"▾ "}
-  .em{color:var(--ink)}
+  .em{color:#1c1c1c}
+  .fig{margin:.4rem 0 1.4rem}
+  .fig svg{display:block;width:100%;height:auto;overflow:visible}
+  .yes{color:#3f7d5e;font-weight:700}.no{color:#b0553f;font-weight:700}
   @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.2rem 5rem}}
 </style></head><body><div class="doc">
 
 <h1>리눅스 노트북이 여행지 시간대를 스스로 맞추게 만들기</h1>
 
-<p class="lead">macOS는 여행으로 지역이 바뀌면 시스템 시간대를 알아서 바꾼다. Omarchy(Arch/Hyprland) 리눅스에는 그 기능이 없어, 상하이에 도착해도 노트북은 서울 시간에 멈춰 있었다. 그래서 직접 만들었다. 남들이 잘 안 다루는 두 지점을 코드까지 짚는다. 하나는 tailscale exit node를 켜 둔 채로도 진짜 위치를 알아내는 우회, 다른 하나는 폴링 없이 네트워크 이벤트에 반응하고 재부팅에도 살아남는 서비스로 자동화하는 법이다.</p>
+<p class="lead">macOS는 여행으로 지역이 바뀌면 시스템 시간대를 알아서 바꾼다. Omarchy(Arch/Hyprland) 리눅스에는 그 기능이 없어, 상하이에 도착해도 노트북은 서울 시간에 멈춰 있었다. 그래서 직접 만들었다. 흥미로운 건 macOS가 이걸 IP로 하지 않는다는 점이다. 그 "제대로 된" 방식을 리눅스에서 그대로 따라 만들어 봤고, 왜 결국 IP로 되돌렸는지, 그리고 그 과정에서 exit node를 켜 둔 채로도 진짜 위치를 얻는 우회와 재부팅에도 살아남는 서비스를 어떻게 풀었는지 코드까지 짚는다.</p>
 
 <div class="sum">
-<p><strong>무엇을 만들었나:</strong> 네트워크가 바뀌는 순간 공인 IP로 현재 위치를 판별해 <code>timedatectl set-timezone</code>으로 시스템 시간대를 자동 전환하는 스택. 스크립트 둘(<code>whereami</code>, <code>city-watch</code>)과 systemd user 서비스 하나.</p>
+<p><strong>무엇을 만들었나:</strong> 네트워크가 바뀌는 순간 현재 위치를 판별해 <code>timedatectl set-timezone</code>으로 시스템 시간대를 자동 전환하는 스택. 스크립트 둘(<code>whereami</code>, <code>city-watch</code>)과 systemd user 서비스 하나.</p>
+<p><strong>먼저 제대로 시도했다:</strong> macOS처럼 주변 WiFi로 위치를 잡는 방식(Google Geolocation API)을 실제로 구현했다. 서울의 원격 머신에서는 건물 단위(오차 20m)로 맞았고 exit node도 우회했다. 그런데 중국에서는 WiFi 위치 데이터가 없어 실패했다. 그래서 시간대엔 도시 단위면 충분하다고 보고 IP 방식으로 되돌렸다.</p>
 <p><strong>실제로 도나:</strong> 이 문서의 모든 명령과 로그는 여행 중인 실제 노트북에서 지금 재본 것이다. 저널에 <code>timezone changed: Asia/Seoul -&gt; Asia/Shanghai</code>가 남아 있고, 지금 이 순간 시스템 시간대는 <code>Asia/Singapore(+08)</code>로 맞아 있다.</p>
-<p><strong>정직한 한계:</strong> 모바일이나 로밍 IP는 지오 위치가 흔들린다. 몇 분 사이에 도시가 튀고, 드물게 시간대가 이웃 지역(+09)으로 잘못 잡혔다가 스스로 되돌아온다. 변경마다 알림이 떠서 눈으로 확인된다.</p>
 </div>
 
-<h2>왜 리눅스엔 이게 없나</h2>
+<h2>macOS는 IP로 시간대를 잡지 않는다</h2>
 
-<p>리눅스에도 시각을 맞추는 조각은 있다. <code>systemd-timesyncd</code>가 NTP로 <em class="em">시각</em>을 맞춘다. 그런데 이건 시각(몇 시 몇 분)만 맞추지 <em class="em">시간대</em>(어느 지역의 시각인가)는 건드리지 않는다. 시간대를 위치에 따라 자동으로 바꾸는 건 데스크톱 환경의 몫이다. GNOME에는 "자동 시간대" 스위치가 있지만 위치 서비스(GeoClue)에 의존하고, Hyprland처럼 최소 구성으로 꾸린 데스크톱에는 그런 조각이 아예 없다.</p>
+<p>먼저 흔한 오해부터 걷어내야 한다. "위치로 시간대를 맞춘다"고 하면 대개 공인 IP를 지도에 찍는 걸 떠올리지만, macOS는 그렇게 하지 않는다. macOS의 "현재 위치를 사용하여 자동으로 시간대 설정"은 <strong>Location Services(CoreLocation)</strong> 위에서 돈다. 위치를 얻는 주체는 <code>locationd</code>이고, 그 위치의 판단 근거는 IP가 아니라 <strong>주변 WiFi 핫스팟과 셀 타워, 센서</strong>다. Apple이 스트리트뷰 차량과 기기들로 모은 "이 공유기(BSSID)는 여기 있다"는 거대한 데이터베이스에 주변 신호를 대조해 위치를 찾는다.</p>
 
-<p>그래서 직접 만든다. 필요한 건 세 조각뿐이다.</p>
+<p>이 차이가 실용적으로 중요하다. 판단 근거가 현지 무선 신호라서, <strong>VPN을 켜 출구 IP가 다른 나라여도 실제 위치가 나온다.</strong> IP를 지도에 찍는 방식이 VPN 하나에 통째로 속는 것과 대조된다. 참고로 시간대를 <em class="em">동기화</em>하는 것처럼 보이는 <code>timed</code>는 위치 데몬이 아니라 시각(NTP) 동기화 데몬이고, <code>systemsetup -setusingnetworktime</code>도 시각 동기화지 자동 시간대 토글이 아니다. 위치로 시간대를 고르는 건 Location Services 계층의 몫이다.</p>
 
-<div class="flow">
-<span class="b">① 지금 어디인가</span><span class="a">→</span>
-<span class="b">② 그걸 시간대로 바꿔 적용</span><span class="a">→</span>
-<span class="b out">③ 위치가 바뀔 때 자동으로</span>
-</div>
+<p>리눅스에는 이런 통합 계층이 없다. <code>systemd-timesyncd</code>는 <em class="em">시각</em>만 맞추고 <em class="em">시간대</em>는 건드리지 않는다. 시간대를 바꾸는 <code>systemd-timedated</code>(<code>timedatectl set-timezone</code>)는 설정 메커니즘일 뿐 위치를 판별하지 않는다. 위치는 <strong>GeoClue</strong>라는 별도의 D-Bus 서비스가 담당하는데(GNOME의 "자동 시간대"가 이걸 쓴다), GeoClue의 WiFi 위치원은 오랫동안 Mozilla Location Service를 가리켰다. 그 MLS가 2024년에 문을 닫으면서(신규 키 중단 3월, 서드파티 키 제거 6월, 저장소 보관 7월) GeoClue에 기대던 리눅스 위치 기능들이 줄줄이 깨졌다. 즉 macOS를 그대로 따라 하려 해도, 리눅스에는 기댈 표준 인프라조차 마땅치 않은 상황이다. Hyprland처럼 최소 구성으로 꾸린 데스크톱에는 GeoClue 연동조차 없다.</p>
 
-<p>①과 ②는 스크립트 <code>whereami</code> 하나로, ③은 systemd 서비스 <code>city-watch</code>로 풀었다. 흔한 부분은 ①의 IP 지오 조회다. 어려운 건 두 가지다. exit node를 켜 두면 ①이 거짓말을 한다는 것, 그리고 ③을 폴링 없이, 재부팅에도 살아남게 만드는 것. 이 둘을 자세히 다룬다.</p>
+<h2>제대로 따라 하기: WiFi로 위치 잡기, 그리고 왜 접었나</h2>
 
-<h2>메인 A. 지금 어디인가, 그리고 exit node의 함정</h2>
+<p>그래도 macOS의 방식이 정공법이니 먼저 그대로 만들어 봤다. 리눅스에서도 <code>nmcli</code>로 주변 AP를 스캔할 수 있고, 그 목록을 <strong>Google Geolocation API</strong>에 보내면 macOS와 같은 원리로 좌표가 나온다.</p>
 
-<p>현재 위치를 IP로 알아내는 건 쉽다. 공인 IP를 지오 데이터베이스에 넣으면 도시와 시간대가 나온다. 문제는 <strong>tailscale exit node를 상시 켜 둔 사람</strong>이다. exit node는 모든 트래픽을 골라둔 노드(서울이나 싱가포르 등)로 내보낸다. 그 상태에서 "내 공인 IP가 뭐냐"를 물으면 돌아오는 답은 <strong>exit 노드의 IP</strong>다. 상하이에 앉아 있어도 서울이 잡히고, 시간대도 따라서 틀린다.</p>
+<pre><code>POST https://www.googleapis.com/geolocation/v1/geolocate?key=&lt;KEY&gt;
+{
+  "considerIp": false,          # ← 핵심. IP 폴백을 끈다
+  "wifiAccessPoints": [
+    { "macAddress": "aa:bb:cc:dd:ee:ff", "signalStrength": -43 },
+    { "macAddress": "11:22:33:44:55:66", "signalStrength": -67 }
+  ]
+}
+→ { "location": { "lat": …, "lng": … }, "accuracy": 20 }</code></pre>
+
+<p><code>considerIp: false</code>가 이 방식의 핵심이다. IP 폴백을 꺼 두면 순전히 WiFi로만 판단하므로, exit node를 켜 둔 채로도 실제 위치가 나오고, 못 찾을 땐 가짜를 지어내지 않고 정직하게 실패한다.</p>
+
+<p>쓰려면 준비가 좀 필요하다. 구글 클라우드 콘솔에서 프로젝트를 만들고, 결제 계정(카드)을 등록한 뒤, Geolocation API를 켜고 키를 발급받는다. 조회는 <strong>월 10,000건까지 무료</strong>다(예전의 월 200달러 크레딧은 2025년 2월로 끝났고, 지금은 API별 월 무료 한도 방식이다. 초과분은 1,000건당 5달러). 네트워크가 바뀔 때만 한 번 부르는 개인 용도는 한 달에 많아야 수십 번이라 청구가 날 일이 없다. 다만 무료 한도 안이라도 <strong>카드 등록은 필수</strong>다. 이 카드 등록 허들이 뒤의 판단에 영향을 준다.</p>
+
+<p>이론은 그렇고, 실제로 두 곳에서 돌려 봤다.</p>
+
+<p><strong>서울에서는 정확히 들어맞았다.</strong> 테일넷으로 붙은 원격 머신에서 주변 WiFi를 스캔해 보내니, 노트북이 exit 노드를 켜 둔 상태에서도 오차 <strong>20m</strong>로 그 건물을 콕 짚었다. WiFi 방식이 exit node를 우회한다는 것과, 정확도가 IP와는 차원이 다르다는 것이 한 번에 확인됐다.</p>
+
+<p><strong>그런데 상하이에서는 404가 돌아왔다.</strong> <code>considerIp:false</code>로 물으니 <code>"No location could be estimated"</code>. Google이 중국 본토에서 스트리트뷰를 접은 지 오래라 중국 WiFi 위치 데이터가 사실상 비어 있기 때문이다. 키·엔드포인트가 멀쩡한지 확인하려고 IP 폴백을 켜 보니(<code>considerIp:true</code>) 좌표는 나왔는데, 오차 <strong>15km</strong>짜리 싱가포르였다. 그때 쓰던 AWS Lightsail 싱가포르 exit 노드의 IP를 찍은 것이다. 무료 대안인 beaconDB도 같은 이유로 상하이에서 404였다. 다만 이 실패한 스캔이 뜻밖의 걸 남겼는데, 그건 다음 섹션에서 따로 다룬다.</p>
+
+<p>여기서 판단이 갈렸다. WiFi 방식은 분명히 더 정확하고 VPN에도 안 속지만, (1) API 키와 카드 등록이 필요하고, (2) <strong>정작 중국에서는 그 데이터가 없다.</strong> 반면 시간대를 맞추는 데에는 건물 단위 20m가 필요 없다. 도시, 정확히는 어느 <em class="em">시간대</em>인지만 알면 된다. 그 정확도는 IP로도 충분히 나온다. 세 방식이 실제로 얼마나 어긋나는지를 같은 축에 놓으면 선택은 분명해진다.</p>
+
+<div class="fcap">그림 1. 위치 판별 방식별 오차(로그 눈금, 미터). 실측값이다. WiFi는 건물을 짚지만 중국에서 안 되고, 우회 없는 IP는 아예 다른 나라를 가리킨다. 시간대에 필요한 정확도는 "도시" 구간이면 족하다.</div>
+<div class="fig" id="viz-accuracy"></div>
+
+<p>WiFi 측위(20m)는 시간대엔 과하고 중국에선 실패한다. 우회 없는 IP(3,810km)는 exit 노드의 나라를 찍어 아예 틀린다. 우리가 노릴 지점은 가운데, <strong>실회선으로 물은 IP가 주는 도시 단위 정확도</strong>다. 그거면 시간대는 정확히 맞는다. 그래서 WiFi 측위는 접고, 대신 IP가 exit node에 속는 문제 하나만 정면으로 풀기로 했다.</p>
+
+<div class="tcap">표 1. 실제로 돌려 본 두 방식의 지역별 결과(측정 위치 기준).</div>
+<table>
+<thead><tr><th>방식</th><th>키·과금</th><th>한국(서울)</th><th>중국(상하이)</th></tr></thead>
+<tbody>
+<tr><td>WiFi 측위(Google)</td><td>필요</td><td><span class="yes">±20m 건물</span></td><td><span class="no">404 데이터 없음</span></td></tr>
+<tr><td>IP 지오 + exit 우회</td><td>없음</td><td><span class="yes">도시 정확</span></td><td><span class="yes">도시 정확</span></td></tr>
+</tbody>
+</table>
+
+<h2>실패한 스캔이 남긴 것: 좌표는 몰라도 나라는 안다</h2>
+
+<p>WiFi 측위가 상하이에서 404를 준 건 <em class="em">좌표</em>를 못 줬다는 뜻이지, 스캔 자체가 헛수고였다는 뜻은 아니다. 잡힌 AP 목록만 들여다봐도 "여기가 어느 나라인지"는 아주 확실하게 나온다. 정밀 위치와 나라 판별은 서로 다른 층이고, 뒤에서 볼 eSIM·로밍 문제를 바로잡을 실마리가 여기 있다.</p>
+
+<p>스캔은 한 줄이면 된다. <code>sudo iw dev wlan0 scan</code>이 신호세기(dBm), BSSID, SSID, 그리고 AP가 beacon에 실어 보내는 규제 국가코드(Country IE)까지 한 번에 준다. 걸러낼 건 둘이다. 무작위로 바뀌는 로컬 관리 MAC(첫 옥텟에 <code>0x02</code> 비트가 선 것, 대개 폰 핫스팟)과, <code>_nomap</code>으로 끝나는 SSID(측위에서 빼 달라는 opt-out 규약)다. 제조사는 인터넷 없이 로컬 IEEE OUI 데이터베이스(<code>/usr/share/hwdata/oui.txt</code>)에서 BSSID 앞 3옥텟으로 찾는다. exit node도 인터넷도 필요 없는 완전 오프라인 조회다.</p>
+
+<p>상하이의 한 호텔에서 잡힌 AP 15개 전부다. 신호 강한 순으로 늘어놓고, 앞 3옥텟을 로컬 OUI DB로 제조사까지 붙였다.</p>
+
+<div class="tcap">표 2. <code>iw</code> 스캔 + 로컬 OUI 조회로 뽑은 주변 AP 15개(신호 강한 순, 있는 그대로).</div>
+<table>
+<thead><tr><th>BSSID</th><th>dBm</th><th>제조사(OUI)</th><th>SSID</th></tr></thead>
+<tbody>
+<tr><td>74:c9:a3:87:e3:1e</td><td>-42</td><td>Fiberhome Telecommunication</td><td>ChinaNet-47Pd</td></tr>
+<tr><td>7a:d2:3e:28:1d:35</td><td>-51</td><td>무작위(로컬 관리) MAC</td><td>seapy-mudi</td></tr>
+<tr><td>0e:82:3a:d7:53:21</td><td>-51</td><td>무작위(로컬 관리) MAC</td><td>seapy-mudi</td></tr>
+<tr><td>68:25:dd:4c:a7:f9</td><td>-53</td><td>Espressif Inc.</td><td>8602</td></tr>
+<tr><td>fc:c0:cc:33:4b:00</td><td>-65</td><td>Yunke China Information Technology</td><td>Hidden Hotel</td></tr>
+<tr><td>fc:c0:cc:33:4b:02</td><td>-65</td><td>Yunke China Information Technology</td><td>OFFICE</td></tr>
+<tr><td>fc:c0:cc:33:4b:01</td><td>-67</td><td>Yunke China Information Technology</td><td>HomeinnsIOT</td></tr>
+<tr><td>68:25:dd:4b:e1:79</td><td>-68</td><td>Espressif Inc.</td><td>8603</td></tr>
+<tr><td>68:25:dd:4d:41:95</td><td>-69</td><td>Espressif Inc.</td><td>8601</td></tr>
+<tr><td>fc:c0:cc:33:86:12</td><td>-76</td><td>Yunke China Information Technology</td><td>OFFICE</td></tr>
+<tr><td>74:c9:a3:87:ed:78</td><td>-79</td><td>Fiberhome Telecommunication</td><td>ChinaNet-LVWi</td></tr>
+<tr><td>68:25:dd:4d:76:69</td><td>-80</td><td>Espressif Inc.</td><td>8605</td></tr>
+<tr><td>fc:c0:cc:36:65:61</td><td>-81</td><td>Yunke China Information Technology</td><td>HomeinnsIOT</td></tr>
+<tr><td>fc:c0:cc:33:ae:e0</td><td>-92</td><td>Yunke China Information Technology</td><td>Hidden Hotel</td></tr>
+<tr><td>58:3b:d9:a4:f3:aa</td><td>-92</td><td>Fiberhome Telecommunication</td><td>ChinaNet-2aib</td></tr>
+</tbody>
+</table>
+
+<p>제조사별로 세면 Yunke China 6대, Espressif 4대, Fiberhome 3대, 정체를 못 밝히는 무작위 MAC 2대다. 신호세기로 색을 입혀 보면 이 동네 전파가 무슨 장비로 채워져 있는지 한눈에 들어온다.</p>
+
+<div class="fcap">그림 2. 주변 15개 AP를 신호 강한 순으로. 색은 제조사. 식별되는 벤더는 전부 중국 회사이거나 IoT 칩이다.</div>
+<div class="fig" id="viz-aps"></div>
+
+<p>여기서 세 가지가 <strong>서로 독립적으로</strong> 같은 답을 가리킨다.</p>
+<ul>
+<li><strong>국가 규제코드(Country IE)</strong>가 가장 확실하다. AP는 beacon에 자기가 설정된 규제 도메인의 국가를 실어 보내는데, 스캔된 값이 <strong>CN ×16 대 DE ×2</strong>였다. 추정이 아니라 AP들이 스스로 "나는 중국 규제도메인"이라고 방송하는 값이다. 위치 DB 하나 없어도 나라가 바로 나온다.</li>
+<li><strong>SSID 이름</strong>이 그다음이다. <code>ChinaNet-*</code>는 차이나텔레콤 망, <code>HomeinnsIOT</code>는 如家(홈인) 호텔 체인, <code>8601~8607</code>은 객실 번호다. 나라를 넘어 "중국의 홈인 계열 호텔"까지 좁혀진다.</li>
+<li><strong>제조사 OUI</strong>가 보조로 받친다. Yunke China(云科, 호텔 WiFi 장비), Espressif(乐鑫, 상하이의 ESP32 IoT 칩), Fiberhome(烽火, 중국 텔레콤 장비). OUI는 "제조사"지 "국가"가 아니라 앞의 둘보다 약하지만, 회사명에 China가 박힌 내수 벤더가 이렇게 지배적이면 방증이 된다.</li>
+</ul>
+
+<p>정리하면 위치는 두 층이다. <strong>정밀 위치(좌표)</strong>는 Google WiFi 측위로, 데이터가 쌓인 지역(한국 등)에서만 얻는다. <strong>나라·지역 판별</strong>은 Country IE와 SSID, OUI 휴리스틱으로, 중국에서도 그것도 오프라인으로 된다. 이 아래층은 아직 <code>whereami</code>에 붙이지 않았지만, 뒤에서 볼 IP의 약점을 메울 카드다.</p>
+
+<h2>exit node의 함정과 우회</h2>
+
+<p>현재 위치를 IP로 알아내는 건 쉽다. 공인 IP를 지오 데이터베이스에 넣으면 도시와 시간대가 나온다. 문제는 <strong>tailscale exit node를 상시 켜 둔 사람</strong>이다. exit node는 모든 트래픽을 골라 둔 노드(서울이나 싱가포르 등)로 내보낸다. 그 상태에서 "내 공인 IP가 뭐냐"를 물으면 돌아오는 답은 <strong>exit 노드의 IP</strong>다. 상하이에 앉아 있어도 싱가포르가 잡히고, 시간대도 따라서 틀린다. 그림 1의 3,810km가 바로 이 오차다.</p>
 
 <h3>핵심 아이디어: 조회 한 방향만 터널 밖으로</h3>
 
 <p>모든 트래픽을 터널 밖으로 뺄 필요는 없다. "내 IP 알려줘"라고 묻는 그 조회 <em class="em">하나만</em> 실제 물리 회선으로 보내면 된다. 이걸 리눅스의 정책 라우팅(policy routing)으로 한다. <code>ip rule</code>은 목적지나 출발지 같은 조건에 따라 어느 라우팅 테이블을 쓸지 정하는 규칙 목록이고, <strong>우선순위 숫자가 작을수록 먼저</strong> 평가된다.</p>
 
-<p>tailscale이 exit node로 트래픽을 다 내보낼 때, 실제로 규칙 목록에 무엇을 넣는지 이 노트북에서 그대로 떠봤다.</p>
+<p>tailscale이 exit node로 트래픽을 다 내보낼 때 실제로 규칙 목록에 무엇을 넣는지 이 노트북에서 그대로 떠 봤다. 아래 사다리가 그 규칙들이고, 위에서부터 평가된다.</p>
 
-<pre><code>$ ip rule
-0:      from all lookup local
-5100:   from all uidrange 952-952 lookup main
-5210:   from all fwmark 0x80000/0xff0000 lookup main
-5230:   from all fwmark 0x80000/0xff0000 lookup default
-5250:   from all fwmark 0x80000/0xff0000 unreachable
-5270:   from all lookup 52          ← tailscale: "모든 트래픽을 터널 테이블(52)로"
-32766:  from all lookup main
-32767:  from all lookup default</code></pre>
+<div class="fcap">그림 3. 실제 <code>ip rule</code> 우선순위 사다리와 두 갈래 경로. 조회 서버로 가는 패킷은 우리가 끼운 prio 5100에서 실회선으로 빠지고, 나머지 모든 트래픽은 tailscale이 심은 prio 5270에서 터널(테이블 52)로 가 exit 노드로 나간다.</div>
+<div class="fig" id="viz-routing"></div>
 
-<p>핵심은 <code>5270: from all lookup 52</code> 한 줄이다. tailscale은 우선순위 5270에 "출발지 불문 모든 트래픽을 테이블 52로 보내라"는 규칙을 심는다. 테이블 52는 터널로 나가는 경로다(exit node가 켜지면 이 테이블의 기본 경로가 <code>tailscale0</code>을 향한다). 그래서 아무것도 안 하면 IP 조회도 이 규칙에 걸려 터널로 나가고, exit 노드 위치가 잡힌다.</p>
-
-<p>우회는 이 catch-all보다 <strong>먼저</strong> 걸리는 규칙 하나를 끼워 넣는 것이다.</p>
+<p>핵심은 <code>5270: from all lookup 52</code> 한 줄이다. tailscale은 우선순위 5270에 "출발지 불문 모든 트래픽을 테이블 52로 보내라"는 규칙을 심는다. 테이블 52는 터널로 나가는 경로다. 그래서 아무것도 안 하면 IP 조회도 이 규칙에 걸려 터널로 나가고, exit 노드 위치가 잡힌다. 우회는 이 catch-all보다 <strong>먼저</strong> 걸리는 규칙 하나를 끼워 넣는 것이다.</p>
 
 <pre><code># 조회 서버로 가는 패킷만 실회선(main 테이블)으로
 sudo ip rule add to &lt;조회서버_IP&gt; lookup main priority 5100</code></pre>
 
-<p>우선순위 5100은 tailscale의 catch-all(5270)보다 작다. 그래서 그 조회 서버로 향하는 패킷은 5100 규칙에 먼저 걸려 <code>main</code> 테이블(실제 wlan0 회선)을 타고, 나머지 트래픽은 여전히 5270에 걸려 터널로 나간다. 딱 한 목적지만 터널 밖으로 뺀 것이다. 조회가 끝나면 규칙을 바로 지운다.</p>
-
-<p>이 규칙이 실제로 먹히는지 지금 노트북에서 넣고, 확인하고, 지워봤다(문서용 예시 IP <code>203.0.113.9</code> 사용, 실행 후 자동 정리됨).</p>
+<p>우선순위 5100은 tailscale의 catch-all(5270)보다 작다. 그래서 그 조회 서버로 향하는 패킷은 5100 규칙에 먼저 걸려 <code>main</code> 테이블(실제 wlan0 회선)을 타고, 나머지 트래픽은 여전히 5270에 걸려 터널로 나간다. 딱 한 목적지만 터널 밖으로 뺀 것이다. 조회가 끝나면 규칙을 바로 지운다. 이 규칙이 실제로 먹히는지 지금 노트북에서 넣고, 확인하고, 지워 봤다(문서용 예시 IP <code>203.0.113.9</code> 사용).</p>
 
 <pre><code>$ sudo ip rule add to 203.0.113.9 lookup main priority 5100
 $ ip rule | grep 203.0.113.9
 5100:   from all to 203.0.113.9 lookup main      ← catch-all(5270)보다 먼저 평가됨
-$ sudo ip rule del to 203.0.113.9 lookup main priority 5100
-$ ip rule | grep 203.0.113.9
-(사라짐)</code></pre>
-
-<p>결정 흐름을 그림으로 요약하면 이렇다.</p>
-
-<div class="fcap">그림 1. IP 조회 패킷이 겪는 라우팅 결정. 목적지가 조회 서버면 prio 5100에서 실회선으로 빠지고, 그 외 모든 트래픽은 prio 5270에서 터널로 간다.</div>
-<div class="flow">
-<span class="b">IP 조회 패킷</span><span class="a">→</span>
-<span class="b">prio 5100: 목적지가 조회 서버인가?</span>
-</div>
-<div class="flow">
-<span class="a" style="min-width:4.2rem">예 →</span><span class="b out">main 테이블(실회선 wlan0)</span>
-</div>
-<div class="flow">
-<span class="a" style="min-width:4.2rem">아니오 →</span><span class="b">prio 5270: from all lookup 52</span><span class="a">→</span><span class="b">터널(tailscale0)</span>
-</div>
+$ sudo ip rule del to 203.0.113.9 lookup main priority 5100</code></pre>
 
 <h3>코드: whereami의 우회 조회</h3>
 
@@ -142,9 +193,7 @@ via_real() {
   sudo -n ip rule del to "$svc" lookup main priority 5100 2&gt;/dev/null
 }</code></pre>
 
-<p>몇 가지 결정이 들어 있다. 목적지를 도메인이 아니라 <strong>IP로 고정</strong>한다(<code>--resolve</code>). 규칙이 특정 IP에만 걸리게 하려면 미리 주소를 알아야 하고, 이름 해석도 실회선에서 해야 하기 때문이다. 그리고 이렇게 얻은 "진짜 IP"는 그다음엔 아무 경로로 지오 조회를 해도 된다. 주어진 IP를 해석하는 것이라 어디서 물어도 답이 같기 때문이다.</p>
-
-<p>조회 서버는 한 곳만 믿지 않고 층을 쌓았다. exit node가 켜졌을 땐 중국처럼 특정 서비스가 막힌 곳을 대비해 <strong>중국계 echo → ip-api(HTTP) → ipinfo(HTTPS)</strong> 순으로 폴백한다. (옛 폴백으로 쓰던 서비스는 DNS 자체가 사라져 실제로 갈아끼웠다.) 시간대는 반드시 <code>/usr/share/zoneinfo/</code>에 실재하는 값만 통과시킨다. 오염된 문자열이 <code>timedatectl</code>로 흘러가는 걸 막기 위해서다.</p>
+<p>몇 가지 결정이 들어 있다. 목적지를 도메인이 아니라 <strong>IP로 고정</strong>한다(<code>--resolve</code>). 규칙이 특정 IP에만 걸리게 하려면 미리 주소를 알아야 하고, 이름 해석도 실회선에서 해야 하기 때문이다. 이렇게 얻은 "진짜 IP"는 그 다음엔 아무 경로로 지오 조회를 해도 된다. 주어진 IP를 해석하는 것이라 어디서 물어도 답이 같기 때문이다. 조회 서버는 한 곳만 믿지 않고 층을 쌓았다. 중국처럼 특정 서비스가 막힌 곳을 대비해 <strong>중국계 echo → ip-api(HTTP) → ipinfo(HTTPS)</strong> 순으로 폴백한다(옛 폴백 서버는 DNS 자체가 사라져 실제로 갈아끼웠다). 시간대는 반드시 <code>/usr/share/zoneinfo/</code>에 실재하는 값만 통과시켜, 오염된 문자열이 <code>timedatectl</code>로 흘러가는 걸 막는다.</p>
 
 <p>모드는 셋이다. 사람용 출력, 도시 한 줄(<code>--oneline</code>, 변경 감지용), IANA 시간대 한 줄(<code>--tz</code>, 시스템 동기화용). 지금 여행지에서 실제로 돌린 결과다.</p>
 
@@ -156,13 +205,13 @@ via_real() {
 $ whereami --tz
 Asia/Singapore</code></pre>
 
-<h2>메인 B. 위치가 바뀌면 자동으로: systemd user 서비스</h2>
+<h2>위치가 바뀌면 자동으로: systemd user 서비스</h2>
 
 <p>스크립트를 손으로 돌리는 건 자동화가 아니다. 진짜 어려운 건 <strong>폴링 없이 반응</strong>하는 것과 <strong>재부팅에도 사는 것</strong>이다.</p>
 
 <h3>폴링하지 않는다: 네트워크 이벤트에 반응</h3>
 
-<p>1분마다 IP를 긁는 타이머는 배터리와 데이터를 낭비한다. 대신 NetworkManager의 이벤트 스트림(<code>nmcli monitor</code>)을 읽는다. 네트워크가 실제로 바뀌는 순간에만 깨어나 재조회하고, 아무 이벤트가 없을 때를 대비한 1시간 백스톱만 둔다. 루프의 뼈대는 이렇다.</p>
+<p>1분마다 IP를 긁는 타이머는 배터리와 데이터를 낭비한다. 대신 NetworkManager의 이벤트 스트림(<code>nmcli monitor</code>)을 읽는다. 네트워크가 실제로 바뀌는 순간에만 깨어나 재조회하고, 아무 이벤트도 없을 때를 대비해 1시간에 한 번은 강제로 확인하는 안전장치만 둔다. 루프의 뼈대는 이렇다.</p>
 
 <pre><code>while true; do
   exec 3&lt; &lt;(nmcli monitor 2&gt;/dev/null)
@@ -172,7 +221,7 @@ Asia/Singapore</code></pre>
       sleep 6; check          # 네트워크 이벤트 → 안정 대기 후 체크(디바운스)
     else
       rc=$?
-      if [ "$rc" -gt 128 ]; then check 1   # 타임아웃: 백스톱 도래 → 강제 재체크
+      if [ "$rc" -gt 128 ]; then check 1   # 타임아웃: 1시간 경과 → 강제 재체크
       else break; fi                       # EOF: monitor 종료 → 바깥 루프가 재기동
     fi
   done
@@ -228,26 +277,28 @@ WantedBy=default.target</code></pre>
              ├─ 986 bash …/city-watch
              └─1126 nmcli monitor</code></pre>
 
-<h2>견고화 (한 층 얇게)</h2>
+<h2>조회가 실패할 때</h2>
 
-<p>실전에선 조회가 실패한다. 부팅 직후엔 네트워크가 늦게 붙고, 나쁜 회선에선 <code>curl</code>이 걸린다. 두 가지로 눌러 담았다. 조회가 실패하면 다음 이벤트나 1시간 백스톱까지 기다리지 않고 90초 간격으로 재시도하다가, 성공하면 다시 1시간 백스톱으로 돌아간다. 그리고 <code>whereami</code> 호출은 <code>timeout</code>으로 감싸, 회선이 나빠 조회가 멈춰도 루프 자체는 죽지 않게 했다. 조회에 실패하면 시간대를 바꾸지 않고 직전 값을 유지한다(없는 값으로 덮어써 오탐을 만들지 않기 위해서다).</p>
+<p>실전에선 조회가 실패한다. 부팅 직후엔 네트워크가 늦게 붙고, 나쁜 회선에선 <code>curl</code>이 걸린다. 두 가지로 눌러 담았다. 조회가 실패하면 다음 이벤트나 1시간 강제 확인까지 기다리지 않고 90초 간격으로 재시도하다가, 성공하면 다시 1시간 간격으로 돌아간다. 그리고 <code>whereami</code> 호출은 <code>timeout</code>으로 감싸, 회선이 나빠 조회가 멈춰도 루프 자체는 죽지 않게 했다. 조회에 실패하면 시간대를 바꾸지 않고 직전 값을 유지한다(없는 값으로 덮어써 오탐을 만들지 않기 위해서다).</p>
 
 <p>이 기기(Asahi/Omarchy)에서만 겪은 함정도 하나 있었다. systemd user 서비스가 세션 PATH를 임포트하기 전에 뜨면 <code>~/.local/bin</code>이 PATH에서 빠져 <code>whereami</code>를 못 찾고 매 체크가 조용히 무산된다. 서비스 스크립트 맨 위에서 <code>export PATH="$HOME/.local/bin:$PATH"</code>로 직접 보장해 막았다. 재현 가능한 본론은 아니니 이 정도만 적어 둔다.</p>
 
-<h2>실제로 써 보면: 여행 저널</h2>
+<h2>실제로 시간대가 바뀐 순간들</h2>
 
-<p>만드는 것만으로는 반이다. 실제로 시간대를 바꾸는지가 핵심이다. 이 노트북의 시스템 저널(<code>logger -t city-watch</code>가 남긴 기록)에서, 여행 중 스택이 스스로 시간대를 바꾼 순간들을 그대로 꺼냈다.</p>
+<p>만드는 것만으로는 반이다. 실제로 시간대를 바꾸는지가 핵심이다. 이 노트북의 시스템 저널(<code>logger -t city-watch</code>가 남긴 기록)에서, 스택이 스스로 시간대를 바꾼 순간들을 그대로 꺼냈다.</p>
 
-<div class="tcap">표 1. 실제 시스템 저널에서 뽑은 자동 시간대 전환(개인정보 스크럽). 도시 라벨의 잦은 변동은 아래 한계에서 다룬다.</div>
+<div class="tcap">표 3. 실제 시스템 저널에서 뽑은 자동 시간대 전환(개인정보 스크럽). 네 번 다 노트북은 상하이에 있었다. 바뀐 건 인터넷으로 나가는 회선이다.</div>
 <table>
-<thead><tr><th>시각(현지)</th><th>전환</th><th>의미</th></tr></thead>
+<thead><tr><th>시각(현지)</th><th>전환</th><th>무엇이 바뀌었나</th></tr></thead>
 <tbody>
-<tr><td>07-19 23:28</td><td>Asia/Seoul → Asia/Shanghai</td><td>서울을 떠나자 스스로 +08로. 이게 만든 이유다</td></tr>
-<tr><td>07-20 12:03</td><td>Asia/Shanghai → Asia/Singapore</td><td>같은 +08, 시계는 그대로</td></tr>
-<tr><td>07-20 15:02</td><td>Asia/Singapore → Asia/Seoul</td><td>지오 흔들림으로 +09 오판(1시간 틀림)</td></tr>
-<tr><td>07-20 15:12</td><td>Asia/Seoul → Asia/Singapore</td><td>다음 체크에서 스스로 +08로 복귀</td></tr>
+<tr><td>07-19 23:28</td><td>Asia/Seoul → Asia/Shanghai</td><td>스크립트를 처음 설치한 직후 첫 동작. 서울에 멈춰 있던 시계가 상하이로</td></tr>
+<tr><td>07-20 12:03</td><td>Asia/Shanghai → Asia/Singapore</td><td>싱가포르 기반 eSIM으로 전환. 그 회선 IP의 등록지가 싱가포르라 +08 그대로</td></tr>
+<tr><td>07-20 15:02</td><td>Asia/Singapore → Asia/Seoul</td><td>SKT 로밍 폰의 핫스팟에 연결. 로밍 IP의 등록지가 한국이라 +09</td></tr>
+<tr><td>07-20 15:12</td><td>Asia/Seoul → Asia/Singapore</td><td>핫스팟을 떼고 eSIM으로 복귀. 다시 +08</td></tr>
 </tbody>
 </table>
+
+<p>네 번의 전환에서 노트북은 내내 상하이에 있었다. 시간대가 바뀐 건 위치 판별이 틀려서가 아니라, 인터넷으로 나가는 회선(현지 회선 → 싱가포르 eSIM → SKT 로밍)이 바뀔 때마다 그 회선 IP가 등록된 지역이 달랐기 때문이다. 회선 IP를 기준으로 보면 매번 정확했다. 이 회선-등록지 어긋남은 exit node와 무관한, IP 방식 자체의 성질이다. 뒤에서 다시 다룬다.</p>
 
 <p>그리고 그 우회가 실제로 도는 증거는 <code>sudo</code> 로그에 그대로 남는다. 도시가 바뀌기 직전, 조회 서버로 가는 규칙을 넣고, 조회하고, 지운 뒤 시간대를 바꾼 자취다(호스트명과 계정명 스크럽).</p>
 
@@ -265,12 +316,156 @@ System clock synchronized: yes
 
 <h2>정직한 한계</h2>
 
-<p>이 스택은 "지금 붙은 네트워크의 IP가 말하는 위치"를 믿는다. 그래서 지오 데이터가 흔들리면 같이 흔들린다. 표 1의 15:02 줄이 그 예다. 로밍이나 모바일 IP는 지오 제공자마다 다른 도시를 돌려주기도 해서, 몇 분 사이에 도시가 튀고 드물게 시간대가 이웃 지역으로 잘못 잡힌다. 다행히 상하이와 싱가포르는 둘 다 +08이라 라벨이 그 사이에서 흔들려도 <em class="em">시계는 맞다.</em> 문제가 되는 건 +09(서울)로 튀는 경우뿐이고, 그것도 다음 체크에서 스스로 교정된다. 무엇보다 변경마다 알림이 떠서 "지금 어디로 잡혔는지" 사람이 바로 본다.</p>
+<p>이 스택은 회선 IP가 말하는 위치를 믿는다. 그래서 회선 IP에 대해서는 거의 항상 정확하다. 문제는 물리적 위치와 회선 IP의 등록지가 갈릴 때다. 표 3의 12:03과 15:02가 그 예다. 싱가포르 eSIM이나 SKT 로밍을 쓰면 상하이에 앉아 있어도 IP는 싱가포르나 서울로 등록돼 있어, 시간대가 그쪽을 따라간다. exit node를 우회해 실회선 IP를 얻어도 이건 못 잡는다. 회선 자체의 등록지가 다른 나라이기 때문이고, exit node 문제와는 별개다. 다행히 상하이와 싱가포르는 둘 다 +08이라 그 사이에선 시계가 맞고, +09(서울)로 갈 때만 한 시간 어긋난다. 변경마다 알림이 떠서 사람이 바로 본다.</p>
 
-<p>설계상 분명한 한계도 있다. 위치 판별이 전적으로 IP 지오에 기대므로, VPN이나 프록시로 나가는 상황에선 위 우회로 감당하는 범위를 벗어나면 틀릴 수 있다. 그리고 실제 재부팅으로 부팅 초기 경로까지 통째로 검증하지는 않았다. 부팅에 관여하는 조각(enable, linger, PATH, 조회 폴백)은 각각 따로 실측했지만, 전원을 껐다 켜는 전 과정을 한 번에 돌려본 건 아니다.</p>
+<p>이걸 바로잡을 단서는 이미 손에 있다. 앞서 상하이에서 스캔한 주변 AP들이다. IP가 싱가포르라고 우겨도, 곁의 공유기 제조사는 Yunke China·Fiberhome이고 AP가 광고하는 국가코드는 <code>CN</code>이었다. IP와 주변 AP가 어긋날 때 AP 쪽 신호로 나라를 바로잡는 것, 그게 다음 개선 방향이다. Google 측위 DB가 중국에서 비어 좌표까지는 못 얻어도, 제조사 OUI와 국가코드만으로 어느 나라인지는 가려진다. 정확히 macOS가 IP 대신 WiFi를 보는 이유이기도 하다.</p>
+
+<p>설계상 분명한 한계도 있다. 실제 재부팅으로 부팅 초기 경로까지 통째로 검증하지는 않았다. 부팅에 관여하는 조각(enable, linger, PATH, 조회 폴백)은 각각 따로 실측했지만, 전원을 껐다 켜는 전 과정을 한 번에 돌려본 건 아니다.</p>
 
 <h2>정리</h2>
 
-<p>macOS의 자동 시간대는 특별한 기능처럼 보이지만, 리눅스에서 재현하는 데 필요한 건 세 조각이다. IP로 위치를 알아내고, exit node를 쓴다면 <code>ip rule</code>로 조회 하나만 실회선에 태워 진짜 위치를 얻고, 그걸 네트워크 이벤트에 반응하는 systemd 서비스로 자동화하는 것. 우선순위 5100 규칙 한 줄과 유닛 파일의 함정 세 줄이 이 글의 알맹이다. 나머지는 폴백과 알림으로 다듬는 문제였다.</p>
+<p>macOS의 자동 시간대는 특별한 기능처럼 보이지만 원리는 단순하다. IP가 아니라 주변 WiFi로 위치를 잡는다는 것. 그 정공법을 리눅스에서 그대로 만들면 서울에서 건물을 짚을 만큼 정확했지만, 키와 카드 등록이 필요한 데다 정작 중국에서 데이터가 없어 무너졌다. 그래서 목적에 맞게 눈높이를 낮췄다. 시간대엔 도시 단위면 충분하니 IP로 가되, exit node에 속는 문제만 <code>ip rule</code> 한 줄로 우회하고, 네트워크 이벤트에 반응하는 systemd 서비스로 자동화했다. 우선순위 5100 규칙과 유닛 파일의 함정 세 줄이 이 글의 알맹이다. "제대로"가 늘 정답은 아니고, 문제에 맞는 정확도를 고르는 것이 먼저다.</p>
+
+<script src="../vendor/d3.v7.min.js"></script>
+<script>
+(function(){
+  // 그림 1 — 위치 방식별 오차(로그 눈금). 전부 실측/실계산값.
+  const el=d3.select('#viz-accuracy'); if(el.empty()||!window.d3)return;
+  const data=[
+    {k:'WiFi 측위',   note:'considerIp:false · 서울 실측', m:20,       band:'건물', col:'#3f7d5e'},
+    {k:'IP 지오',     note:'도시 단위면 시간대엔 충분',    m:15000,    band:'도시', col:'#a98a3c'},
+    {k:'우회 없는 IP', note:'exit 노드(Lightsail SG)',     m:3810000,  band:'다른 나라', col:'#b0553f'}
+  ];
+  const W=680, rowH=64, m={l:112,r:24,t:44,b:34}, H=m.t+m.b+rowH*data.length;
+  const svg=el.append('svg').attr('viewBox',`0 0 ${W} ${H}`).attr('role','img')
+    .attr('aria-label','위치 판별 방식별 오차 로그 눈금 비교: WiFi 측위 20미터, IP 지오 약 15킬로미터, 우회 없는 IP 3810킬로미터');
+  const x=d3.scaleLog().domain([1,1e7]).range([m.l,W-m.r]).clamp(true);
+  const ticks=[1,10,100,1000,10000,100000,1000000,10000000];
+  const fmt=v=> v>=1000 ? (v/1000>=1000?(v/1e6+'천km'):(v/1000+'km')) : v+'m';
+  // 배경 구간 라벨
+  const bands=[{x0:1,x1:60,t:'건물'},{x0:60,x1:50000,t:'도시·지역'},{x0:50000,x1:1e7,t:'국가 단위 이상'}];
+  svg.selectAll('.bnd').data(bands).join('rect').attr('class','bnd')
+    .attr('x',d=>x(d.x0)).attr('width',d=>x(d.x1)-x(d.x0)).attr('y',m.t-8).attr('height',rowH*data.length+8)
+    .attr('fill',(d,i)=>i%2?'#00000006':'#00000000');
+  svg.selectAll('.bndt').data(bands).join('text').attr('class','bndt')
+    .attr('x',d=>(x(d.x0)+x(d.x1))/2).attr('y',m.t-16).attr('text-anchor','middle')
+    .attr('font-size',11).attr('fill','#b7b5ad').text(d=>d.t);
+  // 눈금선
+  svg.selectAll('.grid').data(ticks).join('line').attr('class','grid')
+    .attr('x1',d=>x(d)).attr('x2',d=>x(d)).attr('y1',m.t-8).attr('y2',m.t+rowH*data.length)
+    .attr('stroke','#e4e2da').attr('stroke-width',1);
+  svg.selectAll('.gt').data(ticks).join('text').attr('class','gt')
+    .attr('x',d=>x(d)).attr('y',m.t+rowH*data.length+18).attr('text-anchor','middle')
+    .attr('font-size',10).attr('fill','#b7b5ad').attr('font-family','ui-monospace,monospace').text(d=>fmt(d));
+  const g=svg.selectAll('.row').data(data).join('g').attr('class','row')
+    .attr('transform',(d,i)=>`translate(0,${m.t+i*rowH+rowH/2})`);
+  g.append('text').attr('x',m.l-12).attr('y',-4).attr('text-anchor','end').attr('font-size',13).attr('font-weight',700).attr('fill','#1c1c1c').text(d=>d.k);
+  g.append('text').attr('x',m.l-12).attr('y',12).attr('text-anchor','end').attr('font-size',10.5).attr('fill','#5b5b57').text(d=>d.note);
+  g.append('line').attr('x1',x(1)).attr('x2',d=>x(d.m)).attr('y1',0).attr('y2',0).attr('stroke',d=>d.col).attr('stroke-width',3).attr('opacity',.5);
+  g.append('circle').attr('cx',d=>x(d.m)).attr('cy',0).attr('r',6).attr('fill',d=>d.col);
+  g.append('text').attr('x',d=>x(d.m)).attr('y',-12).attr('text-anchor',d=> x(d.m)>W-90?'end':'middle')
+    .attr('font-size',12).attr('font-weight',700).attr('fill',d=>d.col)
+    .attr('font-family','ui-monospace,monospace').text(d=> d.m>=1000?(d.m/1000).toLocaleString()+' km':d.m+' m');
+})();
+</script>
+<script>
+(function(){
+  // 그림 2 — 실제 ip rule 우선순위 사다리 + 두 경로. 규칙표는 실측.
+  const el=d3.select('#viz-routing'); if(el.empty()||!window.d3)return;
+  const rules=[
+    {p:'0',    d:'from all lookup local'},
+    {p:'5100', d:'to <조회서버> lookup main', me:true, note:'우리가 끼운 규칙'},
+    {p:'5210', d:'fwmark 0x80000 lookup main'},
+    {p:'5270', d:'from all lookup 52', ts:true, note:'tailscale catch-all'},
+    {p:'32766',d:'from all lookup main'}
+  ];
+  const W=680, top=54, rowH=34, botGap=48, H=top+rules.length*rowH+botGap+56;
+  const colP=70, colBox=196, x0=18;
+  const svg=el.append('svg').attr('viewBox',`0 0 ${W} ${H}`).attr('role','img')
+    .attr('aria-label','실제 ip rule 우선순위 사다리. 조회 서버로 가는 패킷은 우선순위 5100에서 실회선으로, 나머지는 5270에서 터널로 나가 exit 노드에 도달');
+  svg.append('text').attr('x',x0).attr('y',22).attr('font-size',12.5).attr('font-weight',700).attr('fill','#1c1c1c').text('ip rule (위→아래 순서로 평가)');
+  svg.append('text').attr('x',x0).attr('y',40).attr('font-size',11).attr('fill','#5b5b57').text('숫자가 작을수록 먼저. 먼저 걸리는 규칙이 이긴다.');
+  const g=svg.selectAll('.r').data(rules).join('g').attr('transform',(d,i)=>`translate(0,${top+i*rowH})`);
+  g.append('rect').attr('x',x0).attr('y',2).attr('width',colP+colBox+18).attr('height',rowH-8).attr('rx',4)
+    .attr('fill',d=>d.me?'#3f7d5e14':d.ts?'#b0553f12':'#f3f2ec')
+    .attr('stroke',d=>d.me?'#3f7d5e':d.ts?'#b0553f':'#e4e2da').attr('stroke-width',d=>d.me||d.ts?1.5:1);
+  g.append('text').attr('x',x0+colP).attr('y',rowH/2+1).attr('text-anchor','end').attr('font-size',12).attr('font-weight',700)
+    .attr('font-family','ui-monospace,monospace').attr('fill',d=>d.me?'#3f7d5e':d.ts?'#b0553f':'#5b5b57').text(d=>d.p);
+  g.append('text').attr('x',x0+colP+12).attr('y',rowH/2+1).attr('font-size',11.5)
+    .attr('font-family','ui-monospace,monospace').attr('fill','#1c1c1c').text(d=>d.d);
+  g.filter(d=>d.note).append('text').attr('x',x0+colP+colBox+26).attr('y',rowH/2+1).attr('font-size',10.5)
+    .attr('fill',d=>d.me?'#3f7d5e':'#b0553f').text(d=>'← '+d.note);
+  // 두 경로 화살표 (오른쪽)
+  const bx=W-150, y5100=top+1*rowH+rowH/2-4, y5270=top+3*rowH+rowH/2-4, yb=top+rules.length*rowH+botGap-6;
+  function outBox(y,label,sub,col){
+    const b=svg.append('g');
+    b.append('rect').attr('x',bx).attr('y',y-15).attr('width',132).attr('height',34).attr('rx',4).attr('fill','#fff').attr('stroke',col).attr('stroke-width',1.5);
+    b.append('text').attr('x',bx+66).attr('y',y-1).attr('text-anchor','middle').attr('font-size',11.5).attr('font-weight',700).attr('fill',col).text(label);
+    b.append('text').attr('x',bx+66).attr('y',y+13).attr('text-anchor','middle').attr('font-size',10).attr('fill','#5b5b57').text(sub);
+  }
+  // 5100 → 실회선
+  svg.append('path').attr('d',`M${x0+colP+colBox+150} ${y5100} H ${bx-10}`).attr('fill','none').attr('stroke','#3f7d5e').attr('stroke-width',1.5).attr('marker-end','url(#agood)');
+  outBox(y5100,'실회선 (wlan0)','진짜 위치 · 상하이','#3f7d5e');
+  // 5270 → 터널 → exit
+  svg.append('path').attr('d',`M${x0+colP+colBox+150} ${y5270} H ${bx-10}`).attr('fill','none').attr('stroke','#b0553f').attr('stroke-width',1.5).attr('marker-end','url(#abad)');
+  outBox(y5270,'터널 (table 52)','exit 노드 · 싱가포르','#b0553f');
+  // 화살촉
+  const defs=svg.append('defs');
+  [['agood','#3f7d5e'],['abad','#b0553f']].forEach(([id,c])=>{
+    defs.append('marker').attr('id',id).attr('viewBox','0 0 8 8').attr('refX',6).attr('refY',4).attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto')
+      .append('path').attr('d','M0,0 L8,4 L0,8 Z').attr('fill',c);
+  });
+  // 하단 요약
+  svg.append('text').attr('x',x0).attr('y',yb+34).attr('font-size',11).attr('fill','#5b5b57')
+    .text('조회 패킷만 5100에 걸려 실회선으로. 그 외 모든 트래픽은 5270에서 터널로.');
+})();
+</script>
+<script>
+(function(){
+  // 그림 3 — 상하이에서 잡힌 15개 AP. 신호순, 제조사색. 전부 실측(iw scan + 로컬 OUI DB).
+  const el=d3.select('#viz-aps'); if(el.empty()||!window.d3)return;
+  const VC={'Yunke China':'#b0553f','Fiberhome':'#cf8a5b','Espressif':'#a98a3c','무작위 MAC':'#b7b5ad'};
+  const aps=[
+    {s:-42,v:'Fiberhome',n:'ChinaNet-47Pd'},
+    {s:-51,v:'무작위 MAC',n:'seapy-mudi'},
+    {s:-51,v:'무작위 MAC',n:'seapy-mudi'},
+    {s:-53,v:'Espressif',n:'8602'},
+    {s:-65,v:'Yunke China',n:'Hidden Hotel'},
+    {s:-65,v:'Yunke China',n:'OFFICE'},
+    {s:-67,v:'Yunke China',n:'HomeinnsIOT'},
+    {s:-68,v:'Espressif',n:'8603'},
+    {s:-69,v:'Espressif',n:'8601'},
+    {s:-76,v:'Yunke China',n:'OFFICE'},
+    {s:-79,v:'Fiberhome',n:'ChinaNet-LVWi'},
+    {s:-80,v:'Espressif',n:'8605'},
+    {s:-81,v:'Yunke China',n:'HomeinnsIOT'},
+    {s:-92,v:'Yunke China',n:'Hidden Hotel'},
+    {s:-92,v:'Fiberhome',n:'ChinaNet-2aib'}
+  ];
+  const W=680, rowH=21, m={l:120,r:52,t:48,b:26}, H=m.t+m.b+rowH*aps.length;
+  const svg=el.append('svg').attr('viewBox',`0 0 ${W} ${H}`).attr('role','img')
+    .attr('aria-label','상하이에서 잡힌 15개 AP를 신호 강한 순으로 나열한 막대. 제조사는 Yunke China 6대, Espressif 4대, Fiberhome 3대, 무작위 MAC 2대로 전부 중국 회사이거나 IoT 칩');
+  const x=d3.scaleLinear().domain([-95,-40]).range([m.l,W-m.r]);
+  // dBm 눈금
+  const ticks=[-90,-80,-70,-60,-50];
+  svg.selectAll('.g').data(ticks).join('line').attr('x1',d=>x(d)).attr('x2',d=>x(d))
+    .attr('y1',m.t-6).attr('y2',m.t+rowH*aps.length).attr('stroke','#e4e2da');
+  svg.selectAll('.gt').data(ticks).join('text').attr('x',d=>x(d)).attr('y',m.t+rowH*aps.length+16)
+    .attr('text-anchor','middle').attr('font-size',10).attr('fill','#b7b5ad').attr('font-family','ui-monospace,monospace').text(d=>d);
+  // 범례
+  const leg=svg.append('g').attr('transform',`translate(${m.l},18)`);
+  const cnt={'Yunke China':6,'Espressif':4,'Fiberhome':3,'무작위 MAC':2}; let lx=0;
+  Object.keys(VC).forEach(k=>{
+    const g=leg.append('g').attr('transform',`translate(${lx},0)`);
+    g.append('rect').attr('width',9).attr('height',9).attr('y',-9).attr('rx',2).attr('fill',VC[k]);
+    const t=g.append('text').attr('x',13).attr('y',-1).attr('font-size',10.5).attr('fill','#5b5b57').text(`${k} ${cnt[k]}`);
+    lx += 13 + (k.length*6.6) + 34;
+  });
+  const g=svg.selectAll('.row').data(aps).join('g').attr('transform',(d,i)=>`translate(0,${m.t+i*rowH})`);
+  g.append('text').attr('x',m.l-10).attr('y',rowH/2+3).attr('text-anchor','end').attr('font-size',11).attr('fill','#1c1c1c').text(d=>d.n);
+  g.append('rect').attr('x',x(-95)).attr('y',3).attr('width',d=>x(d.s)-x(-95)).attr('height',rowH-7).attr('rx',2).attr('fill',d=>VC[d.v]);
+  g.append('text').attr('x',d=>x(d.s)+5).attr('y',rowH/2+3).attr('font-size',9.5).attr('fill','#8a8880').attr('font-family','ui-monospace,monospace').text(d=>d.s);
+})();
+</script>
 
 </div></body></html>
