@@ -5,10 +5,20 @@
     <link>https://nacyot.github.io/artifacts/</link>
     <description>공개해도 되는 작업 산출물 모음 — 실측 정리, 리서치, 시각화.</description>
     <language>ko</language>
-    <lastBuildDate>Wed, 15 Jul 2026 12:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 20 Jul 2026 12:00:00 +0000</lastBuildDate>
     <atom:link href="https://nacyot.github.io/artifacts/feed.xml" rel="self" type="application/rss+xml"/>
 
     <!-- newest first -->
+    <item>
+      <title>중국 여행 중 tailscale 최적화: 끊김·느림을 원인별로 나눠 고치기</title>
+      <link>https://nacyot.github.io/artifacts/tailscale-china-travel/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/tailscale-china-travel/</guid>
+      <pubDate>Mon, 20 Jul 2026 12:00:00 +0000</pubDate>
+      <description><![CDATA[상하이에서 tailscale exit node가 느리고 멈칫할 때. 접속이 끊긴다는 걱정은 왜 안 일어났는지(컨트롤 플레인은 데이터 플레인과 따로 논다), ‘느림’은 exit의 IPv6 블랙홀·국제구간 손실 버스트로 나눠 어디까지 고쳤는지. exit는 지리가 아니라 피어링 경로로 고른다. fast.com/speedtest.cn 실측과 영어·중국어권 공개 경험담 대조.]]></description>
+      <category>Tailscale</category>
+      <category>Networking</category>
+      <category>China</category>
+    </item>
     <item>
       <title>맥북 스피커가 지지직거린다: Asahi Linux에서 스피커 길들이기</title>
       <link>https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/</link>
