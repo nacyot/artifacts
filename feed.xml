@@ -20,11 +20,11 @@
       <category>systemd</category>
     </item>
     <item>
-      <title>중국 여행 중 tailscale 최적화: 끊김·느림을 원인별로 나눠 고치기</title>
+      <title>중국 여행 중 tailscale 최적화: 국제망은 exit로, 중국 서비스는 중국 회선으로</title>
       <link>https://nacyot.github.io/artifacts/tailscale-china-travel/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/tailscale-china-travel/</guid>
       <pubDate>Mon, 20 Jul 2026 12:00:00 +0000</pubDate>
-      <description><![CDATA[상하이에서 tailscale exit node가 느리고 멈칫할 때. 접속이 끊긴다는 걱정은 왜 안 일어났는지(컨트롤 플레인은 데이터 플레인과 따로 논다), ‘느림’은 exit의 IPv6 블랙홀·국제구간 손실 버스트로 나눠 어디까지 고쳤는지. exit는 지리가 아니라 피어링 경로로 고른다. fast.com/speedtest.cn 실측과 영어·중국어권 공개 경험담 대조.]]></description>
+      <description><![CDATA[중국에선 Claude Code·구글이 로컬망으로 안 열린다. 로밍이나 eSIM이 빠르면 그걸로 나가면 되고, 느리면 중국 회선을 tailscale exit node로 우회해 국제망에 나간다. 반대로 다중뎬핑·메이퇀 같은 중국 서비스는 중국 회선이 낫다. 그 유연한 라우팅을 축으로, 무선→유선→서울 exit 3단계로 Claude Code 원격 작업을 안정화한 실측. v6 블랙홀 진단, 지리 아닌 경로로 exit 고르기, fast.com/speedtest.cn 대비, 공개 경험담 대조.]]></description>
       <category>Tailscale</category>
       <category>Networking</category>
       <category>China</category>
