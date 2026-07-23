@@ -11,8 +11,8 @@
     <!-- newest first -->
     <item>
       <title>Omarchy 화면 매뉴얼: 보이는 것들의 이름과 구조</title>
-      <link>https://nacyot.github.io/artifacts/omarchy-vanilla-manual/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/omarchy-vanilla-manual/</guid>
+      <link>https://nacyot.github.io/artifacts/omarchy-manual/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/omarchy-manual/</guid>
       <pubDate>Thu, 23 Jul 2026 12:00:00 +0000</pubDate>
       <description><![CDATA[Omarchy(4.0 alpha) 기본 화면의 요소들을 정식 이름, 그리는 프로그램, 설정 파일, 바꾸는 명령 네 가지로 정리한 매뉴얼. 클릭해 보는 화면 지도와 레이어 구조, Waybar 모듈 해부, 런처(Walker)와 메뉴 체계, 테마 시스템, omarchy CLI, 설정이 흐르는 세 층, 코딩 에이전트로 고치는 법까지.]]></description>
       <category>Omarchy</category>
