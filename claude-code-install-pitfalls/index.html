@@ -1,25 +1,25 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="claude update가 &quot;up to date&quot;라고 말하는데 최신이 아니었다. 원인은 릴리스 채널(stable/latest). 채널, 중복 설치, 버전 매니저 shim 잔재, Agent SDK가 번들한 CLI까지 — docker 컨테이너 실측으로 확인한 Claude Code 설치의 함정과 점검 레시피.">
+<meta name="description" content="Opus 5를 쓰려고 claude update를 돌렸더니 “up to date”라는데 모델은 4.8까지만 보였다. 원인은 릴리스 채널(stable 2.1.212 / latest 2.1.220)과, Agent SDK가 패키지에 번들해 다니는 별도의 CLI. docker 컨테이너 실측으로 확인한 원인과 처방.">
 <link rel="canonical" href="https://nacyot.github.io/artifacts/claude-code-install-pitfalls/">
 <link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="nacyot / artifacts">
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://nacyot.github.io/artifacts/claude-code-install-pitfalls/">
-<meta property="og:title" content="claude update가 “최신”이라고 말할 때: Claude Code 설치의 함정 넷">
-<meta property="og:description" content="claude update가 “up to date”라고 말하는데 최신이 아니었다. 원인은 릴리스 채널(stable/latest). 채널, 중복 설치, shim 잔재, Agent SDK가 번들한 CLI까지 docker 실측.">
+<meta property="og:title" content="Opus 5가 출시됐지만, 로컬의 “최신” 클로드 코드에는 4.8밖에 보이지 않았다">
+<meta property="og:description" content="claude update는 “up to date”라는데 모델은 4.8까지만. 원인은 릴리스 채널(stable 2.1.212 / latest 2.1.220)과 Agent SDK가 번들해 다니는 별도의 CLI. docker 실측으로 확인한 원인과 처방.">
 <meta property="og:image" content="https://nacyot.github.io/artifacts/claude-code-install-pitfalls/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="stable 2.1.212 · latest 2.1.220 — Claude Code 설치의 함정">
+<meta property="og:image:alt" content="stable 2.1.212 · latest 2.1.220 — Opus 5를 쓰려면 latest 채널">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="claude update가 “최신”이라고 말할 때: Claude Code 설치의 함정 넷">
-<meta name="twitter:description" content="claude update가 “up to date”라고 말하는데 최신이 아니었다. 원인은 릴리스 채널(stable/latest). 채널, 중복 설치, shim 잔재, Agent SDK가 번들한 CLI까지 docker 실측.">
+<meta name="twitter:title" content="Opus 5가 출시됐지만, 로컬의 “최신” 클로드 코드에는 4.8밖에 보이지 않았다">
+<meta name="twitter:description" content="claude update는 “up to date”라는데 모델은 4.8까지만. 원인은 릴리스 채널(stable 2.1.212 / latest 2.1.220)과 Agent SDK가 번들해 다니는 별도의 CLI. docker 실측.">
 <meta name="twitter:image" content="https://nacyot.github.io/artifacts/claude-code-install-pitfalls/og.png">
-<meta name="twitter:image:alt" content="stable 2.1.212 · latest 2.1.220 — Claude Code 설치의 함정">
-<title>claude update가 “최신”이라고 말할 때: Claude Code 설치의 함정 넷</title>
+<meta name="twitter:image:alt" content="stable 2.1.212 · latest 2.1.220 — Opus 5를 쓰려면 latest 채널">
+<title>Opus 5가 출시됐지만, 로컬의 “최신” 클로드 코드에는 4.8밖에 보이지 않았다</title>
 <style>
   :root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--box:#f3f2ec;
     --accent:#e07b00;--grey:#8a8a86;--danger:#c0392b;--code:#f1efe8}
@@ -57,7 +57,7 @@
   svg .lbl{font:600 12.5px/1.2 "Pretendard","Noto Sans KR",sans-serif;fill:var(--ink)}
   svg .sub{font:500 11px "Pretendard","Noto Sans KR",sans-serif;fill:var(--soft)}
   svg .mono{font:500 11px ui-monospace,Menlo,Consolas,monospace;fill:var(--soft)}
-  svg .mono.on{fill:var(--accent);font-weight:700}
+  svg .mono.on{fill:var(--accent);font-weight:700;font-size:12px}
   .e{stroke:var(--faint);stroke-width:2.4;fill:none}
   .e.orange{stroke:var(--accent)} .e.grey{stroke:var(--grey)}
   .e.thin{stroke-width:1.6}
@@ -66,6 +66,10 @@
   .n.hot rect{stroke:var(--accent)}
   .n text{font:600 12px "Pretendard","Noto Sans KR",sans-serif;fill:var(--ink)}
   .dot{fill:var(--faint)} .dot.on{fill:var(--accent)}
+  .answer{border:2px solid var(--accent);border-radius:10px;padding:1.2rem 1.3rem .4rem;margin:1.8rem 0 2rem;background:#fdfbf6}
+  .answer .h{font-weight:800;font-size:.9rem;color:var(--accent);margin:0 0 .8rem;letter-spacing:.02em}
+  .answer table{margin-bottom:1rem}
+  .answer pre{margin-bottom:1rem}
   .note{border:1px solid var(--rule);border-radius:9px;padding:1rem 1.1rem;margin:1.6rem 0;background:#fcfbf8;font-size:.94rem}
   .note p:last-child{margin-bottom:0}
   .note .h{font-weight:700;font-size:.86rem;color:var(--accent);margin:0 0 .5rem}
@@ -78,63 +82,68 @@
 
 <p class="crumb"><a href="../">← nacyot / artifacts</a></p>
 <p class="kicker">CLAUDE CODE, 패키징</p>
-<h1>claude update가 “최신”이라고 말할 때: Claude Code 설치의 함정 넷</h1>
-<p class="lede"><code>claude update</code>가 “Claude Code is up to date”라고 답했다. 그런데 최신이 아니었다. 거짓말은 아니다 — <em>자기가 보는 채널에서는</em> 최신이 맞았다. 그 한 줄을 파고들다 채널, 중복 설치, shim 잔재, 그리고 SDK가 몰래 들고 다니는 또 하나의 claude까지 네 개의 함정이 나왔다.</p>
-<p class="meta">2026-07-25 · 모든 명령 출력은 docker 컨테이너(<code>ubuntu:24.04</code>, <code>node:22</code>, <code>python:3.12</code> / linux-arm64) 안에서 그날 실제로 실행한 결과다. 호스트에는 아무것도 설치·변경하지 않았다.</p>
+<h1>Opus 5가 출시됐지만, 로컬의 “최신” 클로드 코드에는 4.8밖에 보이지 않았다</h1>
+<p class="lede">새 모델을 쓰려고 <code>claude update</code>를 돌렸다. 답은 “Claude Code is up to date”. 그런데 모델 목록에는 여전히 4.8까지만 있었다. 업데이트 명령이 거짓말을 한 건 아니다 — <em>자기가 보는 채널에서는</em> 최신이 맞았다. 답과, 그 답을 가리고 있던 두 개의 구조를 정리한다.</p>
+<p class="meta">2026-07-25 · 버전 번호와 명령 출력은 docker 컨테이너(<code>ubuntu:24.04</code>, <code>node:22</code>, <code>python:3.12</code> / linux-arm64)에서 그날 실제로 실행한 결과다. 호스트에는 아무것도 설치·변경하지 않았다.</p>
 
-<div class="note">
-<p class="h">이 글에서 실측과 전언의 구분</p>
-<p>버전 번호, 채널 이름, 파일 경로, 오류 메시지는 전부 컨테이너에서 재현해 붙였다. 다만 <strong>“어느 버전부터 어떤 모델을 쓸 수 있는가”는 계정·구독·로그인 상태에 달려 있어 컨테이너에서 확인할 수 없다.</strong> 그 부분은 사례로만 적고 단정하지 않는다. 어디까지가 실측인지는 <a href="#s9">9절</a>에 따로 정리해 두었다.</p>
-</div>
-
-<h2><span class="num">1</span>발단: “up to date”인데 최신이 아니다</h2>
-<p>시작은 평범했다. 새 모델을 쓰려는데 안 돼서 버전을 올리려 했고, 늘 하던 대로 <code>claude update</code>를 실행했다. 답은 <strong>“Claude Code is up to date (2.1.212)”</strong>. 그런데 그 시점에 세상에 나와 있던 버전은 2.1.219와 2.1.220이었다.</p>
-<p>업데이트 명령이 최신이라고 말하는데 최신이 아니다. 버그처럼 보이지만 버그가 아니다. 이 문장에서 생략된 단어가 하나 있다. <strong>“(stable 채널에서는) 최신이다.”</strong></p>
-<p>여기서부터 조사가 시작됐다. 결론부터 적으면 함정은 네 겹이었고, 서로 독립적이라 하나를 고쳐도 다른 하나가 남는다.</p>
-
-<p class="tcap">표 1. 이 글에서 다루는 네 가지 함정.</p>
+<div class="answer">
+<p class="h">결론부터: 무엇을 어디까지 올려야 하나</p>
 <table>
-<thead><tr><th>함정</th><th>증상</th><th>절</th></tr></thead>
+<thead><tr><th>Claude를 쓰는 경로</th><th>필요한 버전 (2026-07-25 기준)</th><th>확인</th></tr></thead>
 <tbody>
-<tr><td>릴리스 채널</td><td><code>claude update</code>가 “up to date”인데 더 높은 버전이 존재</td><td><a href="#s2">2</a>–<a href="#s3">3</a></td></tr>
-<tr><td>중복 설치</td><td>PATH 순서에 따라 다른 버전의 <code>claude</code>가 실행됨</td><td><a href="#s4">4</a></td></tr>
-<tr><td>shim 잔재</td><td><code>No version is set for shim: claude</code></td><td><a href="#s5">5</a></td></tr>
-<tr><td>SDK 번들 CLI</td><td>로컬 <code>claude</code>를 올려도 SDK 앱은 옛 버전 그대로</td><td><a href="#s7">7</a></td></tr>
+<tr><td>터미널의 <code>claude</code></td><td>CLI <strong>2.1.220</strong> — <code>latest</code> 채널. <code>stable</code>은 2.1.212에 머물러 있다</td><td><code>claude doctor</code>의 <code>Auto-update channel</code></td></tr>
+<tr><td>TypeScript SDK 앱</td><td><code>@anthropic-ai/claude-agent-sdk</code> <strong>0.3.220</strong> — CLI 2.1.220을 패키지에 번들한다</td><td><code>npm ls @anthropic-ai/claude-agent-sdk</code></td></tr>
+<tr><td>Python SDK 앱</td><td><code>claude-agent-sdk</code> <strong>0.2.128</strong> — <code>__cli_version__</code>이 2.1.220</td><td><code>python -c "from claude_agent_sdk._cli_version import __cli_version__ as v; print(v)"</code></td></tr>
 </tbody>
 </table>
+<pre><code><span class="c"># 터미널 CLI — 채널을 명시해서 다시 설치한다</span>
+curl -fsSL https://claude.ai/install.sh | bash -s -- latest
 
-<h2 id="s2"><span class="num">2</span>채널: 릴리스는 두 줄로 나간다</h2>
-<p>Claude Code는 같은 버전 번호 체계 위에서 <strong>두 개의 채널</strong>로 배포된다. <code>latest</code>는 나오는 대로, <code>stable</code>은 한 박자 뒤에서 따라간다. npm의 dist-tag가 그 상태를 그대로 드러낸다.</p>
+<span class="c"># SDK 앱 — 로컬 claude를 올려도 SDK는 따라오지 않는다. 패키지를 올려야 한다</span>
+npm i @anthropic-ai/claude-agent-sdk@latest
+pip install -U claude-agent-sdk
+</code></pre>
+<p>“로컬 claude를 최신으로 올렸는데 왜 안 되지?”의 답은 두 줄이다. <strong>(1)</strong> 그 “최신”이 <code>stable</code> 채널의 최신이었고, <strong>(2)</strong> SDK 앱은 애초에 로컬 <code>claude</code>를 쓰지 않는다.</p>
+</div>
+
+<div class="note">
+<p class="h">모델 가용성에 대한 단서</p>
+<p>“어느 버전부터 어떤 모델이 보이는가”는 계정·구독·조직 설정·지역 롤아웃에 걸쳐 결정되므로 <strong>인증 없는 컨테이너에서는 재현할 수 없다.</strong> 이 글에서 그 부분은 <em>내 계정에서 관찰된 사례</em>다 — 2.1.212에서는 Opus 4.8까지 보였고, 2.1.220으로 올린 뒤 Opus 5가 보였다. 버전 번호·채널·경로·오류 메시지 등 그 밖의 모든 출력은 컨테이너 실측이다.</p>
+</div>
+
+<h2><span class="num">1</span>증상: 업데이트는 최신이라는데 모델이 없다</h2>
+<p>순서는 이랬다. Opus 5가 나왔다는 소식을 듣고 모델을 바꾸려 했는데 목록에 없었다. 버전이 낮아서겠거니 하고 <code>claude update</code>를 실행했다. 결과는 <strong>“Claude Code is up to date (2.1.212)”</strong>. 최신이라니 그런가 보다 하고 넘어갈 뻔했다.</p>
+<p>그런데 그 시점의 최신 릴리스는 <strong>2.1.220</strong>이었다. 업데이트 명령이 최신이라 말하는데 최신이 아니다. 버그처럼 보이지만 버그가 아니고, 이 문장에는 생략된 주어가 하나 있었다. <strong>“(stable 채널에서는) 최신이다.”</strong></p>
+
+<h2 id="s2"><span class="num">2</span>원인 ①: “최신”은 내 채널의 최신이었다</h2>
+<p>Claude Code는 하나의 버전 번호 체계 위에서 <strong>두 개의 채널</strong>로 배포된다. <code>latest</code>는 나오는 대로, <code>stable</code>은 한 박자 뒤에서 따라간다. npm의 dist-tag와 네이티브 배포 서버 양쪽이 같은 상태를 보여 준다.</p>
 
 <pre><code><span class="c"># docker run --rm node:22 …</span>
 $ npm view @anthropic-ai/claude-code dist-tags
 { stable: <span class="hi">'2.1.212'</span>, latest: <span class="hi">'2.1.220'</span>, next: '2.1.220' }
-</code></pre>
 
-<p>npm뿐 아니라 네이티브 빌드를 받아 가는 배포 서버도 채널별 엔드포인트를 따로 둔다. 같은 순간에 두 주소가 서로 다른 번호를 돌려준다.</p>
-
-<pre><code>$ curl -fsSL https://downloads.claude.ai/claude-code-releases/stable
+$ curl -fsSL https://downloads.claude.ai/claude-code-releases/stable
 2.1.212
 $ curl -fsSL https://downloads.claude.ai/claude-code-releases/latest
 2.1.220
 </code></pre>
 
-<p>얼마나 벌어져 있었나. npm에 찍힌 발행 시각(<code>npm view … time</code>)을 뽑아 보면 stable이 가리키던 2.1.212는 7월 16일 릴리스였고, 그날 latest는 7월 24일에 나온 2.1.220이었다. <strong>여드레, 그 사이 여덟 개 릴리스</strong>가 stable 밖에 있었다.</p>
+<p>npm에 찍힌 발행 시각(<code>npm view … time</code>)으로 보면 stable이 가리키던 2.1.212는 7월 16일 릴리스였고, latest는 7월 24일에 나온 2.1.220이었다. <strong>여드레, 그 사이 여덟 개 릴리스</strong>가 stable 밖에 있었다.</p>
 
-<p class="fcap">그림 1. 2026-07-25 시점의 두 채널. 점 하나가 npm에 발행된 릴리스 하나이고, 아래 날짜는 npm에 찍힌 발행일이다(간격은 균등 배치). <code>claude update</code>는 자기 채널의 화살표 끝만 본다.</p>
+<p class="fcap">그림 1. 2026-07-25 시점의 두 채널. 점 하나가 npm에 발행된 릴리스 하나다(간격은 균등 배치). <code>claude update</code>는 자기 채널의 화살표 끝만 본다.</p>
 <figure>
-<svg viewBox="0 0 760 215" role="img" aria-label="stable 채널과 latest 채널의 릴리스 타임라인">
+<svg viewBox="0 0 760 205" role="img" aria-label="stable 2.1.212와 latest 2.1.220 사이에 릴리스 8개가 있는 타임라인">
   <g class="n hot"><rect x="46" y="34" width="92" height="30" rx="6"/><text x="92" y="54" text-anchor="middle">stable</text></g>
   <g class="n hot"><rect x="620" y="34" width="92" height="30" rx="6"/><text x="666" y="54" text-anchor="middle">latest</text></g>
   <line class="e orange thin" x1="92" y1="64" x2="92" y2="130"/>
   <line class="e orange thin" x1="666" y1="64" x2="666" y2="130"/>
 
   <line class="e dash" x1="92" y1="96" x2="666" y2="96"/>
-  <rect x="300" y="83" width="160" height="24" rx="4" fill="#faf9f7" stroke="none"/>
+  <rect x="298" y="83" width="164" height="24" rx="4" fill="#faf9f7" stroke="none"/>
   <text class="sub" x="380" y="100" text-anchor="middle">8일 · 릴리스 8개 차이</text>
 
   <line class="e thin" x1="70" y1="140" x2="690" y2="140"/>
-  <circle class="dot on" cx="92" cy="140" r="5.5"/>
+  <circle class="dot on" cx="92" cy="140" r="6"/>
   <circle class="dot" cx="164" cy="140" r="4"/>
   <circle class="dot" cx="236" cy="140" r="4"/>
   <circle class="dot" cx="308" cy="140" r="4"/>
@@ -142,31 +151,20 @@ $ curl -fsSL https://downloads.claude.ai/claude-code-releases/latest
   <circle class="dot" cx="452" cy="140" r="4"/>
   <circle class="dot" cx="524" cy="140" r="4"/>
   <circle class="dot" cx="596" cy="140" r="4"/>
-  <circle class="dot on" cx="666" cy="140" r="5.5"/>
+  <circle class="dot on" cx="666" cy="140" r="6"/>
 
-  <text class="mono on" x="92" y="164" text-anchor="middle">2.1.212</text>
-  <text class="mono" x="164" y="164" text-anchor="middle">213</text>
-  <text class="mono" x="236" y="164" text-anchor="middle">214</text>
-  <text class="mono" x="308" y="164" text-anchor="middle">215</text>
-  <text class="mono" x="380" y="164" text-anchor="middle">216</text>
-  <text class="mono" x="452" y="164" text-anchor="middle">217</text>
-  <text class="mono" x="524" y="164" text-anchor="middle">218</text>
-  <text class="mono" x="596" y="164" text-anchor="middle">219</text>
-  <text class="mono on" x="666" y="164" text-anchor="middle">2.1.220</text>
-
-  <text class="sub" x="92" y="184" text-anchor="middle">07-16</text>
-  <text class="sub" x="596" y="184" text-anchor="middle">07-24</text>
-  <text class="sub" x="666" y="184" text-anchor="middle">07-24</text>
+  <text class="mono on" x="92" y="166" text-anchor="middle">2.1.212</text>
+  <text class="mono on" x="666" y="166" text-anchor="middle">2.1.220</text>
+  <text class="sub" x="92" y="186" text-anchor="middle">07-16 발행</text>
+  <text class="sub" x="666" y="186" text-anchor="middle">07-24 발행</text>
+  <text class="sub" x="380" y="166" text-anchor="middle">그 사이의 릴리스들</text>
 </svg>
 </figure>
 
-<h3>실측: stable에 묶인 설치에서 update를 돌리면</h3>
-<p>공식 인스톨러는 인자로 채널을 받는다(<a href="#s6">6절</a>). <code>stable</code>을 주고 설치한 뒤 그대로 <code>claude update</code>를 실행하면, 발단에서 본 그 화면이 그대로 재현된다.</p>
+<p>공식 인스톨러에 <code>stable</code>을 주고 설치한 뒤 그대로 <code>claude update</code>를 돌리면, 내가 본 화면이 컨테이너에서 그대로 재현된다.</p>
 
 <pre><code><span class="c"># ubuntu:24.04 컨테이너, 일반 사용자</span>
 $ bash install.sh stable
-Installing Claude Code native build stable...
-✔ Claude Code successfully installed!
   Version: 2.1.212
 
 $ claude update
@@ -175,49 +173,31 @@ Checking for updates to <span class="hi">stable</span> version...
 <span class="hi">Claude Code is up to date (2.1.212)</span>
 </code></pre>
 
-<p>메시지를 다시 보면 힌트가 이미 들어 있다. <code>Checking for updates to stable version…</code> — 어느 채널을 보고 있는지 한 줄로 알려 준다. 무심코 지나치기 쉬운 줄이고, 나도 지나쳤다.</p>
+<p>힌트는 이미 화면에 있었다. <code>Checking for updates to stable version…</code> — 어느 채널을 보고 있는지 한 줄로 알려 준다. 무심코 지나치기 쉬운 줄이고, 나도 지나쳤다.</p>
 
 <blockquote><p><code>claude update</code>는 “세상의 최신”이 아니라 <em>“내 채널의 최신”</em>을 확인한다. stable에 묶여 있으면 latest에 무엇이 올라오든 영원히 up to date다.</p></blockquote>
 
-<h2 id="s3"><span class="num">3</span>내 설치는 어느 채널인가, 어떻게 바꾸나</h2>
-<p>확인하는 곳은 <code>claude doctor</code>다. <code>Auto-update channel</code> 줄 하나가 답이다.</p>
+<h3>확인하고 바꾸기</h3>
+<p>지금 어느 채널인지는 <code>claude doctor</code> 한 줄에 나온다. 값이 저장되는 자리는 <code>~/.claude/settings.json</code>의 <code>autoUpdatesChannel</code>이고, 그 파일만 고쳐도 다음 업데이트부터 새 채널을 본다.</p>
 
 <pre><code>$ claude doctor
-Claude Code doctor
-
 Running: native (2.1.212)
-Commit: 8b2783a8f907
-Platform: linux-arm64
-Path: /home/&lt;user&gt;/.local/share/claude/versions/2.1.212
+Path: ~/.local/share/claude/versions/2.1.212
 Config install method: native
-Search: OK (bundled)
 Auto-updates: enabled
 <span class="hi">Auto-update channel: stable</span>
-</code></pre>
 
-<p>이 값이 저장되는 자리는 <code>~/.claude/settings.json</code>이고, 키 이름은 <code>autoUpdatesChannel</code>이다. 인스톨러에 <code>stable</code>을 준 직후 파일 내용은 이렇다.</p>
+$ cat ~/.claude/settings.json
+{ "autoUpdatesChannel": "stable" }
 
-<pre><code>$ cat ~/.claude/settings.json
-{
-  "autoUpdatesChannel": "stable"
-}
-</code></pre>
-
-<p>그러니 채널을 바꾸는 길은 셋이고, 셋 다 같은 곳을 건드린다. 파일을 직접 고쳐도 되고, 인스톨러를 다시 돌려도 된다. 아래는 파일만 고친 뒤 <code>claude update</code>를 돌린 실측이다. 이번엔 여덟 칸을 건너뛴다.</p>
-
-<pre><code>$ printf '{\n  "autoUpdatesChannel": "latest"\n}\n' &gt; ~/.claude/settings.json
-
+<span class="c"># latest로 고쳐 쓰고 다시 update</span>
 $ claude update
-Current version: 2.1.212
 Checking for updates to <span class="hi">latest</span> version...
 Updating to 2.1.220...
 <span class="hi">Successfully updated from 2.1.212 to version 2.1.220</span>
-
-$ claude --version
-2.1.220 (Claude Code)
 </code></pre>
 
-<p class="tcap">표 2. 채널을 바꾸는 세 가지 방법(모두 실측).</p>
+<p class="tcap">표 1. 채널을 바꾸는 세 가지 방법(모두 실측).</p>
 <table>
 <thead><tr><th>방법</th><th>명령</th><th>결과</th></tr></thead>
 <tbody>
@@ -227,193 +207,43 @@ $ claude --version
 </tbody>
 </table>
 
-<p>주의할 점 하나. 오늘 새로 설치하면 기본값이 무엇인지 확인해 두는 게 좋다. 인자 없이 <code>install.sh</code>를 돌린 컨테이너에서는 <strong><code>latest</code>가 기본</strong>이었다(<code>Installing Claude Code native build latest…</code>, 이후 <code>Auto-update channel: latest</code>). npm 전역 설치에서도 <code>latest</code>였다. 즉 <strong>stable에 묶인 설치는 “예전에 그렇게 깔렸거나 누군가 그렇게 지정한” 결과</strong>이고, 기본값이 바뀌어도 기존 설치의 설정은 따라 바뀌지 않는다. 오래된 머신일수록 한 번은 <code>claude doctor</code>로 확인할 값이다.</p>
+<p>덧붙일 것 하나. 인자 없이 새로 설치한 컨테이너에서는 <strong>기본값이 <code>latest</code></strong>였다(npm 전역 설치도 마찬가지였다). 즉 stable 고착은 “요즘 기본값” 때문이 아니라 <em>예전에 그렇게 깔렸거나 누군가 그렇게 지정해 둔</em> 설정이 남아 있는 것이다. 기본값이 바뀌어도 기존 설치의 설정은 따라 바뀌지 않는다. 오래된 머신일수록 한 번은 확인할 값이다.</p>
+<p>물론 stable은 이름값을 한다. 여러 사람이 같은 버전을 써야 하는 팀이나 CI라면 stable에 두거나 버전을 아예 고정하는 편이 낫다. 문제는 채널 선택이 아니라, 내가 어느 채널에 있는지 모른 채 “up to date”를 <em>최신</em>의 뜻으로 읽는 것이다.</p>
 
-<div class="note">
-<p class="h">그럼 stable을 쓰면 안 되나</p>
-<p>아니다. stable은 이름값을 한다. 여러 사람이 같은 버전을 써야 하는 팀이나 CI라면 채널을 stable로 두거나 버전을 아예 고정하는 편이 낫다. 문제는 채널 선택 자체가 아니라, <strong>내가 어느 채널에 있는지 모른 채 <code>claude update</code>의 “up to date”를 최신의 뜻으로 읽는 것</strong>이다.</p>
-</div>
-
-<h2 id="s4"><span class="num">4</span>두 번째 함정: 한 머신에 claude가 여러 벌</h2>
-<p>채널을 알아내고 나니 두 번째 문제가 드러났다. 머신에 <code>claude</code>가 <strong>한 벌이 아니었다.</strong> node를 여러 벌 쓰는 환경(배포판 node + 버전 매니저 node)에서는 <code>npm i -g</code>가 각각 다른 전역 디렉터리에 설치되고, 그 결과 이름이 같은 실행 파일이 PATH 위 여러 곳에 놓인다.</p>
-<p>컨테이너에서 그대로 재현했다. 우분투의 apt node(18)와 공식 tarball node(22)를 함께 두고, 각각의 npm으로 서로 다른 버전을 설치했다.</p>
-
-<pre><code>$ which -a node
-/opt/node22/bin/node
-/usr/bin/node
-/bin/node
-
-$ which -a claude
-/opt/node22/bin/claude
-/usr/local/bin/claude
-
-$ ls -l /opt/node22/bin/claude /usr/local/bin/claude
-… /opt/node22/bin/claude  -&gt; ../lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe
-… /usr/local/bin/claude   -&gt; ../lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe
-</code></pre>
-
-<p>심볼릭 링크의 <em>상대 경로가 같다</em>는 점이 이 함정의 성격을 잘 보여 준다. 링크 문자열만 보면 구분이 안 되고, 실제로 어디를 가리키는지는 링크가 놓인 디렉터리에 달려 있다. 그래서 실행되는 버전은 오직 PATH 순서로 결정된다.</p>
-
-<pre><code>$ PATH=/opt/node22/bin:/usr/local/bin:/usr/bin:/bin sh -c 'which claude; claude --version'
-/opt/node22/bin/claude
-<span class="hi">2.1.212 (Claude Code)</span>
-
-$ PATH=/usr/local/bin:/opt/node22/bin:/usr/bin:/bin sh -c 'which claude; claude --version'
-/usr/local/bin/claude
-<span class="hi">2.1.195 (Claude Code)</span>
-</code></pre>
-
-<p>같은 머신, 같은 명령, 다른 버전. 셸을 어디서 띄웠는지, <code>.bashrc</code>에서 PATH를 어떤 순서로 붙였는지, 에디터가 어떤 환경을 물려줬는지에 따라 결과가 갈린다. “아까는 됐는데 지금은 안 되는” 부류의 버그가 여기서 나온다.</p>
-
-<h3><code>npm ls -g</code>도 한 벌만 본다</h3>
-<p>점검하려고 <code>npm ls -g</code>를 쳐도 함정은 이어진다. 이 명령은 <strong>지금 PATH에서 잡히는 npm</strong>의 전역 디렉터리만 본다. 그러니 npm도 경로를 박아 각각 물어봐야 전모가 보인다.</p>
-
-<pre><code>$ /usr/bin/npm ls -g --depth=0
-/usr/local/lib
-`-- @anthropic-ai/claude-code@2.1.195
-
-$ /opt/node22/bin/npm ls -g --depth=0
-/opt/node22/lib
-+-- @anthropic-ai/claude-code@2.1.212
-+-- corepack@0.31.0
-`-- npm@10.9.2
-
-<span class="c"># 전역 디렉터리 자체가 다르다</span>
-$ /usr/bin/npm root -g
-/usr/local/lib/node_modules
-$ /opt/node22/bin/npm root -g
-/opt/node22/lib/node_modules
-</code></pre>
-
-<p>npm 전역과 네이티브 설치가 섞이면 같은 일이 벌어진다. 아래는 네이티브 2.1.220을 깐 위에 npm 전역으로 2.1.195를 얹은 컨테이너다. npm 쪽이 PATH 앞에 있어 옛 버전이 이긴다.</p>
-
-<pre><code>$ which -a claude
-~/.npm-global/bin/claude
-~/.local/bin/claude
-
-$ claude --version
-<span class="hi">2.1.195 (Claude Code)</span>       <span class="c"># 네이티브로 2.1.220을 깔아 뒀는데도</span>
-
-$ npm rm -g @anthropic-ai/claude-code
-removed 3 packages in 52ms
-
-$ hash -r
-$ which -a claude
-~/.local/bin/claude
-$ claude --version
-<span class="hi">2.1.220 (Claude Code)</span>
-</code></pre>
-
-<p><code>hash -r</code>를 빼먹지 말자. bash는 한 번 찾은 실행 파일 경로를 캐시해서, 파일을 지운 뒤에도 같은 셸에서는 옛 경로를 계속 부른다.</p>
-
-<h2 id="s5"><span class="num">5</span>세 번째 함정: 버전 매니저의 shim 잔재</h2>
-<p>중복을 정리하려고 npm 전역을 지웠더니 이번엔 이런 오류가 났다.</p>
-
-<pre><code>mise ERROR No version is set for shim: claude
-</code></pre>
-
-<p>mise(그리고 asdf 계열) 같은 버전 매니저는 PATH에 실제 실행 파일 대신 <strong>shim</strong>을 놓는다. shim은 전부 매니저 본체를 가리키는 링크이고, 실행 시점에 “지금 쓸 버전”을 골라 진짜 바이너리에 넘긴다.</p>
-
-<pre><code>$ ls -l ~/.local/share/mise/shims/claude
-… ~/.local/share/mise/shims/claude -&gt; ~/.local/bin/mise
-
-$ claude --version
-2.1.212 (Claude Code)
-</code></pre>
-
-<p>문제는 shim의 수명이 실제 패키지와 따로 논다는 데 있다. 컨테이너에서 경우를 갈라 보니 갈리는 지점이 분명했다.</p>
-
-<ul>
-<li><strong>매니저를 통해 지운 경우는 깨끗했다.</strong> <code>mise exec -- npm rm -g @anthropic-ai/claude-code</code>를 돌리면 mise가 <code>Reshimming mise 22…</code>를 스스로 수행하고 <code>claude</code> shim도 함께 사라졌다. <code>mise uninstall node@22.23.1</code>로 런타임을 통째로 지운 경우도 마찬가지였다.</li>
-<li><strong>남는 경우는 “패키지는 그대로인데 버전 해석이 끊긴” 때다.</strong> node는 설치돼 있는데 설정(<code>~/.config/mise/config.toml</code>)에서 그 도구가 빠지면, shim 파일은 남고 가리킬 버전만 없어진다.</li>
-</ul>
-
-<pre><code><span class="c"># config.toml에서 node 줄을 뺀 뒤 (shim 파일은 그대로 남아 있다)</span>
-$ ls -l ~/.local/share/mise/shims/claude
-… ~/.local/share/mise/shims/claude -&gt; ~/.local/bin/mise
-
-$ claude --version
-<span class="hi">mise ERROR No version is set for shim: claude</span>
-Set a global default version with one of the following:
-mise use -g node@22.23.1
-mise ERROR Version: 2026.7.13 linux-arm64 (2026-07-24)
-</code></pre>
-
-<p>오류 메시지가 친절해서 오히려 헷갈린다. “node 버전을 정하라”고 안내하지만, 하려던 일은 <em>node를 되살리는 것이 아니라 claude를 네이티브로 옮기는 것</em>이었다. 이 경우 필요한 건 shim 파일을 지우는 것이다.</p>
-<p>실측에서 한 가지 더 확인했다. 도구가 하나도 설정되지 않은 상태에서 <code>mise reshim</code>을 돌려도 <strong>남아 있던 shim들은 지워지지 않았다</strong>(<code>claude corepack node npm npx</code>가 그대로 남았다). <code>reshim</code>은 현재 설치된 도구를 기준으로 shim을 만드는 명령이지 항상 청소해 주는 명령이 아니다. 잔재는 파일을 직접 지우는 게 확실하다.</p>
-
-<pre><code>$ rm ~/.local/share/mise/shims/claude
-$ hash -r
-</code></pre>
-
-<h2 id="s6"><span class="num">6</span>공식 네이티브 인스톨러의 구조</h2>
-<p>정리의 종착점은 공식 네이티브 인스톨러였다. node에 얹히지 않으니 위의 두 함정(npm 전역 중복, shim)에서 벗어난다.</p>
-
-<pre><code>curl -fsSL https://claude.ai/install.sh | bash
-</code></pre>
-
-<p>스크립트가 하는 일은 단순하다. 플랫폼(<code>linux-x64</code>, <code>linux-arm64</code>, musl 여부, <code>darwin-*</code>)을 판별해 매니페스트에서 그 플랫폼의 SHA-256을 꺼내고, 바이너리를 받아 <strong>체크섬을 대조한 뒤</strong> <code>claude install</code>로 넘긴다. 검증에 실패하면 받은 파일을 지우고 종료한다.</p>
-<p>설치 결과의 모양은 이렇다. <code>~/.local/bin/claude</code>는 실행 파일이 아니라 <strong>버전 디렉터리 안의 실제 바이너리를 가리키는 심볼릭 링크</strong>다.</p>
-
+<details>
+<summary>네이티브 인스톨러가 하는 일 (구조 · 인자 · sudo 거부)</summary>
+<p>스크립트는 플랫폼(<code>linux-x64</code>, <code>linux-arm64</code>, musl 여부, <code>darwin-*</code>)을 판별해 매니페스트에서 SHA-256을 꺼내고, 바이너리를 받아 <strong>체크섬을 대조한 뒤</strong> <code>claude install</code>로 넘긴다. 설치 결과에서 <code>~/.local/bin/claude</code>는 실행 파일이 아니라 버전 디렉터리를 가리키는 심볼릭 링크다.</p>
 <pre><code>$ ls -l ~/.local/bin/claude
 lrwxrwxrwx … ~/.local/bin/claude -&gt; ~/.local/share/claude/versions/2.1.220
 
-$ ls -l ~/.local/share/claude/versions/
--rwxr-xr-x … 271825824  2.1.220
-</code></pre>
-
-<p>버전마다 바이너리가 통째로 한 벌씩 놓이는 구조라, 채널을 옮기거나 롤백하면 파일이 쌓인다. 두 벌이면 500MB를 넘는다. 이 점은 <a href="#s8">8절</a>의 정리 목록에 넣어 뒀다.</p>
-
-<pre><code>$ bash install.sh 2.1.212      <span class="c"># 특정 버전으로 되돌리기</span>
-Installing Claude Code native build 2.1.212...
-  Version: 2.1.212
-
-$ ls ~/.local/share/claude/versions/
+<span class="c"># 인자는 stable | latest | X.Y.Z 셋뿐. 버전을 주면 그 버전으로 롤백된다</span>
+$ bash install.sh 2.1.212 &amp;&amp; ls ~/.local/share/claude/versions/
 2.1.212
 2.1.220
-
 $ du -sh ~/.local/share/claude/versions/
-509M	~/.local/share/claude/versions/
-</code></pre>
+509M	<span class="c"># 버전마다 260MB짜리 바이너리가 통째로 쌓인다</span>
 
-<p>인자로 받는 값은 세 종류뿐이고, 형식이 틀리면 아무것도 하지 않고 거절한다.</p>
-
-<pre><code>$ bash install.sh 2.1
-Usage: install.sh [stable|latest|VERSION]
-<span class="c"># 종료 코드 1</span>
-</code></pre>
-
-<h3>sudo로 돌리면 거절한다</h3>
-<p>습관적으로 <code>sudo</code>를 붙이는 사람(나다)을 위한 안전장치도 들어 있다. 설치 경로가 홈 디렉터리라서, sudo로 돌리면 root의 홈에 설치돼 정작 본인 셸에서는 <code>claude</code>를 찾을 수 없게 된다. 스크립트는 그 상황을 먼저 막는다.</p>
-
+$ bash install.sh 2.1
+Usage: install.sh [stable|latest|VERSION]</code></pre>
+<p>습관적으로 <code>sudo</code>를 붙이는 사람(나다)을 위한 안전장치도 있다. 설치 경로가 홈 디렉터리라 sudo로 돌리면 root의 홈에 깔리고 정작 본인 셸에서는 <code>claude</code>를 못 찾게 되는데, 스크립트가 그 상황을 먼저 막는다. 조건은 “root이면서 <code>SUDO_USER</code>가 일반 사용자일 때”라, 원래부터 root인 컨테이너·CI는 걸리지 않는다.</p>
 <pre><code>$ curl -fsSL https://claude.ai/install.sh | sudo bash
 Error: do not run this installer with sudo.
 
 Claude Code installs into your home directory and does not need root access.
 With sudo, the installation would go into root's home directory instead of
-yours, and the 'claude' command would not work from your own shell.
+yours, and the 'claude' command would not work from your own shell.</code></pre>
+</details>
 
-Please re-run the same command without sudo, e.g.:
-    curl -fsSL https://claude.ai/install.sh | bash
-</code></pre>
-
-<p>조건은 “root이면서 <code>SUDO_USER</code>가 일반 사용자일 때”다. 그래서 컨테이너나 CI처럼 <em>원래부터 root</em>인 환경은 이 검사에 걸리지 않는다. 진짜로 root에 설치하려면 <code>CLAUDE_INSTALL_ALLOW_SUDO=1</code>을 주라고 메시지가 알려 준다.</p>
-
-<h2 id="s7"><span class="num">7</span>네 번째 함정: Agent SDK는 “내” claude를 쓰지 않는다</h2>
-<p>여기까지가 터미널 이야기다. 그런데 코드에서 Claude를 부르는 경로가 하나 더 있다. <strong>Claude Agent SDK</strong>(npm <code>@anthropic-ai/claude-agent-sdk</code>, PyPI <code>claude-agent-sdk</code>)다. SDK는 내부적으로 Claude Code CLI를 프로세스로 띄워 쓴다. 그렇다면 로컬 <code>claude</code>를 최신으로 올리면 SDK 앱도 따라 올라갈까?</p>
-<p><strong>아니다.</strong> SDK는 자기 몫의 CLI를 <em>패키지 안에 넣어 다닌다.</em></p>
-
-<h3>실측 1: 버전이 자물쇠처럼 묶여 있다</h3>
-<p>SDK의 <code>package.json</code>에 답이 그대로 적혀 있다. <code>claudeCodeVersion</code> 필드와, 플랫폼별 바이너리를 <code>optionalDependencies</code>로 <strong>정확한 버전에 고정</strong>해 둔 목록이다.</p>
+<h2 id="s3"><span class="num">3</span>원인 ②: SDK는 “내” claude를 쓰지 않는다</h2>
+<p>여기까지가 터미널 이야기다. 그런데 코드에서 Claude를 부르는 경로가 하나 더 있다. <strong>Claude Agent SDK</strong>(npm <code>@anthropic-ai/claude-agent-sdk</code>, PyPI <code>claude-agent-sdk</code>)다. SDK는 내부적으로 Claude Code CLI를 프로세스로 띄워 쓴다. 그러면 로컬 <code>claude</code>를 올리면 SDK 앱도 따라 올라갈까?</p>
+<p><strong>아니다.</strong> SDK는 자기 몫의 CLI를 <em>패키지 안에 넣어 다닌다.</em> <code>package.json</code>에 그대로 적혀 있다 — <code>claudeCodeVersion</code> 필드와, 플랫폼별 바이너리를 정확한 버전에 고정한 <code>optionalDependencies</code>다.</p>
 
 <pre><code>$ npm pack @anthropic-ai/claude-agent-sdk@latest &amp;&amp; tar -xzf *.tgz
 $ cat package/package.json
 {
   "name": "@anthropic-ai/claude-agent-sdk",
   "version": "0.3.220",
-  …
   "optionalDependencies": {
-    "@anthropic-ai/claude-agent-sdk-linux-x64": "0.3.220",
     "@anthropic-ai/claude-agent-sdk-linux-arm64": "0.3.220",
     "@anthropic-ai/claude-agent-sdk-darwin-arm64": "0.3.220",
     …
@@ -422,21 +252,16 @@ $ cat package/package.json
 }
 </code></pre>
 
-<p>SDK 버전 번호도 우연이 아니다. <code>0.3.<em>N</em></code>은 CLI <code>2.1.<em>N</em></code>과 짝을 이루고, npm 발행 시각도 초 단위로 붙어 있다. 같은 파이프라인에서 함께 나간다는 뜻이다.</p>
+<p>버전 번호도 우연이 아니다. SDK <code>0.3.<em>N</em></code>은 CLI <code>2.1.<em>N</em></code>과 짝이고, npm 발행 시각이 2초 차이다. 같은 파이프라인에서 함께 나간다.</p>
 
 <pre><code><span class="c"># npm view … time --json 에서 발췌</span>
-claude-agent-sdk 0.3.219 : 2026-07-24T16:11:47.390Z
-claude-code      2.1.219 : 2026-07-24T16:11:49.832Z   <span class="c">(2초 뒤)</span>
 claude-agent-sdk 0.3.220 : 2026-07-24T23:11:19.727Z
-claude-code      2.1.220 : 2026-07-24T23:11:21.821Z   <span class="c">(2초 뒤)</span>
+claude-code      2.1.220 : 2026-07-24T23:11:21.821Z
 </code></pre>
 
-<h3>실측 2: 설치하면 260MB짜리 claude가 딸려 온다</h3>
-<p>실제로 설치해 보면 <code>node_modules</code> 안에 CLI 바이너리가 통째로 들어온다. 그리고 <strong>SDK 버전을 내리면 딸려 오는 CLI도 같이 내려간다.</strong></p>
+<p>실제로 설치하면 260MB짜리 CLI 바이너리가 <code>node_modules</code> 안으로 따라 들어온다. <strong>SDK 버전을 내리면 딸려 오는 CLI도 같이 내려가고, 시스템에 무엇이 깔려 있든 상관하지 않는다.</strong></p>
 
 <pre><code>$ npm i @anthropic-ai/claude-agent-sdk@0.3.212
-$ grep -o '"claudeCodeVersion":[^,}]*' node_modules/@anthropic-ai/claude-agent-sdk/package.json
-"claudeCodeVersion": "2.1.212"
 $ ./node_modules/@anthropic-ai/claude-agent-sdk-linux-arm64/claude --version
 <span class="hi">2.1.212 (Claude Code)</span>
 
@@ -444,47 +269,30 @@ $ npm i @anthropic-ai/claude-agent-sdk@latest
 $ ./node_modules/@anthropic-ai/claude-agent-sdk-linux-arm64/claude --version
 <span class="hi">2.1.220 (Claude Code)</span>
 
-$ ls -lh node_modules/@anthropic-ai/claude-agent-sdk-linux-arm64/claude
--rwxr-xr-x … 260M … claude
-</code></pre>
-
-<p>결정적인 대비는 이것이다. 같은 컨테이너에 시스템 <code>claude</code>를 <strong>2.1.195</strong>로 깔아 둬도, SDK가 들고 있는 바이너리는 꿈쩍도 하지 않는다.</p>
-
-<pre><code>$ npm i -g @anthropic-ai/claude-code@2.1.195
-$ claude --version
-2.1.195 (Claude Code)                                  <span class="c"># 시스템 CLI</span>
+<span class="c"># 시스템 claude를 2.1.195로 깔아 둬도 SDK 쪽은 꿈쩍하지 않는다</span>
+$ npm i -g @anthropic-ai/claude-code@2.1.195 &amp;&amp; claude --version
+2.1.195 (Claude Code)
 $ ./node_modules/@anthropic-ai/claude-agent-sdk-linux-arm64/claude --version
-<span class="hi">2.1.220 (Claude Code)</span>                        <span class="c"># SDK가 쓰는 CLI</span>
+<span class="hi">2.1.220 (Claude Code)</span>
 </code></pre>
 
-<h3>실측 3: 파이썬도 같다, 그리고 번들이 PATH를 이긴다</h3>
-<p>파이썬 SDK도 구조가 같다. 휠 안에 <code>_bundled/claude</code>가 들어 있고(휠 하나가 84MB, 압축을 풀면 260MB), 어느 CLI를 물고 있는지 모듈로 노출한다.</p>
+<p>파이썬도 구조가 같다. 휠 안에 <code>_bundled/claude</code>가 들어 있고(휠 84MB, 풀면 260MB), 어느 CLI를 물고 있는지 모듈로 노출한다. 그리고 탐색 순서가 코드에 명시돼 있다 — <strong>번들이 먼저고 PATH는 폴백이다.</strong></p>
 
 <pre><code>$ pip install claude-agent-sdk
-$ cat …/site-packages/claude_agent_sdk/_version.py
-__version__ = "0.2.128"
 $ cat …/site-packages/claude_agent_sdk/_cli_version.py
 <span class="hi">__cli_version__ = "2.1.220"</span>
-$ …/site-packages/claude_agent_sdk/_bundled/claude --version
-2.1.220 (Claude Code)
-</code></pre>
 
-<p>탐색 순서도 코드에 그대로 적혀 있다. <strong>번들이 먼저고, PATH는 폴백이다.</strong></p>
-
-<pre><code><span class="c"># claude_agent_sdk/_internal/transport/subprocess_cli.py</span>
+<span class="c"># claude_agent_sdk/_internal/transport/subprocess_cli.py</span>
     def _find_cli(self) -&gt; str:
-        """Find Claude Code CLI binary."""
         <span class="hi"># First, check for bundled CLI</span>
         bundled_cli = self._find_bundled_cli()
         if bundled_cli:
             return bundled_cli
-
         <span class="hi"># Fall back to system-wide search</span>
-        …
         if cli := shutil.which("claude"):
 </code></pre>
 
-<p>즉 SDK를 쓰는 앱에서는 <code>which claude</code>가 무엇을 가리키든 상관이 없다. 번들 파일이 존재하는 한 그쪽이 이긴다. 타입스크립트 SDK의 타입 정의도 같은 말을 한다 — <code>pathToClaudeCodeExecutable?: string</code>에 달린 주석이 <em>“Path to the Claude Code executable. Uses the built-in executable if not specified.”</em>다.</p>
+<p>즉 SDK 앱에서는 <code>which claude</code>가 무엇을 가리키든 상관이 없다. 번들 파일이 있는 한 그쪽이 이긴다. 타입스크립트 SDK의 타입 정의도 같은 말을 한다 — <code>pathToClaudeCodeExecutable?: string</code>에 달린 주석이 <em>“Uses the built-in executable if not specified.”</em>다.</p>
 
 <p class="fcap">그림 2. 두 경로는 서로 다른 것을 실행한다. 터미널은 PATH 순서로 하나를 고르고, SDK 앱은 PATH를 보지 않는다.</p>
 <figure>
@@ -510,121 +318,86 @@ $ …/site-packages/claude_agent_sdk/_bundled/claude --version
 </svg>
 </figure>
 
-<h3>그래서 결론</h3>
-<p>“claude를 올렸는데 SDK 앱만 옛날처럼 군다”는 함정은 <strong>실재한다.</strong> 조건도 분명하다.</p>
-<ul>
-<li>SDK 앱이 쓰는 CLI 버전은 <strong>설치된 SDK 패키지 버전</strong>이 정한다. 로컬 <code>claude</code>를 올려도, 네이티브로 옮겨도, 채널을 바꿔도 바뀌지 않는다.</li>
-<li>바꾸려면 <strong>SDK를 올려야 한다</strong>(<code>npm i @anthropic-ai/claude-agent-sdk@latest</code> / <code>pip install -U claude-agent-sdk</code>). 그리고 lockfile로 버전을 고정해 뒀다면 그것도 같이 풀어야 한다.</li>
-<li>굳이 시스템 CLI를 쓰게 하려면 경로를 명시한다. TS는 <code>pathToClaudeCodeExecutable</code>, 파이썬은 <code>ClaudeAgentOptions(cli_path=…)</code>다. 다만 SDK와 CLI는 짝으로 릴리스되므로, 임의 조합은 스스로 검증할 몫이 된다.</li>
-<li>지금 뭘 물고 있는지는 한 줄로 확인된다. <code>npm ls @anthropic-ai/claude-agent-sdk</code> 또는 <code>python -c "from claude_agent_sdk._cli_version import __cli_version__ as v; print(v)"</code>.</li>
-</ul>
+<p>정리하면, SDK 앱이 쓰는 CLI 버전은 <strong>설치된 SDK 패키지 버전</strong>이 정한다. 로컬 <code>claude</code>를 올려도, 네이티브로 옮겨도, 채널을 바꿔도 바뀌지 않는다. 바꾸려면 SDK를 올려야 하고, lockfile로 고정해 뒀다면 그것도 같이 풀어야 한다. 굳이 시스템 CLI를 쓰게 하려면 경로를 명시한다(TS는 <code>pathToClaudeCodeExecutable</code>, 파이썬은 <code>ClaudeAgentOptions(cli_path=…)</code>). 다만 SDK와 CLI는 짝으로 릴리스되니 임의 조합은 스스로 검증할 몫이다.</p>
 
 <div class="note">
 <p class="h">여기서 실측하지 못한 것</p>
-<p>“SDK 0.3.212로는 특정 모델 호출이 실패하고 0.3.220으로는 성공한다” 같은 <strong>실제 모델 호출 결과는 확인하지 않았다.</strong> 인증이 필요해 컨테이너에서 재현할 수 없다. 위에서 확인한 것은 어디까지나 <em>“SDK가 어느 버전의 CLI를 실행하는가”</em>이고, 새 모델 지원이 CLI 버전에 달려 있다면 그 경로로 영향이 간다는 <em>구조</em>다.</p>
+<p>“SDK 0.3.212로는 Opus 5 호출이 실패하고 0.3.220으로는 성공한다” 같은 <strong>실제 모델 호출 결과는 확인하지 않았다.</strong> 인증이 필요해 컨테이너에서 재현할 수 없다. 위에서 확인한 것은 <em>“SDK가 어느 버전의 CLI를 실행하는가”</em>이고, 새 모델 지원이 CLI 버전에 달려 있다면 그 경로로 영향이 간다는 <em>구조</em>다.</p>
 </div>
 
-<h2 id="s8"><span class="num">8</span>점검·정리 레시피</h2>
-<p>같은 일을 다시 겪지 않으려면 확인할 것은 결국 두 가지다. <strong>“지금 실행되는 게 뭐냐”</strong>와 <strong>“그게 어느 채널을 보고 있냐”</strong>.</p>
+<h2 id="s4"><span class="num">4</span>곁가지: 로컬에 claude가 여러 벌일 때</h2>
+<p>채널을 고치려다 알게 된 게 하나 더 있다. 머신에 <code>claude</code>가 한 벌이 아니었다. node를 여러 벌 쓰는 환경에서는 <code>npm i -g</code>가 각각 다른 전역 디렉터리에 설치되고, 결국 이름이 같은 실행 파일이 PATH 위 여러 곳에 놓인다. 그러면 실행되는 버전은 <strong>오직 PATH 순서</strong>로 결정된다. 컨테이너에서 apt node(18)와 tarball node(22)를 함께 두고 재현한 결과다.</p>
 
-<h3>자가진단</h3>
-<pre><code><span class="c"># 1) 지금 실행되는 claude와, 가려져 있는 나머지</span>
-which -a claude
-claude --version
-claude doctor          <span class="c"># Running / Path / Config install method / Auto-update channel</span>
+<pre><code>$ which -a claude
+/opt/node22/bin/claude
+/usr/local/bin/claude
 
-<span class="c"># 2) 채널 설정이 저장된 자리</span>
-cat ~/.claude/settings.json
-
-<span class="c"># 3) npm 전역에 남아 있는 것 — node가 여러 벌이면 npm마다 물어본다</span>
-which -a node npm
-npm ls -g @anthropic-ai/claude-code
-/usr/bin/npm ls -g --depth=0            <span class="c"># 배포판 node 쪽</span>
-
-<span class="c"># 4) 버전 매니저 shim</span>
-ls ~/.local/share/mise/shims/ | grep claude
-
-<span class="c"># 5) 네이티브 설치본과 쌓인 버전들</span>
-ls -l ~/.local/bin/claude
-ls -lh ~/.local/share/claude/versions/
-
-<span class="c"># 6) SDK를 쓰는 프로젝트라면</span>
-npm ls @anthropic-ai/claude-agent-sdk
-python -c "from claude_agent_sdk._cli_version import __cli_version__ as v; print(v)"
+$ PATH=/opt/node22/bin:/usr/local/bin:… claude --version
+<span class="hi">2.1.212 (Claude Code)</span>
+$ PATH=/usr/local/bin:/opt/node22/bin:… claude --version
+<span class="hi">2.1.195 (Claude Code)</span>
 </code></pre>
 
-<h3>중복 설치 정리</h3>
-<p>순서가 중요하다. 지우기 전에 무엇이 있는지부터 확인하고, 지운 뒤에는 셸 캐시를 비운다.</p>
-<pre><code><span class="c"># 1) npm 전역을 npm마다 제거 (node가 여러 벌이면 각각)</span>
+<p>같은 머신, 같은 명령, 다른 버전. 네이티브 설치와 npm 전역이 섞여도 마찬가지여서, 네이티브로 2.1.220을 깔아 둬도 PATH 앞의 npm 전역 2.1.195가 이긴다. 점검할 때 주의할 것은 <code>npm ls -g</code> 역시 <em>지금 PATH에서 잡히는 npm</em>의 전역 디렉터리만 본다는 점이다. node가 여러 벌이면 npm마다 경로를 박아 물어봐야 전모가 보인다.</p>
+
+<pre><code>$ /usr/bin/npm ls -g --depth=0
+/usr/local/lib
+`-- @anthropic-ai/claude-code@2.1.195
+
+$ /opt/node22/bin/npm ls -g --depth=0
+/opt/node22/lib
++-- @anthropic-ai/claude-code@2.1.212
+</code></pre>
+
+<h3>버전 매니저를 쓴다면: shim 잔재</h3>
+<p>중복을 정리하려고 npm 전역을 지우는 과정에서 mise 사용자라면 이 오류를 만날 수 있다. mise(및 asdf 계열)는 PATH에 실제 실행 파일 대신 <strong>shim</strong>을 놓는데, shim의 수명이 실제 패키지와 따로 놀기 때문이다.</p>
+<p>컨테이너에서 경우를 갈라 보니 갈리는 지점이 분명했다. <code>mise exec -- npm rm -g …</code>나 <code>mise uninstall node@…</code>처럼 <strong>매니저를 통해 지우면</strong> 자동 reshim으로 shim도 함께 사라져 깨끗했다. 남는 건 <strong>패키지는 그대로인데 버전 해석만 끊긴 경우</strong>다. node는 설치돼 있는데 설정(<code>~/.config/mise/config.toml</code>)에서 그 도구가 빠지면, shim 파일은 남고 가리킬 곳만 없어진다.</p>
+
+<pre><code>$ claude --version
+<span class="hi">mise ERROR No version is set for shim: claude</span>
+Set a global default version with one of the following:
+mise use -g node@22.23.1
+</code></pre>
+
+<p>메시지가 친절해서 오히려 헷갈린다. “node 버전을 정하라”고 안내하지만, 하려던 일은 node를 되살리는 게 아니라 claude를 네이티브로 옮기는 것이었다. 이 경우 필요한 건 shim 파일을 지우는 것이다. 참고로 도구가 하나도 설정되지 않은 상태에서 <code>mise reshim</code>을 돌려도 남은 shim들은 <strong>지워지지 않았다</strong>. <code>reshim</code>은 현재 설치된 도구로 shim을 만드는 명령이지 청소해 주는 명령이 아니다.</p>
+
+<h2 id="s5"><span class="num">5</span>점검과 정리, 한 장</h2>
+<p>결국 확인할 것은 둘이다. <strong>“지금 실행되는 게 뭐냐”</strong>와 <strong>“그게 어느 채널을 보고 있냐”</strong>. SDK를 쓴다면 세 번째로 <strong>“그 앱이 물고 있는 CLI는 뭐냐”</strong>가 붙는다.</p>
+
+<pre><code><span class="c"># 진단</span>
+which -a claude &amp;&amp; claude --version
+claude doctor                    <span class="c"># Running / Path / Auto-update channel</span>
+cat ~/.claude/settings.json      <span class="c"># autoUpdatesChannel</span>
+npm ls @anthropic-ai/claude-agent-sdk                <span class="c"># SDK 프로젝트라면</span>
+python -c "from claude_agent_sdk._cli_version import __cli_version__ as v; print(v)"
+
+<span class="c"># 정리 — npm 전역을 npm마다 제거하고, 남은 shim은 파일을 직접 지운다</span>
 npm rm -g @anthropic-ai/claude-code
 /usr/bin/npm rm -g @anthropic-ai/claude-code
-
-<span class="c"># 2) 버전 매니저 shim 잔재가 남았으면 파일을 직접 제거</span>
 rm -f ~/.local/share/mise/shims/claude
 
-<span class="c"># 3) 공식 네이티브 인스톨러로 한 벌만 남긴다 (채널을 명시)</span>
+<span class="c"># 네이티브 한 벌로 정리 (채널 명시)</span>
 curl -fsSL https://claude.ai/install.sh | bash -s -- latest
-
-<span class="c"># 4) 셸 캐시를 비우고 확인</span>
-hash -r
+hash -r                          <span class="c"># 셸의 실행 파일 경로 캐시를 비운다</span>
 which -a claude &amp;&amp; claude --version &amp;&amp; claude doctor
 
-<span class="c"># 5) PATH에 ~/.local/bin 이 없으면 추가 (인스톨러도 이 문구로 안내한다)</span>
+<span class="c"># PATH에 ~/.local/bin 이 없으면 (인스톨러도 이 문구로 안내한다)</span>
 echo 'export PATH="$HOME/.local/bin:$PATH"' &gt;&gt; ~/.bashrc
-
-<span class="c"># 6) 쓰지 않는 옛 버전 바이너리 정리 (한 벌에 약 260MB)</span>
-ls -lh ~/.local/share/claude/versions/
 </code></pre>
 
-<p>6번은 조심할 것. <code>~/.local/bin/claude</code>가 가리키는 버전은 남겨야 한다. <code>readlink -f ~/.local/bin/claude</code>로 확인한 다음 나머지를 지운다. 롤백용으로 직전 버전 하나쯤 남겨 두면 편하다.</p>
+<p><code>hash -r</code>를 빼먹지 말자. bash는 한 번 찾은 실행 파일 경로를 캐시해서, 파일을 지운 뒤에도 같은 셸에서는 옛 경로를 계속 부른다. 그리고 옛 버전 바이너리를 정리할 땐 <code>readlink -f ~/.local/bin/claude</code>가 가리키는 것만은 남긴다(한 벌에 260MB다).</p>
 
-<h2 id="s9"><span class="num">9</span>실측한 것과 그러지 못한 것</h2>
-<p>이 글의 근거를 분명히 해 둔다.</p>
-
-<p class="tcap">표 3. 검증 상태.</p>
-<table>
-<thead><tr><th>항목</th><th>상태</th></tr></thead>
-<tbody>
-<tr><td>dist-tag/배포 엔드포인트의 stable·latest 값</td><td>실측 (<code>node:22</code>, 2026-07-25)</td></tr>
-<tr><td>stable 설치에서 <code>claude update</code>가 “up to date”</td><td>실측 (<code>ubuntu:24.04</code>)</td></tr>
-<tr><td><code>autoUpdatesChannel</code> 수정 후 2.1.220으로 갱신</td><td>실측</td></tr>
-<tr><td>PATH 순서로 실행 버전이 갈리는 것</td><td>실측 (apt node 18 + tarball node 22)</td></tr>
-<tr><td><code>No version is set for shim: claude</code></td><td>실측 (mise 2026.7.13)</td></tr>
-<tr><td>네이티브 설치 구조·인자·sudo 거부</td><td>실측</td></tr>
-<tr><td>SDK가 CLI를 번들하고 버전이 고정된다는 것</td><td>실측 (npm·pip 양쪽)</td></tr>
-<tr><td><strong>버전별 모델 가용성(opus 5 등)</strong></td><td><strong>미실측 — 아래 참고</strong></td></tr>
-</tbody>
-</table>
-
-<p>마지막 줄이 이 조사의 출발점이었다는 게 얄궂다. 이번 일의 계기는 “2.1.219부터는 특정 최신 모델을 쓸 수 있고 2.1.212에서는 안 된다”는 <strong>전언</strong>이었다. 그 말이 조사를 시작하게 했고, 조사 결과 채널이라는 진짜 원인이 나왔다.</p>
-<p>하지만 그 전언 자체는 <strong>이 글에서 검증하지 못했다.</strong> 모델 가용성은 로그인한 계정, 구독 플랜, 조직 설정, 지역 롤아웃에 걸쳐 결정되고, 인증 없는 컨테이너에서는 어느 쪽도 확인할 수 없다. 실제로 컨테이너의 <code>claude doctor</code>는 이렇게 답한다.</p>
-
-<pre><code>Remote Control
-Remote Control requires a claude.ai subscription. Run claude auth login …
-- Not signed in to claude.ai
-- claude.ai subscription auth not active
-</code></pre>
-
-<p>그러니 이렇게 읽는 게 정확하다. <em>“버전이 올라가면 새 기능·새 모델을 쓸 수 있게 되는 경우가 있다”</em>는 일반적인 사실은 그대로 두고, <em>“정확히 2.1.219부터”</em>라는 경계선은 내 계정에서 관찰된 사례로만 받아들이는 것. 이 글이 실제로 증명한 것은 그 아래 깔린 구조다. <strong>버전이 올라가지 않은 이유가 채널이었다는 것.</strong></p>
-
-<h2><span class="num">10</span>마치며</h2>
-<p>네 함정에는 공통점이 있다. 전부 <strong>“도구가 거짓말을 한 게 아니라, 내가 생략된 주어를 잘못 채운”</strong> 경우다.</p>
-<ul>
-<li><code>claude update</code>의 “up to date”는 <em>이 채널에서</em> 최신이라는 뜻이었다.</li>
-<li><code>claude --version</code>은 <em>PATH에서 처음 걸린 것의</em> 버전이었다.</li>
-<li><code>mise</code>의 “No version is set”은 <em>shim은 남았는데 가리킬 곳이 없다</em>는 뜻이었다.</li>
-<li>SDK가 쓰는 CLI는 <em>내 CLI가 아니라 자기가 들고 온 CLI</em>였다.</li>
-</ul>
-<p>도구가 “최신”이라고 말할 때 무엇의 최신인지 되묻는 습관 하나면, 이 네 개는 대체로 <code>claude doctor</code>와 <code>which -a</code> 두 줄에서 끝난다.</p>
+<h2><span class="num">6</span>마치며</h2>
+<p>Opus 5를 쓰기까지 걸린 건 결국 두 문장이었다. <code>claude update</code>의 “up to date”는 <em>이 채널에서</em> 최신이라는 뜻이었고, SDK가 쓰는 CLI는 <em>내 CLI가 아니라 자기가 들고 온 CLI</em>였다. 둘 다 도구가 거짓말을 한 게 아니라 생략된 주어를 내가 잘못 채운 경우다.</p>
+<p>새 모델이 안 보일 때 확인할 순서는 그래서 짧다. <code>claude doctor</code>로 채널과 버전을 보고, SDK 앱이라면 패키지 버전을 본다. 나머지는 대체로 그다음 문제다.</p>
 
 <details>
 <summary>부록: 이 문서의 재현 명령 요약 (전부 컨테이너 안에서 실행)</summary>
 <pre><code><span class="c"># 1) 채널 확인</span>
 docker run --rm node:22 npm view @anthropic-ai/claude-code dist-tags
 docker run --rm node:22 curl -fsSL https://downloads.claude.ai/claude-code-releases/stable
-docker run --rm node:22 curl -fsSL https://downloads.claude.ai/claude-code-releases/latest
 
-<span class="c"># 2) stable 채널에 묶인 설치 재현 (ubuntu:24.04, 일반 사용자)</span>
+<span class="c"># 2) stable 고착 재현 (ubuntu:24.04, 일반 사용자)</span>
 curl -fsSL https://claude.ai/install.sh -o install.sh
 bash install.sh stable &amp;&amp; claude update      <span class="c"># -&gt; up to date (2.1.212)</span>
 bash install.sh latest &amp;&amp; claude --version    <span class="c"># -&gt; 2.1.220</span>

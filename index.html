@@ -57,8 +57,8 @@
 <p class="sub">공개해도 되는 작업 산출물 모음 — 실측 정리 · 리서치 · 시각화. 개인 식별 정보와 자격증명은 제거한 것만 올린다. 최신순.</p>
 
 <a class="item" href="./claude-code-install-pitfalls/">
-  <h2>claude update가 “최신”이라고 말할 때: Claude Code 설치의 함정 넷</h2>
-  <p>업데이트 명령이 “up to date”라는데 최신이 아니었다. 범인은 릴리스 채널 — stable은 2.1.212, latest는 2.1.220으로 여드레·릴리스 8개가 벌어져 있었다. 채널, PATH 순서로 갈리는 중복 설치, 버전 매니저 shim 잔재, Agent SDK가 패키지에 넣어 다니는 또 하나의 CLI까지. 전부 docker 컨테이너에서 재현한 출력과 점검·정리 레시피.</p>
+  <h2>Opus 5가 출시됐지만, 로컬의 “최신” 클로드 코드에는 4.8밖에 보이지 않았다</h2>
+  <p>claude update는 “up to date”라는데 모델은 4.8까지만. 범인은 둘 — stable 채널(2.1.212)에 묶여 있던 CLI와, Agent SDK가 패키지에 번들해 다니는 별도의 CLI. Opus 5를 쓰려면 필요한 버전(CLI 2.1.220 · SDK 0.3.220)부터 채널을 확인하고 바꾸는 법, 중복 설치와 shim 잔재 정리까지. 전부 docker 컨테이너 실측.</p>
   <div class="meta">
     <span class="tag">실측</span><span class="tag">시각화</span>
     <span>Claude Code, npm, mise</span>
