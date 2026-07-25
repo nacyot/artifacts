@@ -11,6 +11,7 @@
 
 | 날짜 | 산출물 | 설명 |
 |---|---|---|
+| 2026-07-25 | [claude-code-install-pitfalls](./claude-code-install-pitfalls/) | `claude update`가 "최신"이라는데 최신이 아닌 이유: 릴리스 채널(stable/latest), PATH 순서로 갈리는 중복 설치, mise shim 잔재, Agent SDK가 번들한 CLI (docker 컨테이너 실측) |
 | 2026-07-15 | [asahi-macbook-speaker-crackle](./asahi-macbook-speaker-crackle/) | 맥북 내장 스피커 크래클: 세 원인(DSP, 효율코어 스케줄링, 스트림 전환)과 처방, macOS가 멀쩡한 이유 (PipeWire, d3 인터랙티브) |
 | 2026-07-15 | [tailscale-per-app-exit-node](./tailscale-per-app-exit-node/) | Tailscale exit node를 앱 단위로: 브라우저 하나만 다른 리전으로 (유저스페이스 SOCKS5, fail-closed, d3 인터랙티브) |
 | 2026-07-10 | [displaylink-asahi-m1](./displaylink-asahi-m1/) | Asahi M1 Max 외장 2대 — 막힌 지점과 접은 이유 (DP 드라이버 · DisplayLink CPU · HDMI) |

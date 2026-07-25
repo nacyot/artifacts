@@ -5,10 +5,20 @@
     <link>https://nacyot.github.io/artifacts/</link>
     <description>공개해도 되는 작업 산출물 모음 — 실측 정리, 리서치, 시각화.</description>
     <language>ko</language>
-    <lastBuildDate>Thu, 23 Jul 2026 12:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 25 Jul 2026 12:00:00 +0000</lastBuildDate>
     <atom:link href="https://nacyot.github.io/artifacts/feed.xml" rel="self" type="application/rss+xml"/>
 
     <!-- newest first -->
+    <item>
+      <title>claude update가 “최신”이라고 말할 때: Claude Code 설치의 함정 넷</title>
+      <link>https://nacyot.github.io/artifacts/claude-code-install-pitfalls/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/claude-code-install-pitfalls/</guid>
+      <pubDate>Sat, 25 Jul 2026 12:00:00 +0000</pubDate>
+      <description><![CDATA[claude update가 "Claude Code is up to date"라는데 최신이 아니었다. 원인은 릴리스 채널 — 같은 순간 stable은 2.1.212, latest는 2.1.220으로 여드레·릴리스 8개가 벌어져 있었다. 채널을 확인하고 바꾸는 법(claude doctor, autoUpdatesChannel, install.sh 인자), PATH 순서에 따라 다른 버전이 실행되는 중복 설치, mise shim 잔재의 "No version is set for shim: claude", 그리고 Agent SDK가 패키지에 번들해 다니는 또 하나의 CLI까지. 모든 출력은 docker 컨테이너 실측이고, 모델 가용성처럼 계정에 의존해 재현 못 한 부분은 그렇게 명시했다.]]></description>
+      <category>Claude Code</category>
+      <category>npm</category>
+      <category>Packaging</category>
+    </item>
     <item>
       <title>Omarchy 화면 매뉴얼: 보이는 것들의 이름과 구조</title>
       <link>https://nacyot.github.io/artifacts/omarchy-manual/</link>
