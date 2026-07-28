@@ -1,0 +1,202 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="영문 Dvorak + 한글 두벌식 조합은 Windows·macOS 공식 지원이 없다. 리눅스에서는 libhangul과 fcitx5-hangul에 소스 패치를 만들어 근본 해결했다. 실패한 우회 세 번과 실사용에서 발견한 부작용, 문장부호 누수까지 타임라인으로 정리.">
+<link rel="canonical" href="https://nacyot.github.io/artifacts/dvorak-dubeolsik/">
+<link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="nacyot / artifacts">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:url" content="https://nacyot.github.io/artifacts/dvorak-dubeolsik/">
+<meta property="og:title" content="두벌식과 Dvorak의 동거: 리눅스에서 한글 입력기를 고친 기록">
+<meta property="og:description" content="Windows·macOS에 공식 지원이 없는 두벌식+Dvorak 조합. libhangul·fcitx5-hangul 소스 패치로 근본 해결하고, 실패한 우회와 부작용을 타임라인으로 정리했다.">
+<meta property="og:image" content="https://nacyot.github.io/artifacts/dvorak-dubeolsik/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="두벌식과 Dvorak의 동거">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="두벌식과 Dvorak의 동거: 리눅스에서 한글 입력기를 고친 기록">
+<meta name="twitter:description" content="Windows·macOS에 공식 지원이 없는 두벌식+Dvorak 조합을 libhangul·fcitx5-hangul 소스 패치로 근본 해결한 기록.">
+<meta name="twitter:image" content="https://nacyot.github.io/artifacts/dvorak-dubeolsik/og.png">
+<meta name="twitter:image:alt" content="두벌식과 Dvorak의 동거">
+
+<title>두벌식과 Dvorak의 동거: 리눅스에서 한글 입력기를 고친 기록</title>
+<style>
+  :root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--box:#f3f2ec}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Pretendard GOV",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+    font-size:18px;line-height:1.72;word-break:keep-all;overflow-wrap:anywhere}
+  .doc{max-width:42em;margin:0 auto;padding:4.5rem 1.5rem 7rem}
+  h1{font-size:1.7rem;font-weight:700;line-height:1.36;margin:0 0 1.4rem}
+  h2{font-size:1.18rem;font-weight:700;margin:2.6rem 0 .7rem;padding-top:.7rem;border-top:1px solid var(--rule)}
+  h3{font-size:1.02rem;font-weight:700;margin:1.6rem 0 .5rem}
+  p{margin:0 0 .95rem} strong{font-weight:700}
+  ul,ol{margin:.4rem 0 1.1rem;padding-left:1.1rem} li{margin:.5rem 0}
+  a{color:#1c1c1c;text-decoration:underline;text-decoration-color:var(--faint);text-underline-offset:.15em}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8em;color:#46443f;background:#efeee7;padding:0 .25em;border-radius:2px}
+  pre{background:var(--box);border:1px solid var(--rule);border-radius:4px;padding:.9rem 1.1rem;overflow-x:auto;margin:0 0 1.2rem}
+  pre code{background:none;padding:0;color:inherit;font-size:.85rem;line-height:1.6}
+  blockquote{margin:1.2rem 0;padding:.9rem 1.1rem;background:var(--box);border-left:3px solid var(--faint);color:var(--soft);font-size:.92rem}
+  blockquote p{margin:0 0 .5rem} blockquote p:last-child{margin:0}
+  .fcap{font-size:.84rem;color:var(--soft);margin:.55rem 0 1.2rem}
+  figure{margin:.4rem 0 0}
+  table{width:100%;border-collapse:collapse;font-size:.88rem;line-height:1.55;margin:0 0 1.2rem}
+  th,td{text-align:left;vertical-align:top;padding:.52rem .8rem .52rem 0}
+  thead th{border-bottom:1px solid var(--ink);font-weight:700;font-size:.82rem}
+  tbody tr+tr td{border-top:1px solid var(--rule)} td:first-child,th:first-child{font-weight:600}
+  @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.2rem 5rem}}
+</style></head><body><div class="doc">
+
+<h1>두벌식과 Dvorak의 동거: 리눅스에서 한글 입력기를 고친 기록</h1>
+
+<p><strong>무엇이 바뀌었나:</strong> 영문은 Dvorak으로 치면서 한글 두벌식도 같은 손가락 기억으로 칠 수 있게, 한글 입력 스택의 두 라이브러리(<code>libhangul</code>, <code>fcitx5-hangul</code>)에 소스 패치를 만들어 사용자 영역(<code>~/.local</code>)에만 설치했다. 시스템 패키지는 건드리지 않아 <code>pacman</code> 업데이트에도 깨지지 않는다.</p>
+
+<p><strong>왜 이게 특별한가:</strong> "영문 Dvorak + 한글 두벌식" 조합은 Windows와 macOS 모두 공식 지원이 없다. 각 OS에서 서드파티 입력기로 우회해 써 왔지만 미묘한 문제가 계속 남는 조합이다. 리눅스에서는 입력 스택의 모든 계층이 오픈소스라, 우리가 한 것처럼 변환 규칙 자체를 고치는 근본 해결이 가능하다.</p>
+
+<p><strong>남은 것:</strong> 한/영 토글 키 방식이 두 갈래로 문서화돼 있어 통일이 필요하고, upstream 버전이 올라가면 패치 재빌드가 필요하다.</p>
+
+<blockquote>
+<p>출처: <code>.notes/korean-input/</code>(README, 키 매핑 표, 패치·스크립트·설정 원본), <code>.notes/2026-06-28-fcitx5-toggle-and-xkb-deadend.md</code>, <code>.notes/2026-07-01-fcitx5-wayland-diagnose-notification.md</code>. OS별 지원 현황은 gptcli 리서치와 웹 검색으로 교차 확인했다. 대상 머신은 GPD Pocket Max(Omarchy, Arch Linux + Hyprland + Wayland)이며, DBus 함정은 보조 리눅스 머신에서, 부팅 알림 문제는 Asahi Linux 머신에서 각각 확인했다.</p>
+</blockquote>
+
+<h2>1. 왜 이 문제가 특별한가: OS별 지원 현황</h2>
+
+<p>"영문은 Dvorak, 한글은 두벌식"이라는 조합은 마이너해 보이지만, 이 조합을 쓰는 사람에게는 매일 부딪히는 문제다. 그런데 어느 운영체제도 이걸 정식으로 지원하지 않는다.</p>
+
+<table>
+<thead><tr><th>OS</th><th>영문 Dvorak</th><th>한글 두벌식</th><th>두벌식 + Dvorak 공식 지원</th><th>현실적인 우회</th></tr></thead>
+<tbody>
+<tr><td>Windows</td><td>지원</td><td>지원</td><td>없음</td><td>날개셋 입력기 + 레이아웃 DLL 교체</td></tr>
+<tr><td>macOS</td><td>지원</td><td>지원 (2-Set/3-Set, QWERTY 위치 기준)</td><td>없음</td><td>구름 입력기의 Dvorak 결합 설정</td></tr>
+<tr><td>Linux</td><td>지원 (XKB)</td><td>지원 (libhangul)</td><td>없음 (기본 매핑이 QWERTY 가정)</td><td>오픈소스 스택을 직접 수정 (본 작업)</td></tr>
+</tbody>
+</table>
+
+<p><strong>Windows.</strong> Microsoft 한글 IME에는 두벌식/세벌식 같은 한글 자판 옵션만 있고, 한글 모드의 로마자 배열을 Dvorak으로 바꾸는 옵션은 없다. Windows의 IME는 대개 남의 키보드 레이아웃 DLL을 "위임"받아 키를 해석하는 구조라, 커뮤니티에는 레지스트리의 <code>Layout File</code> 값을 <code>kbddv.dll</code>(Dvorak 레이아웃 DLL)로 바꾸는 우회가 오래전부터 알려져 있다. 중국어 Pinyin IME와 일본어 IME에 같은 기법을 쓰는 사례가 Microsoft Q&A와 Super User에 문서화돼 있다(<a href="https://superuser.com/questions/38781">Super User 사례</a>, <a href="https://learn.microsoft.com/en-us/answers/questions/3726773/japanese-ime-in-dvorak-not-working">Microsoft Q&A 사례</a>). 사용자 본인도 세벌식 입력기인 날개셋의 고급 설정으로 DLL을 Dvorak으로 바꿔 쓰고 있지만, 미묘한 문제가 남아 있다고 보고했다. 이 방식은 시스템 전체 레이아웃을 바꾸는 거라 로그인 화면처럼 설정이 미치지 않는 영역이 생기고, Windows 한글 IME가 영문 입력까지 자체 처리하는 구조라 다른 영문 배열과의 결합이 원래 허술하다는 사용자 보고도 있다(<a href="https://forum.colemak.com/topic/2627-colemak-with-korean-for-windows/">Colemak 포럼</a>).</p>
+
+<p><strong>macOS.</strong> 내장 한글 입력 소스(2-Set Korean, 3-Set Korean)는 QWERTY 키 위치를 기준으로 하고, Dvorak과 결합하는 옵션은 없다(<a href="https://support.apple.com/en-mz/guide/korean-input-method/welcome/mac">Apple 한글 입력 가이드</a>). 그래서 서드파티인 구름 입력기를 쓴다. 구름은 흥미롭게도 <strong>리눅스의 그 <code>libhangul</code> 기반</strong>으로 만들어졌고, "드보락이나 콜맥을 포함해 어떤 시스템 자판과도 결합해 사용할 수 있다"고 명시한다(<a href="https://github.com/gureum/gureum">구름 입력기 GitHub</a>). 사용자 본인도 이 Dvorak 결합 설정으로 쓰고 있지만 역시 미묘한 문제가 남는다고 보고했다. macOS의 서드파티 입력기는 InputMethodKit이라는 프레임워크 위에서 돌아가는데, 이 계층의 제약 때문에 앱별로 조합 문자열 처리나 한영 전환이 다르게 동작하는 사례가 계속 보고된다. 로그인 화면과 데스크톱의 자판 배열이 따로 노는 macOS의 오랜 버그도 있다(<a href="https://github.com/Swordfish90/cool-retro-term/issues/451">관련 이슈</a>).</p>
+
+<p><strong>정리하면:</strong> 두 상용 OS 모두 이 조합을 "설정 한 번에 영구적으로" 해결할 방법이 없다. 서드파티 우회는 존재하지만 OS가 업데이트되거나 앱을 바꾸면 미묘하게 새는 문제와 함께 살아야 한다. 그리고 macOS의 최선책이 리눅스의 오픈소스 라이브러리(<code>libhangul</code>)를 포팅한 입력기라는 사실이 이 문제의 본질을 보여준다. 정공법은 그 라이브러리를 직접 고치는 것이고, 그게 가능한 OS가 리눅스다.</p>
+
+<p>리눅스에서도 기본값은 똑같이 깨진다. 차이는 고칠 수 있느냐다. 2007년 Arch Linux 포럼에 올라온 같은 문제의 보고가 증거다. Dvorak으로 바꾼 사용자가 "안녕하세요"를 치려 하면 <code>ㄷ새해댜쇼딜</code>이 찍힌다는 내용인데, 해결책도 우리와 같은 방향(IME 테이블 편집)이었다(<a href="https://bbs.archlinux.org/viewtopic.php?id=58240">Arch Linux 포럼</a>).</p>
+
+<h2>2. 두벌식 + Dvorak 사용자의 고충</h2>
+
+<p>두벌식은 "자모를 어느 손가락으로 치는가"의 체계다. ㅇ는 오른쪽 검지, ㅏ는 오른쪽 중지, ㄴ은 왼쪽 검지. 이 체계는 전부 QWERTY 자판의 물리적 키 위치를 기준으로 만들어졌다. 리눅스 한글 조합 라이브러리 <code>libhangul</code>의 두벌식 테이블도 그 가정을 그대로 따른다. ASCII 키 심볼을 한글 자모로 바꾸는 단순 조회표인데, <code>'d'</code>(0x64)를 ㅇ으로 매핑한다. QWERTY에서 <code>d</code>가 ㅇ 자리이기 때문이다.</p>
+
+<p>Dvorak 사용자에게 이 가정은 세 가지 고통으로 돌아온다.</p>
+
+<p><strong>고충 1. 한글 자모가 뒤섞인다.</strong> Dvorak 사용자의 손가락은 이미 재배치돼 있다. "안녕"을 치고 싶으면 두벌식 기준으로 QWERTY 위치 <code>d k s s u d</code>를 눌러야 하는데, Dvorak 라벨로는 같은 물리 위치가 <code>e t o o g e</code>다. 키보드 이벤트를 받는 쪽은 이 키들을 Dvorak 심볼 <code>etooge</code>로 전달하고, <code>libhangul</code>은 그 심볼을 QWERTY 위치로 착각해서 해석한다. 결과는 엉뚱한 자모다. 작업 노트에 기록된 실측으로, "안녕"을 치려 하면 <code>ㄷ새핻</code>이 나왔다. 위 Arch 포럼의 실측(<code>안녕하세요</code> → <code>ㄷ새해댜쇼딜</code>)도 같은 현상이다. 한글을 치려면 두 자판 체계를 머릿속에서 실시간으로 환산해야 하니, 손가락 기억으로 타이핑하는 사람에게는 사실상 한글 입력 불가다.</p>
+
+<p><strong>고충 2. 한글 모드에서 단축키가 죽거나 이동한다.</strong> 처음에는 "한글 모드일 때만 시스템 자판을 QWERTY로 바꾸는" 스크립트를 시도했다. 한글은 나오게 됐지만, 그 순간 단축키도 QWERTY 위치로 바뀐다. Dvorak 사용자는 Ctrl+C를 QWERTY의 <code>I</code> 자리에서, Ctrl+V를 <code>.</code> 자리에서 누른다. 한글로 글을 쓰다가 복사·붙여넣기를 할 때마다 손가락이 헛나간다. 자판 전체를 토글하는 우회는 한 문제를 고치고 다른 문제를 만든다.</p>
+
+<p><strong>고충 3. 마침표와 쉼표가 알파벳으로 바뀐다.</strong> Dvorak은 문장부호 위치가 QWERTY와 크게 다르다. 마침표는 하단열 <code>V</code> 자리, 쉼표는 그 옆 <code>W</code> 자리에 있다. 한글로 문장을 쓰다가 모드 전환 없이 마침표를 찍고 싶은데, 두벌식 자판표에 Dvorak 하단열 키는 매핑이 없어서 그대로 <code>v</code>, <code>w</code> 같은 알파벳이 찍힌다. 문장 하나 끝날 때마다 한/영을 전환하거나, 틀린 글자를 지우고 다시 쳐야 한다.</p>
+
+<h2>3. 리눅스 입력 스택 이해하기</h2>
+
+<p>이 작업을 이해하는 데 필요한 배경은 입력 스택의 계층 구조 하나다. 리눅스(정확히는 Wayland 환경)에서 키 하나가 글자가 되기까지의 경로:</p>
+
+<pre><code>물리 키 입력
+  → XKB: 물리 키를 키 심볼로 번역 (여기서 Dvorak 적용)
+  → fcitx5: 입력기 프레임워크 (한/영 모드 관리, 키 가로채기)
+  → libhangul: 키 심볼을 자모로 매핑하고 글자로 조합
+  → 애플리케이션</code></pre>
+
+<ul>
+<li><strong>XKB</strong>는 키보드 배열 그 자체다. 우리 환경에서는 항상 Dvorak으로 고정돼 있고, 이 작업에서 건드리지 않았다.</li>
+<li><strong>fcitx5</strong>는 입력기 프레임워크다. 어떤 입력기가 활성인지 관리하고, 한글 모드일 때 키를 엔진으로 넘기는 역할을 한다. <code>fcitx5-hangul</code>이 한글 엔진 애드온이다.</li>
+<li><strong>libhangul</strong>은 한글 조합의 심장이다. "두벌식 테이블"(키 심볼 → 자모 조회표)을 갖고 있고, 자모를 받아 글자로 조합한다.</li>
+</ul>
+
+<p>Windows와 macOS에서는 이 계층이 운영체제 안에 닫혀 있고 IME와 레이아웃이 강하게 묶여 있다. 리눅스에서는 각 계층이 별도 오픈소스 프로젝트라, 소스를 고쳐 다시 빌드하는 것이 기술적으로는 평범한 작업이다. 이 차이가 1장의 OS별 현황표에서 리눅스만 "근본 해결 가능"인 이유다.</p>
+
+<h2>4. 고쳐가는 과정: 시행착오 타임라인</h2>
+
+<p>한 번에 정답에 도달한 게 아니다. 우회 시도 세 번이 실패하고, 패치를 넣고도 실사용에서 부작용이 하나씩 발견돼 차례로 덧고쳤다. 노트에 날짜가 남은 것만 확정 날짜로 표기했다. 두 대의 리눅스 머신에서 병렬로 진행된 작업이라, 날짜 없는 단계의 정확한 순서는 상대적이다.</p>
+
+<table>
+<thead><tr><th>시기</th><th>한 일</th><th>결과와 부작용</th></tr></thead>
+<tbody>
+<tr><td>패치 이전</td><td>우회 1: fcitx5의 입력기별 <code>Layout=</code> 설정</td><td>실패. Wayland에서는 키 배열이 compositor 소유라 입력기가 IM 단위로 덮어쓸 수 없음</td></tr>
+<tr><td>패치 이전</td><td>우회 2: 한글 모드에서만 XKB를 QWERTY로 토글하는 스크립트</td><td>한글은 나옴. 부작용: 단축키까지 QWERTY 위치로 이동(고충 2) → 폐기</td></tr>
+<tr><td>2026-06-28 (보조 머신)</td><td>우회 3: fcitx5 "Allow Overriding System XKB Settings" 옵션</td><td>실패. 옵션 설명에 "(Only support KDE5+ and GNOME)". Hyprland에서는 묵묵히 아무것도 안 함</td></tr>
+<tr><td>2026-06-28 (보조 머신)</td><td>한/영 토글 키 정리</td><td>fcitx5 기본값에 왼쪽 Shift 토글이 숨어 있던 것을 발견해 제거, Alt+Space로 지정</td></tr>
+<tr><td>6월 말</td><td>Patch A: libhangul에 Dvorak 기반 두벌식 테이블 추가</td><td>자모는 손가락대로 나옴. 부작용 발견: 마침표·쉼표 위치 키가 알파벳(<code>v</code>, <code>w</code> 등)으로 출력. 두벌식 테이블에 없는 키는 그대로 통과하기 때문</td></tr>
+<tr><td>6월 말</td><td>Patch B: fcitx5-hangul에 문장부호 passthrough(<code>v/w/s/z</code> → <code>.</code> <code>,</code> <code>;</code> <code>/</code>) 추가</td><td>문장부호 대부분 해결. 남은 부작용: 홈 행의 <code>'</code> 자리에 <code>-</code>가 찍힘. 최초 패치는 알파벳이 새던 하단열 키만 잡았고, 이 키는 문장부호(<code>-</code>)가 새는 별도 케이스였음</td></tr>
+<tr><td>2026-06-30</td><td>Patch B 보강: <code>-</code>/<code>_</code> → <code>'</code>/<code>"</code> 두 줄 추가</td><td>해결. QWERTY의 apostrophe 물리 키가 Dvorak에서는 <code>-</code>(shift는 <code>_</code>)를 내는 게 원인이었음</td></tr>
+<tr><td>2026-06-28 (보조 머신)</td><td>패치 후에도 한글이 간헐적으로 QWERTY 기준으로 깨지는 문제 추적</td><td>원인: DBus 자동 활성화가 환경변수 없이 fcitx5를 직접 띄워 시스템(무패치) 라이브러리를 로드. 사용자 DBus 서비스 오버라이드로 해결</td></tr>
+<tr><td>2026-07-01 (Asahi 머신)</td><td>부팅마다 fcitx5 "Wayland Diagnose" 알림</td><td>원인: <code>GTK_IM_MODULE</code>과 Wayland 입력기 프런트엔드 공존. GPD는 <code>GTK_IM_MODULE</code> 제거, Asahi 머신은 알림만 숨김. 부수 발견: fcitx5 설정 파일의 리스트 직렬화 함정</td></tr>
+</tbody>
+</table>
+
+<p>실패한 우회 세 개에는 공통 원인이 있다. Wayland(Hyprland)에서는 키 해석을 입력기 차원에서 바꿀 수단이 없다는 것. 설정으로 우회할 길이 없으니, 키를 자모로 변환하는 라이브러리 자체를 Dvorak 인지로 고치는 수밖에 없었다.</p>
+
+<h3>Patch A: libhangul에 Dvorak 기반 두벌식 테이블</h3>
+
+<p>핵심 아이디어는 단순하다. XKB는 항상 Dvorak을 유지하고, Dvorak 키 심볼을 받았을 때 "이 키의 물리적 위치가 QWERTY라면 무슨 키인가"를 기준으로 자모를 매핑한다.</p>
+
+<pre><code>Dvorak 사용자가 누르는 키 → 그 키의 심볼 (Dvorak)
+                          → 같은 물리 위치의 QWERTY 심볼
+                          → 그 QWERTY 심볼의 두벌식 자모</code></pre>
+
+<p><code>libhangul</code> 0.2.0에 새 테이블 <code>hangul_keyboard_table_2_dvorak[128]</code>을 추가했다. 여기서 결정 하나: 새 keyboard를 별도 등록하지 않고, 기존 <code>hangul_keyboard_2</code>(ID <code>"2"</code>, 이름 "Dubeolsik")의 테이블 포인터를 새 테이블로 교체했다. fcitx5-hangul이 keyboard ID를 하드코딩으로 고르기 때문에, 별도 등록하면 fcitx5-hangul 설정 UI에서 선택할 방법이 없기 때문이다. 원본 QWERTY 테이블은 ID <code>"2q"</code>("Dubeolsik (QWERTY)")로 보존했다.</p>
+
+<h3>Patch B: fcitx5-hangul에 문장부호 passthrough</h3>
+
+<p>Patch A만으로는 고충 3이 남는다. Dvorak 라벨 <code>v</code>(QWERTY <code>.</code> 위치)는 두벌식 테이블에 매핑이 없어(0) <code>v</code>가 그대로 출력되는데, 사용자는 여기를 마침표 위치로 인지한다. libhangul 테이블은 자모 매핑만 표현할 수 있고 "다른 문자로 넘겨라"를 표현할 수 없어서, 이건 fcitx5-hangul 애드온에서 가로채야 한다. <code>engine.cpp::keyEvent()</code>에서 modifier 검사 이후, <code>hangul_ic_process</code> 호출 직전에 작은 변환표를 삽입했다. 현재 조합 중인 글자를 commit한 뒤 QWERTY 등가 문자를 직접 commit하고 원래 키는 소비한다. modifier 검사 이후에 두었기 때문에 Ctrl+V(붙여넣기) 같은 조합은 영향받지 않는다.</p>
+
+<p>타임라인에서 보듯 이 passthrough 표는 두 번에 걸쳐 완성됐다. 최초에는 하단열 알파벳(<code>v/w/s/z</code>)만 잡았고, 홈 행에서 문장부호가 새는 케이스(<code>-</code>/<code>_</code>가 <code>'</code>/<code>"</code> 자리)는 실사용 중 발견해 6월 30일에 추가했다. 이런 류의 버그는 매핑표를 보고 찾는 게 아니라 쓰다가 걸려야 보인다.</p>
+
+<h2>5. 키보드로 보는 매핑</h2>
+
+<p>아래 그림은 패치 후 한글 모드에서 각 키가 무엇을 출력하는지를 보여준다. 각 키의 큰 글자는 Dvorak 라벨, 좌상단 작은 글자는 그 키의 물리적 위치(QWERTY), 아래 글자는 한글 모드 출력이다. 회색 키는 자모 대신 문장부호로 변환(passthrough)되는 키다. <code>/</code>와 <code>=</code>처럼 아무 표시도 없는 키는 자기 문자가 그대로 입력된다.</p>
+
+<figure>
+<svg viewBox="0 0 723 192" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dvorak 키보드 각 키의 한글 모드 출력 매핑" style="width:100%;height:auto"><rect x="10" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="15" y="23" font-size="9" fill="#b7b5ad">q</text><text x="37.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">&apos;</text><text x="37.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅂ</text><rect x="69" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="74" y="23" font-size="9" fill="#b7b5ad">w</text><text x="96.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">,</text><text x="96.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅈ</text><rect x="128" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="133" y="23" font-size="9" fill="#b7b5ad">e</text><text x="155.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">.</text><text x="155.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㄷ</text><rect x="187" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="192" y="23" font-size="9" fill="#b7b5ad">r</text><text x="214.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">p</text><text x="214.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㄱ</text><rect x="246" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="251" y="23" font-size="9" fill="#b7b5ad">t</text><text x="273.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">y</text><text x="273.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅅ</text><rect x="305" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="310" y="23" font-size="9" fill="#b7b5ad">y</text><text x="332.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">f</text><text x="332.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅛ</text><rect x="364" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="369" y="23" font-size="9" fill="#b7b5ad">u</text><text x="391.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">g</text><text x="391.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅕ</text><rect x="423" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="428" y="23" font-size="9" fill="#b7b5ad">i</text><text x="450.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">c</text><text x="450.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅑ</text><rect x="482" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="487" y="23" font-size="9" fill="#b7b5ad">o</text><text x="509.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">r</text><text x="509.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅐ</text><rect x="541" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="546" y="23" font-size="9" fill="#b7b5ad">p</text><text x="568.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">l</text><text x="568.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅔ</text><rect x="600" y="10" width="54" height="54" rx="4" fill="#faf9f7" stroke="#b7b5ad" stroke-width="1"/><text x="605" y="23" font-size="9" fill="#b7b5ad">[</text><text x="627.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">/</text><rect x="659" y="10" width="54" height="54" rx="4" fill="#faf9f7" stroke="#b7b5ad" stroke-width="1"/><text x="664" y="23" font-size="9" fill="#b7b5ad">]</text><text x="686.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">=</text><rect x="32" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="37" y="82" font-size="9" fill="#b7b5ad">a</text><text x="59.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">a</text><text x="59.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅁ</text><rect x="91" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="96" y="82" font-size="9" fill="#b7b5ad">s</text><text x="118.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">o</text><text x="118.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㄴ</text><rect x="150" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="155" y="82" font-size="9" fill="#b7b5ad">d</text><text x="177.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">e</text><text x="177.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅇ</text><rect x="209" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="214" y="82" font-size="9" fill="#b7b5ad">f</text><text x="236.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">u</text><text x="236.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㄹ</text><rect x="268" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="273" y="82" font-size="9" fill="#b7b5ad">g</text><text x="295.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">i</text><text x="295.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅎ</text><rect x="327" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="332" y="82" font-size="9" fill="#b7b5ad">h</text><text x="354.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">d</text><text x="354.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅗ</text><rect x="386" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="391" y="82" font-size="9" fill="#b7b5ad">j</text><text x="413.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">h</text><text x="413.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅓ</text><rect x="445" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="450" y="82" font-size="9" fill="#b7b5ad">k</text><text x="472.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">t</text><text x="472.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅏ</text><rect x="504" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="509" y="82" font-size="9" fill="#b7b5ad">l</text><text x="531.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">n</text><text x="531.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅣ</text><rect x="563" y="69" width="54" height="54" rx="4" fill="#f3f2ec" stroke="#b7b5ad" stroke-width="1"/><text x="568" y="82" font-size="9" fill="#b7b5ad">;</text><text x="590.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">s</text><text x="590.0" y="115" font-size="10" fill="#5b5b57" text-anchor="middle">→ ;</text><rect x="622" y="69" width="54" height="54" rx="4" fill="#f3f2ec" stroke="#b7b5ad" stroke-width="1"/><text x="627" y="82" font-size="9" fill="#b7b5ad">&apos;</text><text x="649.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">-</text><text x="649.0" y="115" font-size="10" fill="#5b5b57" text-anchor="middle">→ &apos;</text><rect x="52" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="57" y="141" font-size="9" fill="#b7b5ad">z</text><text x="79.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">;</text><text x="79.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅋ</text><rect x="111" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="116" y="141" font-size="9" fill="#b7b5ad">x</text><text x="138.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">q</text><text x="138.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅌ</text><rect x="170" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="175" y="141" font-size="9" fill="#b7b5ad">c</text><text x="197.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">j</text><text x="197.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅊ</text><rect x="229" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="234" y="141" font-size="9" fill="#b7b5ad">v</text><text x="256.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">k</text><text x="256.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅍ</text><rect x="288" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="293" y="141" font-size="9" fill="#b7b5ad">b</text><text x="315.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">x</text><text x="315.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅠ</text><rect x="347" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="352" y="141" font-size="9" fill="#b7b5ad">n</text><text x="374.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">b</text><text x="374.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅜ</text><rect x="406" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="411" y="141" font-size="9" fill="#b7b5ad">m</text><text x="433.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">m</text><text x="433.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅡ</text><rect x="465" y="128" width="54" height="54" rx="4" fill="#f3f2ec" stroke="#b7b5ad" stroke-width="1"/><text x="470" y="141" font-size="9" fill="#b7b5ad">,</text><text x="492.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">w</text><text x="492.0" y="174" font-size="10" fill="#5b5b57" text-anchor="middle">→ ,</text><rect x="524" y="128" width="54" height="54" rx="4" fill="#f3f2ec" stroke="#b7b5ad" stroke-width="1"/><text x="529" y="141" font-size="9" fill="#b7b5ad">.</text><text x="551.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">v</text><text x="551.0" y="174" font-size="10" fill="#5b5b57" text-anchor="middle">→ .</text><rect x="583" y="128" width="54" height="54" rx="4" fill="#f3f2ec" stroke="#b7b5ad" stroke-width="1"/><text x="588" y="141" font-size="9" fill="#b7b5ad">/</text><text x="610.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">z</text><text x="610.0" y="174" font-size="10" fill="#5b5b57" text-anchor="middle">→ /</text></svg>
+</figure>
+<p class="fcap">그림 1. 한글 모드에서의 키별 출력. 예: Dvorak <code>e</code> 키(물리 위치 QWERTY <code>d</code>)를 누류면 ㅇ이 입력된다.</p>
+
+<p>shift 조합으로 쌍자음·복합 모음이 나오는 키도 물리 위치 기준으로 맞췄다. Dvorak에서 <code>P</code>(shift+p, QWERTY R 위치)은 ㄲ, <code>Y</code>(QWERTY T 위치)는 ㅆ, <code>"</code>(QWERTY Q 위치)는 ㅃ, <code>&lt;</code>(QWERTY W 위치)는 ㅉ, <code>&gt;</code>(QWERTY E 위치)는 ㄸ, <code>L</code>(QWERTY P 위치)은 ㅖ, <code>R</code>(QWERTY O 위치)은 ㅒ다.</p>
+
+<p>워킹 예시: "안녕하세요"는 Dvorak 라벨(손가락 기억) 그대로 <code>e t o o g e i t y l e f</code>로 입력된다. 물리적으로는 QWERTY 사용자의 <code>dkssudgktpdy</code>와 완전히 같은 키열이다.</p>
+
+<table>
+<thead><tr><th>한글</th><th>자모</th><th>Dvorak 라벨로 누르는 키</th><th>같은 물리 위치의 QWERTY</th></tr></thead>
+<tbody>
+<tr><td>안</td><td>ㅇ+ㅏ+ㄴ</td><td>e t o</td><td>d k s</td></tr>
+<tr><td>녕</td><td>ㄴ+ㅕ+ㅇ</td><td>o g e</td><td>s u d</td></tr>
+<tr><td>하</td><td>ㅎ+ㅏ</td><td>i t</td><td>g k</td></tr>
+<tr><td>세</td><td>ㅅ+ㅔ</td><td>y l</td><td>t p</td></tr>
+<tr><td>요</td><td>ㅇ+ㅛ</td><td>e f</td><td>d y</td></tr>
+</tbody>
+</table>
+
+<h2>6. 설치 구조와 운영 중 발견한 함정</h2>
+
+<p>네 번째 요구사항은 "시스템 패키지를 건드리지 않고 사용자 영역만으로 해결"이다. <code>/usr/lib</code>을 덮어쓰면 다음 <code>pacman</code> 업데이트 때 패치가 증발하기 때문이다. 그래서 두 패치 모두 <code>~/.local/</code> 아래로 설치하고, fcitx5가 패치된 라이브러리를 찾도록 환경변수 세 개를 설정한다. 이 변수들은 fcitx5의 기본 검색 경로를 대체하므로, 시스템 경로도 함께 나열해야 다른 애드온(wayland, xcb, classicui 등)이 정상 로드된다.</p>
+
+<pre><code>LD_LIBRARY_PATH=~/.local/lib:/usr/lib
+FCITX_ADDON_DIRS=~/.local/lib/fcitx5:/usr/lib/fcitx5
+FCITX_DATA_DIRS=~/.local/share:/usr/share</code></pre>
+
+<p><strong>가장 오래 헤맨 함정: DBus 자동 활성화.</strong> 환경변수를 올바른 곳(<code>environment.d</code>, Hyprland autostart, 현재 세션)에 다 넣어도 한글이 간헐적으로 QWERTY 기준으로 깨졌다(보조 리눅스 머신, 2026-06-28 확인). 원인은 배포판의 DBus 서비스 파일이 <code>Exec=/usr/bin/fcitx5</code>(레거시 방식)라서, 앱이 입력기를 요청할 때 dbus-daemon이 세션 환경을 거치지 않고 fcitx5를 직접 띄운다는 것이었다. 이 경로로 뜬 데몬은 시스템 libhangul을 로드한다. 해결은 사용자 디렉터리(<code>~/.local/share/dbus-1/services/</code>, 시스템보다 우선)에 같은 이름의 서비스 파일을 두고 Exec에 환경변수를 절대경로로 박는 것이다. 검증은 <code>pkill -9 fcitx5</code> 후 환경변수 주입 없이 <code>fcitx5-remote</code>로 재활성화를 유도하고, <code>/proc/$(pgrep -x fcitx5)/maps</code>에 <code>~/.local</code> 경로의 libhangul이 잡히는지 본다.</p>
+
+<p><strong>후속 문제: "Wayland Diagnose" 부팅 알림</strong>(Asahi 머신, 2026-07-01). 로그인 때마다 "GTK_IM_MODULE을 빼라"는 fcitx5 자가진단 알림이 떴다. <code>environment.d/fcitx.conf</code>의 <code>GTK_IM_MODULE=fcitx</code>와 fcitx5의 Wayland 프런트엔드가 공존한 게 원인이다. GPD 머신에서는 권고대로 <code>GTK_IM_MODULE</code>을 제거했다. GTK 앱은 Wayland text-input-v3로 같은 fcitx5 엔진을 쓰므로 동작이 동일하다. Asahi 머신에서는 셋업을 건드리는 리스크를 피해 알림만 <code>notifications.conf</code>의 <code>HiddenNotifications</code>에 등록해 숨겼다. 이 과정에서 fcitx5 설정 파일의 함정도 확인했다. 리스트 값은 <code>[섹션]</code> 아래 <code>0=</code>/<code>1=</code> 번호 키 형식으로 써야 하는데, 잘못된 형식으로 쓰면 fcitx5가 빈 리스트로 파싱하고 리로드 때 파일을 덮어써서 편집 내용이 통째로 날아간다.</p>
+
+<h2>7. 결과와 검증</h2>
+
+<p>고충 1~3 모두 해소됐다. 한글 자모는 손가락 기억대로 나오고, XKB를 건드리지 않으므로 한글 모드에서도 Ctrl 조합 단축키는 Dvorak 위치 그대로 동작하며(modifier 검사가 먼저라 키가 앱으로 그대로 전달된다), 마침표·쉼표·세미콜론·슬래시·따옴표는 모드 전환 없이 인지한 위치에서 찍힌다.</p>
+
+<p>재발 시 첫 진단은 정해져 있다. 한글이 다시 QWERTY 기준으로 들어오면 거의 확실히 DBus가 패치 환경변수 없이 fcitx5를 띄운 것이다. <code>grep libhangul /proc/$(pgrep fcitx5)/maps</code>에서 <code>/usr/lib/libhangul.so</code>가 보이면 시스템 라이브러리를 잡은 것이고, DBus 서비스 오버라이드를 확인하면 된다.</p>
+
+<h2>8. 남은 것</h2>
+
+<ul>
+<li><strong>토글 키 통일.</strong> <code>korean-input/README</code>는 토글을 Ctrl+Space / Right Alt(<code>toggle-korean-input</code> 스크립트)로 문서화하지만, 별도 세션에서 fcitx5 글로벌 핫키를 Alt+Space로 지정한 기록이 있다(<code>~/.config/fcitx5/config</code>). 어느 쪽으로 통일할지 정리가 필요하다.</li>
+<li><strong>dead-end 잔재 정리.</strong> 실패한 XKB override 시도의 산물(<code>~/.config/fcitx5/conf/xcb.conf</code>의 True, <code>~/.config/fcitx5/conf/wayland.conf</code>)이 남아 있다. Hyprland에서는 no-op이라 해롭진 않지만 문서화된 설계와 모순되는 잔재다.</li>
+<li><strong>upstream 추적.</strong> <code>libhangul</code>이나 <code>fcitx5-hangul</code>이 새 버전으로 올라가면 <code>~/builds/</code>에서 <code>rebuild-libhangul-dvorak.sh</code>, <code>rebuild-fcitx5-hangul-dvorak.sh</code>로 재빌드해야 한다. 스크립트 상단의 <code>TAG=</code> 변수로 추적 버전을 조정한다.</li>
+<li><strong>새 머신 적용.</strong> <code>.notes/korean-input/scripts/install.sh</code>(idempotent) 실행 후 <code>configs/</code> 안의 파일을 자기 자리에 배치하고 재로그인하면 된다.</li>
+</ul>
+
+</div></body></html>

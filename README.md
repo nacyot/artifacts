@@ -11,6 +11,7 @@
 
 | 날짜 | 산출물 | 설명 |
 |---|---|---|
+| 2026-07-28 | [dvorak-dubeolsik](./dvorak-dubeolsik/) | 두벌식+Dvorak: Windows·macOS에 없는 조합을 libhangul·fcitx5-hangul 소스 패치로 근본 해결 (우회 실패·부작용 타임라인, 키보드 배열 시각화) |
 | 2026-07-25 | [claude-code-install-pitfalls](./claude-code-install-pitfalls/) | Opus 5가 나왔는데 "최신" 클로드 코드엔 4.8만: stable 채널 고착이 범인. 필요한 버전(2.1.220 · latest 채널)과 점검 레시피 (docker 컨테이너 실측) |
 | 2026-07-15 | [asahi-macbook-speaker-crackle](./asahi-macbook-speaker-crackle/) | 맥북 내장 스피커 크래클: 세 원인(DSP, 효율코어 스케줄링, 스트림 전환)과 처방, macOS가 멀쩡한 이유 (PipeWire, d3 인터랙티브) |
 | 2026-07-15 | [tailscale-per-app-exit-node](./tailscale-per-app-exit-node/) | Tailscale exit node를 앱 단위로: 브라우저 하나만 다른 리전으로 (유저스페이스 SOCKS5, fail-closed, d3 인터랙티브) |
