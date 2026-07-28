@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="영문 Dvorak + 한글 두벌식 조합은 Windows·macOS 공식 지원이 없다. 리눅스에서는 libhangul과 fcitx5-hangul에 소스 패치를 만들어 근본 해결했다. 실패한 우회 세 번과 실사용에서 발견한 부작용, 문장부호 누수까지 타임라인으로 정리.">
+<meta name="description" content="영문 Dvorak + 한글 두벌식 조합은 Windows·macOS 공식 지원이 없다. 리눅스에서는 libhangul과 fcitx5-hangul에 소스 패치를 만들어 근본 해결했다. 실패한 우회 세 번과 실사용에서 발견한 부작용, 문장부호 누수까지 타임라인으로 정리하고 d3 인터랙티브 키보드로 시연.">
 <link rel="canonical" href="https://nacyot.github.io/artifacts/dvorak-dubeolsik/">
 <link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
 <meta property="og:type" content="article">
@@ -8,7 +8,7 @@
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://nacyot.github.io/artifacts/dvorak-dubeolsik/">
 <meta property="og:title" content="두벌식과 Dvorak의 동거: 리눅스에서 한글 입력기를 고친 기록">
-<meta property="og:description" content="Windows·macOS에 공식 지원이 없는 두벌식+Dvorak 조합. libhangul·fcitx5-hangul 소스 패치로 근본 해결하고, 실패한 우회와 부작용을 타임라인으로 정리했다.">
+<meta property="og:description" content="Windows·macOS에 공식 지원이 없는 두벌식+Dvorak 조합. libhangul·fcitx5-hangul 소스 패치로 근본 해결하고, 왜 깨지는지를 인터랙티브 키보드로 보여준다.">
 <meta property="og:image" content="https://nacyot.github.io/artifacts/dvorak-dubeolsik/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
@@ -16,7 +16,7 @@
 <meta property="og:image:alt" content="두벌식과 Dvorak의 동거">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="두벌식과 Dvorak의 동거: 리눅스에서 한글 입력기를 고친 기록">
-<meta name="twitter:description" content="Windows·macOS에 공식 지원이 없는 두벌식+Dvorak 조합을 libhangul·fcitx5-hangul 소스 패치로 근본 해결한 기록.">
+<meta name="twitter:description" content="Windows·macOS에 공식 지원이 없는 두벌식+Dvorak 조합을 libhangul·fcitx5-hangul 소스 패치로 근본 해결한 기록. d3 인터랙티브 시연 포함.">
 <meta name="twitter:image" content="https://nacyot.github.io/artifacts/dvorak-dubeolsik/og.png">
 <meta name="twitter:image:alt" content="두벌식과 Dvorak의 동거">
 
@@ -46,6 +46,31 @@
   th,td{text-align:left;vertical-align:top;padding:.52rem .8rem .52rem 0}
   thead th{border-bottom:1px solid var(--ink);font-weight:700;font-size:.82rem}
   tbody tr+tr td{border-top:1px solid var(--rule)} td:first-child,th:first-child{font-weight:600}
+
+  .viz{margin:1.4rem 0;padding:1rem 1.1rem;background:#fff;border:1px solid var(--rule);border-radius:8px}
+  .viz .vcap{font-size:.84rem;color:var(--soft);margin-top:.6rem;display:block}
+  .viz-controls{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.7rem}
+  .chip{font:inherit;font-size:.82rem;border:1px solid var(--faint);border-radius:20px;padding:.15rem .7rem;background:#fff;cursor:pointer;color:var(--ink)}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .kb-key rect{fill:#fff;stroke:#b7b5ad;stroke-width:1}
+  .kb-key.mem rect{fill:#fff;stroke:#1c1c1c;stroke-width:2;stroke-dasharray:4 3}
+  .kb-key.req rect{fill:#f3e9dd;stroke:#a98a3c;stroke-width:2}
+  .kb-key.warn rect{fill:#f6e7e2;stroke:#b0553f;stroke-width:1.5}
+  .kb-key.good rect{fill:#e8f0ea;stroke:#3f7d5e;stroke-width:1.5}
+  .kb-key.press rect{fill:#e6e4dc}
+  .kb-qw{font-size:9px;fill:#b7b5ad}
+  .kb-main{font-size:15px;font-weight:700;fill:#1c1c1c}
+  .kb-sub{font-size:13px;font-weight:700;fill:#4a4a46}
+  .jstream{display:flex;flex-wrap:wrap;gap:.3rem;margin:.3rem 0 .8rem;min-height:2.1rem}
+  .jchip{display:inline-block;min-width:1.6rem;text-align:center;padding:.1rem .3rem;border:1px solid var(--rule);border-radius:4px;background:var(--box);font-weight:700}
+  .jchip.bad{background:#f6e7e2;border-color:#b0553f;color:#8a4433}
+  .viz-info{font-size:.88rem;background:var(--box);border:1px solid var(--rule);border-radius:4px;padding:.5rem .7rem;margin:.55rem 0}
+  .viz-label{font-size:.8rem;color:var(--soft);font-weight:700;margin-top:.4rem}
+  .sent{font-size:1.2rem;font-weight:700;min-height:2rem;margin:.35rem 0 .6rem}
+  .sent .leak{color:#b0553f}
+  .sent .ok{color:#3f7d5e}
+  .badtext{color:#b0553f}
+  #kbd-static{display:none}
   @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.2rem 5rem}}
 </style></head><body><div class="doc">
 <p class="backlink"><a href="https://nacyot.github.io/artifacts/">← artifacts 목록으로</a></p>
@@ -87,13 +112,51 @@
 
 <p>두벌식은 "자모를 어느 손가락으로 치는가"의 체계다. ㅇ는 오른쪽 검지, ㅏ는 오른쪽 중지, ㄴ은 왼쪽 검지. 이 체계는 전부 QWERTY 자판의 물리적 키 위치를 기준으로 만들어졌다. 리눅스 한글 조합 라이브러리 <code>libhangul</code>의 두벌식 테이블도 그 가정을 그대로 따른다. ASCII 키 심볼을 한글 자모로 바꾸는 단순 조회표인데, <code>'d'</code>(0x64)를 ㅇ으로 매핑한다. QWERTY에서 <code>d</code>가 ㅇ 자리이기 때문이다.</p>
 
+<figure class="viz" id="viz-collision">
+  <div class="viz-label">위: 두벌식의 기본 가정 — QWERTY 위치에 붙은 자모 ｜ 아래: 같은 물리 키의 Dvorak 라벨</div>
+  <div id="viz-coll-qw"></div>
+  <div id="viz-coll-dv"></div>
+  <div class="viz-info" id="viz-coll-info">키에 마우스를 올려 보세요. 같은 물리 위치가 두 자판에서 어떻게 달라지는지 보여준다.</div>
+  <figcaption class="vcap">그림 1. 두벌식 자모는 물리 위치에 붙어 있고, Dvorak은 그 위치의 문자를 바꾼다. 이 충돌이 모든 문제의 출발점이다.</figcaption>
+</figure>
+
+
 <p>Dvorak 사용자에게 이 가정은 세 가지 고통으로 돌아온다.</p>
 
 <p><strong>고충 1. 한글 자모가 뒤섞인다.</strong> Dvorak 사용자의 손가락은 이미 재배치돼 있다. "안녕"을 치고 싶으면 두벌식 기준으로 QWERTY 위치 <code>d k s s u d</code>를 눌러야 하는데, Dvorak 라벨로는 같은 물리 위치가 <code>e t o o g e</code>다. 키보드 이벤트를 받는 쪽은 이 키들을 Dvorak 심볼 <code>etooge</code>로 전달하고, <code>libhangul</code>은 그 심볼을 QWERTY 위치로 착각해서 해석한다. 결과는 엉뚱한 자모다. 작업 노트에 기록된 실측으로, "안녕"을 치려 하면 <code>ㄷ새핻</code>이 나왔다. 위 Arch 포럼의 실측(<code>안녕하세요</code> → <code>ㄷ새해댜쇼딜</code>)도 같은 현상이다. 한글을 치려면 두 자판 체계를 머릿속에서 실시간으로 환산해야 하니, 손가락 기억으로 타이핑하는 사람에게는 사실상 한글 입력 불가다.</p>
 
+<figure class="viz" id="viz-typing">
+  <div class="viz-controls"><span id="viz-typing-presets" style="display:contents"></span><button class="chip" id="vt-clear">지우기</button></div>
+  <div class="viz-label">치고 싶었던 것</div>
+  <div class="sent" id="vt-intended">—</div>
+  <div class="viz-label">실제로 찍힌 자모 (패치 전)</div>
+  <div class="jstream" id="vt-actual"></div>
+  <div class="viz-info" id="vt-chain"></div>
+  <div class="viz-info" id="vt-result"></div>
+  <div id="viz-typing-kbd"></div>
+  <figcaption class="vcap">그림 2. 단어를 골라 재생하거나 키보드를 직접 눌러 보자. 손가락이 의도한 자모와 실제로 찍히는 자모가 왜 어긋나는지 키 단위로 따라갈 수 있다.</figcaption>
+</figure>
+
+
 <p><strong>고충 2. 한글 모드에서 단축키가 죽거나 이동한다.</strong> 처음에는 "한글 모드일 때만 시스템 자판을 QWERTY로 바꾸는" 스크립트를 시도했다. 한글은 나오게 됐지만, 그 순간 단축키도 QWERTY 위치로 바뀐다. Dvorak 사용자는 Ctrl+C를 QWERTY의 <code>I</code> 자리에서, Ctrl+V를 <code>.</code> 자리에서 누른다. 한글로 글을 쓰다가 복사·붙여넣기를 할 때마다 손가락이 헛나간다. 자판 전체를 토글하는 우회는 한 문제를 고치고 다른 문제를 만든다.</p>
 
+<figure class="viz" id="viz-shortcut">
+  <div class="viz-controls" id="viz-shortcut-chips"></div>
+  <div id="viz-shortcut-kbd"></div>
+  <div class="viz-info" id="sc-info"></div>
+  <figcaption class="vcap">그림 3. "한글 모드에서만 XKB를 QWERTY로 토글"하는 우회의 대가. 실선 테두리가 손가락 기억 속 자리, 색 채움이 그 모드에서 실제로 눌러야 할 자리다.</figcaption>
+</figure>
+
+
 <p><strong>고충 3. 마침표와 쉼표가 알파벳으로 바뀐다.</strong> Dvorak은 문장부호 위치가 QWERTY와 크게 다르다. 마침표는 하단열 <code>V</code> 자리, 쉼표는 그 옆 <code>W</code> 자리에 있다. 한글로 문장을 쓰다가 모드 전환 없이 마침표를 찍고 싶은데, 두벌식 자판표에 Dvorak 하단열 키는 매핑이 없어서 그대로 <code>v</code>, <code>w</code> 같은 알파벳이 찍힌다. 문장 하나 끝날 때마다 한/영을 전환하거나, 틀린 글자를 지우고 다시 쳐야 한다.</p>
+
+<figure class="viz" id="viz-punct">
+  <div class="viz-controls"><span id="viz-punct-modes" style="display:contents"></span><button class="chip" id="pt-play">다시 재생</button></div>
+  <div class="sent" id="pt-sent"></div>
+  <div id="viz-punct-kbd"></div>
+  <figcaption class="vcap">그림 4. Patch A로 자모는 고쳤지만 문장부호는 샜다. 빨간 테두리 키(물리 <code>.</code> <code>,</code> <code>;</code> <code>'</code> 위치)가 누수 지점이다. 완전 무패치 상태라면 이 키들도 ㅍ·ㅈ 같은 엉뚱한 자모로 찍혔다.</figcaption>
+</figure>
+
 
 <h2>3. 리눅스 입력 스택 이해하기</h2>
 
@@ -154,10 +217,19 @@
 
 <p>아래 그림은 패치 후 한글 모드에서 각 키가 무엇을 출력하는지를 보여준다. 각 키의 큰 글자는 Dvorak 라벨, 좌상단 작은 글자는 그 키의 물리적 위치(QWERTY), 아래 글자는 한글 모드 출력이다. 회색 키는 자모 대신 문장부호로 변환(passthrough)되는 키다. <code>/</code>와 <code>=</code>처럼 아무 표시도 없는 키는 자기 문자가 그대로 입력된다.</p>
 
-<figure>
+
+<figure class="viz" id="viz-solution">
+  <div class="viz-controls" id="viz-solution-modes"></div>
+  <div id="viz-solution-kbd"></div>
+  <div class="viz-info" id="sol-info"></div>
+  <figcaption class="vcap">그림 5. 패치 전/후를 바꿔 보자. 같은 키보드, 같은 키인데 한글 모드 출력이 어떻게 달라지는지가 이 작업의 전부다.</figcaption>
+</figure>
+
+<figure id="kbd-static">
 <svg viewBox="0 0 723 192" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dvorak 키보드 각 키의 한글 모드 출력 매핑" style="width:100%;height:auto"><rect x="10" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="15" y="23" font-size="9" fill="#b7b5ad">q</text><text x="37.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">&apos;</text><text x="37.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅂ</text><rect x="69" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="74" y="23" font-size="9" fill="#b7b5ad">w</text><text x="96.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">,</text><text x="96.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅈ</text><rect x="128" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="133" y="23" font-size="9" fill="#b7b5ad">e</text><text x="155.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">.</text><text x="155.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㄷ</text><rect x="187" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="192" y="23" font-size="9" fill="#b7b5ad">r</text><text x="214.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">p</text><text x="214.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㄱ</text><rect x="246" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="251" y="23" font-size="9" fill="#b7b5ad">t</text><text x="273.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">y</text><text x="273.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅅ</text><rect x="305" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="310" y="23" font-size="9" fill="#b7b5ad">y</text><text x="332.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">f</text><text x="332.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅛ</text><rect x="364" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="369" y="23" font-size="9" fill="#b7b5ad">u</text><text x="391.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">g</text><text x="391.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅕ</text><rect x="423" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="428" y="23" font-size="9" fill="#b7b5ad">i</text><text x="450.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">c</text><text x="450.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅑ</text><rect x="482" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="487" y="23" font-size="9" fill="#b7b5ad">o</text><text x="509.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">r</text><text x="509.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅐ</text><rect x="541" y="10" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="546" y="23" font-size="9" fill="#b7b5ad">p</text><text x="568.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">l</text><text x="568.0" y="57" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅔ</text><rect x="600" y="10" width="54" height="54" rx="4" fill="#faf9f7" stroke="#b7b5ad" stroke-width="1"/><text x="605" y="23" font-size="9" fill="#b7b5ad">[</text><text x="627.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">/</text><rect x="659" y="10" width="54" height="54" rx="4" fill="#faf9f7" stroke="#b7b5ad" stroke-width="1"/><text x="664" y="23" font-size="9" fill="#b7b5ad">]</text><text x="686.0" y="40" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">=</text><rect x="32" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="37" y="82" font-size="9" fill="#b7b5ad">a</text><text x="59.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">a</text><text x="59.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅁ</text><rect x="91" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="96" y="82" font-size="9" fill="#b7b5ad">s</text><text x="118.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">o</text><text x="118.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㄴ</text><rect x="150" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="155" y="82" font-size="9" fill="#b7b5ad">d</text><text x="177.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">e</text><text x="177.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅇ</text><rect x="209" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="214" y="82" font-size="9" fill="#b7b5ad">f</text><text x="236.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">u</text><text x="236.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㄹ</text><rect x="268" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="273" y="82" font-size="9" fill="#b7b5ad">g</text><text x="295.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">i</text><text x="295.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅎ</text><rect x="327" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="332" y="82" font-size="9" fill="#b7b5ad">h</text><text x="354.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">d</text><text x="354.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅗ</text><rect x="386" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="391" y="82" font-size="9" fill="#b7b5ad">j</text><text x="413.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">h</text><text x="413.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅓ</text><rect x="445" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="450" y="82" font-size="9" fill="#b7b5ad">k</text><text x="472.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">t</text><text x="472.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅏ</text><rect x="504" y="69" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="509" y="82" font-size="9" fill="#b7b5ad">l</text><text x="531.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">n</text><text x="531.0" y="116" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅣ</text><rect x="563" y="69" width="54" height="54" rx="4" fill="#f3f2ec" stroke="#b7b5ad" stroke-width="1"/><text x="568" y="82" font-size="9" fill="#b7b5ad">;</text><text x="590.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">s</text><text x="590.0" y="115" font-size="10" fill="#5b5b57" text-anchor="middle">→ ;</text><rect x="622" y="69" width="54" height="54" rx="4" fill="#f3f2ec" stroke="#b7b5ad" stroke-width="1"/><text x="627" y="82" font-size="9" fill="#b7b5ad">&apos;</text><text x="649.0" y="99" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">-</text><text x="649.0" y="115" font-size="10" fill="#5b5b57" text-anchor="middle">→ &apos;</text><rect x="52" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="57" y="141" font-size="9" fill="#b7b5ad">z</text><text x="79.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">;</text><text x="79.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅋ</text><rect x="111" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="116" y="141" font-size="9" fill="#b7b5ad">x</text><text x="138.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">q</text><text x="138.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅌ</text><rect x="170" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="175" y="141" font-size="9" fill="#b7b5ad">c</text><text x="197.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">j</text><text x="197.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅊ</text><rect x="229" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="234" y="141" font-size="9" fill="#b7b5ad">v</text><text x="256.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">k</text><text x="256.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅍ</text><rect x="288" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="293" y="141" font-size="9" fill="#b7b5ad">b</text><text x="315.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">x</text><text x="315.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅠ</text><rect x="347" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="352" y="141" font-size="9" fill="#b7b5ad">n</text><text x="374.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">b</text><text x="374.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅜ</text><rect x="406" y="128" width="54" height="54" rx="4" fill="#ffffff" stroke="#b7b5ad" stroke-width="1"/><text x="411" y="141" font-size="9" fill="#b7b5ad">m</text><text x="433.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">m</text><text x="433.0" y="175" font-size="13" font-weight="700" fill="#4a4a46" text-anchor="middle">ㅡ</text><rect x="465" y="128" width="54" height="54" rx="4" fill="#f3f2ec" stroke="#b7b5ad" stroke-width="1"/><text x="470" y="141" font-size="9" fill="#b7b5ad">,</text><text x="492.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">w</text><text x="492.0" y="174" font-size="10" fill="#5b5b57" text-anchor="middle">→ ,</text><rect x="524" y="128" width="54" height="54" rx="4" fill="#f3f2ec" stroke="#b7b5ad" stroke-width="1"/><text x="529" y="141" font-size="9" fill="#b7b5ad">.</text><text x="551.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">v</text><text x="551.0" y="174" font-size="10" fill="#5b5b57" text-anchor="middle">→ .</text><rect x="583" y="128" width="54" height="54" rx="4" fill="#f3f2ec" stroke="#b7b5ad" stroke-width="1"/><text x="588" y="141" font-size="9" fill="#b7b5ad">/</text><text x="610.0" y="158" font-size="15" font-weight="700" fill="#1c1c1c" text-anchor="middle">z</text><text x="610.0" y="174" font-size="10" fill="#5b5b57" text-anchor="middle">→ /</text></svg>
 </figure>
-<p class="fcap">그림 1. 한글 모드에서의 키별 출력. 예: Dvorak <code>e</code> 키(물리 위치 QWERTY <code>d</code>)를 누류면 ㅇ이 입력된다.</p>
+<noscript><style>#kbd-static{display:block}</style></noscript>
+<p class="fcap">그림 5의 정적 버전(스크립트 없이 볼 때 표시). 한글 모드에서의 키별 출력. 예: Dvorak <code>e</code> 키(물리 위치 QWERTY <code>d</code>)를 누류면 ㅇ이 입력된다.</p>
 
 <p>shift 조합으로 쌍자음·복합 모음이 나오는 키도 물리 위치 기준으로 맞췄다. Dvorak에서 <code>P</code>(shift+p, QWERTY R 위치)은 ㄲ, <code>Y</code>(QWERTY T 위치)는 ㅆ, <code>"</code>(QWERTY Q 위치)는 ㅃ, <code>&lt;</code>(QWERTY W 위치)는 ㅉ, <code>&gt;</code>(QWERTY E 위치)는 ㄸ, <code>L</code>(QWERTY P 위치)은 ㅖ, <code>R</code>(QWERTY O 위치)은 ㅒ다.</p>
 
@@ -201,4 +273,335 @@ FCITX_DATA_DIRS=~/.local/share:/usr/share</code></pre>
 <li><strong>새 머신 적용.</strong> <code>.notes/korean-input/scripts/install.sh</code>(idempotent) 실행 후 <code>configs/</code> 안의 파일을 자기 자리에 배치하고 재로그인하면 된다.</li>
 </ul>
 
-</div></body></html>
+</div>
+<script src="../vendor/d3.v7.min.js"></script>
+<script>
+/* 두벌식+Dvorak 기사 인터랙티브 시각화 (d3 v7) */
+(function () {
+  'use strict';
+
+  /* ---------- 공용 데이터 ---------- */
+  var QW_JAMO = {q:'ㅂ',w:'ㅈ',e:'ㄷ',r:'ㄱ',t:'ㅅ',y:'ㅛ',u:'ㅕ',i:'ㅑ',o:'ㅐ',p:'ㅔ',
+                 a:'ㅁ',s:'ㄴ',d:'ㅇ',f:'ㄹ',g:'ㅎ',h:'ㅗ',j:'ㅓ',k:'ㅏ',l:'ㅣ',
+                 z:'ㅋ',x:'ㅌ',c:'ㅊ',v:'ㅍ',b:'ㅠ',n:'ㅜ',m:'ㅡ'};
+  /* 물리 행: [QWERTY 위치, Dvorak 라벨] */
+  var PHYS = [
+    [['q',"'"],['w',','],['e','.'],['r','p'],['t','y'],['y','f'],['u','g'],['i','c'],['o','r'],['p','l'],['[','/'],[']','=']],
+    [['a','a'],['s','o'],['d','e'],['f','u'],['g','i'],['h','d'],['j','h'],['k','t'],['l','n'],[';','s'],["'",'-']],
+    [['z',';'],['x','q'],['c','j'],['v','k'],['b','x'],['n','b'],['m','m'],[',','w'],['.','v'],['/','z']]
+  ];
+  var PUNCT_PT = {v:'.', w:',', s:';', z:'/', '-': "'"};
+  var POS = {};    /* qw -> {dv} */
+  var DV2QW = {};  /* dvorak label -> qw */
+  PHYS.forEach(function (row) {
+    row.forEach(function (k) { POS[k[0]] = { dv: k[1] }; DV2QW[k[1]] = k[0]; });
+  });
+
+  /* 패치 전(stock libhangul): Dvorak 심볼을 QWERTY로 착각 */
+  function outBefore(qw, dv) { return QW_JAMO[dv] || dv; }
+  /* 패치 후: 물리 위치 기준 자모, 없으면 passthrough */
+  function outAfter(qw, dv) { return QW_JAMO[qw] || PUNCT_PT[dv] || dv; }
+
+  /* 단순화한 두벌식 조합기 (복합 모음/겹받침 병합 생략, 시연용) */
+  var L = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+  var V = 'ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ';
+  var T = ['', 'ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+  function compose(jamos) {
+    var out = '', l = null, v = null, t = null;
+    function flush() {
+      if (l !== null && v !== null) {
+        out += String.fromCharCode(0xAC00 + L.indexOf(l) * 588 + V.indexOf(v) * 28 + (t ? T.indexOf(t) : 0));
+      } else {
+        if (l) out += l; if (v) out += v; if (t) out += t;
+      }
+      l = v = t = null;
+    }
+    jamos.forEach(function (j) {
+      if (L.indexOf(j) >= 0) {
+        if (l === null) { l = j; }
+        else if (v === null) { out += l; l = j; }
+        else if (t === null) { t = j; }
+        else { flush(); l = j; }
+      } else if (V.indexOf(j) >= 0) {
+        if (l !== null && v === null) { v = j; }
+        else if (l !== null && v !== null && t !== null) {
+          out += String.fromCharCode(0xAC00 + L.indexOf(l) * 588 + V.indexOf(v) * 28);
+          l = t; v = j; t = null;
+        } else { flush(); v = j; }
+      } else { flush(); out += j; }
+    });
+    flush();
+    return out;
+  }
+
+  /* ---------- 공용 키보드 렌더러 ---------- */
+  var KW = 54, KG = 5, OFF = [0, 22, 42];
+  function kbd(sel, opts) {
+    opts = opts || {};
+    var host = d3.select(sel);
+    var svg = host.append('svg')
+      .attr('viewBox', '0 0 723 192')
+      .attr('style', 'width:100%;height:auto')
+      .attr('role', 'img');
+    var keys = {};
+    PHYS.forEach(function (row, ri) {
+      row.forEach(function (k, ci) {
+        var qw = k[0], dv = k[1];
+        var x = 10 + OFF[ri] + ci * (KW + KG), y = 10 + ri * (KW + KG);
+        var g = svg.append('g').attr('class', 'kb-key').attr('data-qw', qw);
+        if (opts.onKey) g.style('cursor', 'pointer');
+        g.append('rect').attr('x', x).attr('y', y).attr('width', KW).attr('height', KW).attr('rx', 4);
+        g.append('text').attr('class', 'kb-qw').attr('x', x + 5).attr('y', y + 13).text(qw);
+        g.append('text').attr('class', 'kb-main').attr('x', x + KW / 2).attr('y', y + 30).attr('text-anchor', 'middle')
+          .text(opts.labels === 'qwerty' ? qw : dv);
+        g.append('text').attr('class', 'kb-sub').attr('x', x + KW / 2).attr('y', y + 47).attr('text-anchor', 'middle');
+        keys[qw] = g;
+        if (opts.onKey) g.on('click', function () { opts.onKey(qw, dv); });
+        if (opts.onHover) g.on('mouseenter', function () { opts.onHover(qw, dv); });
+      });
+    });
+    function sub(fn) {
+      Object.keys(keys).forEach(function (qw) {
+        keys[qw].select('.kb-sub').text(fn(qw, POS[qw].dv) || '');
+      });
+    }
+    function clearCls() {
+      Object.keys(keys).forEach(function (qw) {
+        keys[qw].classed('mem', false).classed('req', false).classed('warn', false)
+          .classed('good', false).classed('press', false);
+      });
+    }
+    return { svg: svg, keys: keys, sub: sub, clearCls: clearCls };
+  }
+
+  function chipRow(sel, items, onPick) {
+    var row = d3.select(sel);
+    row.selectAll('button.chip').data(items).join('button')
+      .attr('class', function (d) { return 'chip' + (d.on ? ' on' : ''); })
+      .text(function (d) { return d.label; })
+      .on('click', function (e, d) { onPick(d, this); });
+    return row;
+  }
+
+  if (!window.d3) {
+    var st = document.getElementById('kbd-static');
+    if (st) st.style.display = 'block';
+    return;
+  }
+
+  /* ================= 그림 1: 충돌 개요 (두 자판 호버 연동) ================= */
+  (function () {
+    var el = document.getElementById('viz-collision');
+    if (!el) return;
+    var info = d3.select('#viz-coll-info');
+    var top = kbd('#viz-coll-qw', { labels: 'qwerty', onHover: onHov });
+    var bot = kbd('#viz-coll-dv', { onHover: onHov });
+    top.sub(function (qw) { return QW_JAMO[qw] || ''; });
+    function onHov(qw, dv) {
+      top.clearCls(); bot.clearCls();
+      top.keys[qw].classed('mem', true);
+      bot.keys[qw].classed('mem', true);
+      var jamo = QW_JAMO[qw];
+      var misread = QW_JAMO[dv];
+      var msg = "물리 위치 '" + qw + "'";
+      if (jamo) msg += " — 두벌식은 이 자리에 '" + jamo + "'를 붙였다.";
+      else msg += " — 두벌식 자모가 붙지 않은 자리다.";
+      msg += " Dvorak은 이 키를 '" + dv + "'로 바꾼다.";
+      if (misread) msg += " libhangul은 '" + dv + "'를 QWERTY '" + dv + "' 자리로 착각해 '" + misread + "'를 낸다.";
+      else if (jamo) msg += " '" + dv + "'에는 QWERTY 기준 자모가 없어 한글이 아닌 '" + dv + "'가 그대로 찍힌다.";
+      info.text(msg);
+    }
+  })();
+
+  /* ================= 그림 2: 입력 시뮬레이터 (고충 1) ================= */
+  (function () {
+    var el = document.getElementById('viz-typing');
+    if (!el) return;
+    var PRESETS = [
+      { label: '안녕', keys: ['e','t','o','o','g','e'], observed: 'ㄷ새핻', src: '작업 노트 실측' },
+      { label: '안녕하세요', keys: ['e','t','o','o','g','e','i','t','y','l','e','f'], observed: 'ㄷ새해댜쇼딜', src: '2007년 Arch 포럼 실측(같은 원리)' },
+      { label: '한글', keys: ['i','t','o','p','m','u'], observed: null, src: null }
+    ];
+    var stream = [];
+    var playing = false;
+    var kb = kbd('#viz-typing-kbd', { onKey: function (qw, dv) { if (!playing) press(qw, dv); } });
+    var info = d3.select('#vt-chain');
+    var outBox = d3.select('#vt-result');
+
+    chipRow('#viz-typing-presets', PRESETS, function (d) { playPreset(d); });
+    d3.select('#vt-clear').on('click', reset);
+
+    function reset() {
+      stream = []; playing = false;
+      kb.clearCls(); draw(); info.text('아래 키보드를 직접 눌러 보거나, 위의 단어를 골라 재생해 보세요.');
+      outBox.html('');
+    }
+    function press(qw, dv) {
+      stream.push({ qw: qw, dv: dv });
+      kb.keys[qw].classed('press', true);
+      setTimeout(function () { kb.keys[qw].classed('press', false); }, 220);
+      draw();
+    }
+    function draw() {
+      var intended = stream.map(function (k) { return QW_JAMO[k.qw] || k.qw; });
+      var actual = stream.map(function (k) { return outBefore(k.qw, k.dv); });
+      d3.select('#vt-intended').text(stream.length ? compose(intended) : '—');
+      var aj = d3.select('#vt-actual');
+      aj.selectAll('span').data(actual).join('span')
+        .attr('class', 'jchip bad')
+        .text(function (d) { return d; });
+      var last = stream[stream.length - 1];
+      if (last) {
+        var want = QW_JAMO[last.qw] || '(자모 아님)';
+        info.html("방금 누른 키: 물리 위치 '" + last.qw + "' → XKB(Dvorak)는 심볼 '" + last.dv +
+          "'를 본냄 → libhangul은 QWERTY '" + last.dv + "'로 착각 → 출력 '" + outBefore(last.qw, last.dv) +
+          "' ｜ 손가락이 원한 자모: '" + want + "'");
+      }
+    }
+    function playPreset(p) {
+      reset(); playing = true;
+      var i = 0;
+      (function step() {
+        if (i < p.keys.length) {
+          var dv = p.keys[i], qw = DV2QW[dv];
+          press(qw, dv); i++;
+          setTimeout(step, 380);
+        } else {
+          playing = false;
+          var want = compose(p.keys.map(function (dv) { return QW_JAMO[DV2QW[dv]]; }));
+          var got = p.observed
+            ? "'" + p.observed + "' (" + p.src + ')'
+            : "'" + stream.map(function (k) { return outBefore(k.qw, k.dv); }).join(' ') + "' (자모 스트림)";
+          outBox.html("의도: <strong>" + want + "</strong> ↔ 실제 출력: <strong class='badtext'>" + got + '</strong>');
+        }
+      })();
+    }
+    reset();
+  })();
+
+  /* ================= 그림 3: 단축키 드리프트 (고충 2) ================= */
+  (function () {
+    var el = document.getElementById('viz-shortcut');
+    if (!el) return;
+    var SHORTCUTS = ['C', 'V', 'X', 'Z', 'S'].map(function (c) { return { label: 'Ctrl+' + c, key: c }; });
+    var kb = kbd('#viz-shortcut-kbd', {});
+    var info = d3.select('#sc-info');
+    chipRow('#viz-shortcut-chips', SHORTCUTS, function (d, btn) {
+      d3.select('#viz-shortcut-chips').selectAll('.chip').classed('on', false);
+      d3.select(btn).classed('on', true);
+      show(d.key);
+    });
+    function show(letter) {
+      kb.clearCls();
+      var low = letter.toLowerCase();
+      var posDv = DV2QW[low];            /* Dvorak에서 이 글자가 있는 물리 위치 */
+      var posQw = low;                   /* QWERTY에서 이 글자가 있는 물리 위치 */
+      kb.keys[posDv].classed('mem', true);
+      kb.keys[posQw].classed('req', true);
+      info.html("Ctrl+" + letter + ": 손가락 기억 속 자리는 '" + low + "' 키(물리 " + posDv + ", 실선 테두리)다. " +
+        "XKB를 QWERTY로 토글하면 '" + POS[posQw].dv + "' 키(물리 " + posQw + ", 색 채움)를 눌러야 같은 단축키가 된다. " +
+        "한글 모드에서 복사·붙여넣기를 할 때마다 손가락이 헛나가는 이유다.");
+    }
+    show('C');
+    d3.select('#viz-shortcut-chips').select('.chip').classed('on', true);
+  })();
+
+  /* ================= 그림 4: 문장부호 누수 (고충 3) ================= */
+  (function () {
+    var el = document.getElementById('viz-punct');
+    if (!el) return;
+    var SENT = "그래, 이건 괜찮다. '좋아'라고 했지; 다음에 또 보자.";
+    var LEAK = { ',': 'w', '.': 'v', ';': 's', "'": '-' };
+    var state = 'A';  /* A: Patch A만, AB: Patch A+B */
+    var kb = kbd('#viz-punct-kbd', {});
+    /* 누수 키 강조 */
+    ['.', ',', ';', "'"].forEach(function (qw) { kb.keys[qw].classed('warn', true); });
+    var out = d3.select('#pt-sent');
+    var playing = false;
+
+    chipRow('#viz-punct-modes', [
+      { label: 'Patch A만 적용', id: 'A', on: true },
+      { label: 'Patch A + B 적용', id: 'AB' }
+    ], function (d, btn) {
+      d3.select('#viz-punct-modes').selectAll('.chip').classed('on', false);
+      d3.select(btn).classed('on', true);
+      state = d.id; play();
+    });
+    d3.select('#pt-play').on('click', play);
+
+    function renderChar(ch) {
+      if (state === 'A' && LEAK[ch]) {
+        return { text: LEAK[ch], cls: 'leak' };
+      }
+      return { text: ch, cls: LEAK[ch] ? 'ok' : '' };
+    }
+    function play() {
+      if (playing) return;
+      playing = true;
+      out.html('');
+      var i = 0;
+      (function step() {
+        if (i < SENT.length) {
+          var c = renderChar(SENT[i]);
+          out.append('span').attr('class', c.cls).text(c.text);
+          i++;
+          setTimeout(step, 45);
+        } else { playing = false; }
+      })();
+    }
+    play();
+  })();
+
+  /* ================= 그림 5: 해결 — 패치 전/후 키보드 ================= */
+  (function () {
+    var el = document.getElementById('viz-solution');
+    if (!el) return;
+    var kb = kbd('#viz-solution-kbd', { onHover: onHov });
+    var info = d3.select('#sol-info');
+    var mode = 'after';
+    kb.svg.attr('aria-label', '패치 전후 한글 모드 키 출력 비교');
+
+    chipRow('#viz-solution-modes', [
+      { label: '패치 전 (stock libhangul)', id: 'before' },
+      { label: '패치 후', id: 'after', on: true }
+    ], function (d, btn) {
+      d3.select('#viz-solution-modes').selectAll('.chip').classed('on', false);
+      d3.select(btn).classed('on', true);
+      mode = d.id; apply();
+    });
+
+    function apply() {
+      kb.sub(function (qw, dv) {
+        return mode === 'before' ? outBefore(qw, dv) : outAfter(qw, dv);
+      });
+      kb.clearCls();
+      Object.keys(kb.keys).forEach(function (qw) {
+        var dv = POS[qw].dv;
+        var before = outBefore(qw, dv), after = outAfter(qw, dv);
+        if (mode === 'after' && before !== after) kb.keys[qw].classed('good', true);
+        if (mode === 'before' && before !== after) kb.keys[qw].classed('warn', true);
+      });
+      info.text(mode === 'before'
+        ? '키에 마우스를 올려 보세요. 각 키가 어떻게 잘못 해석되는지 보여준다.'
+        : '키에 마우스를 올려 보세요. 초록 키가 패치로 출력이 바뀐 키다.');
+    }
+    function onHov(qw, dv) {
+      var before = outBefore(qw, dv), after = outAfter(qw, dv);
+      var want = QW_JAMO[qw] || '(자모 매핑 없음)';
+      if (mode === 'before') {
+        info.html("Dvorak '" + dv + "' → libhangul은 이 심볼을 QWERTY '" + dv + "'로 착각 → 출력 '" + before +
+          "' ｜ 이 물리 위치('" + qw + "')의 두벌식 자모는 '" + want + "'");
+      } else {
+        var how = QW_JAMO[qw]
+          ? "같은 물리 위치의 QWERTY '" + qw + "' → 두벌식 자모 '" + after + "'"
+          : (PUNCT_PT[dv] ? "자모 매핑이 없는 키 → 문장부호 '" + after + "'로 변환(Patch B)" : "자모 매핑이 없는 키 → '" + after + "' 그대로");
+        info.html("Dvorak '" + dv + "' → " + how);
+      }
+    }
+    apply();
+  })();
+
+})();
+
+</script>
+</body></html>
