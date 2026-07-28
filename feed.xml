@@ -10,7 +10,7 @@
 
     <!-- newest first -->
     <item>
-      <title>두벌식과 Dvorak의 동거: 리눅스에서 한글 입력기를 고친 기록</title>
+      <title>Dvorak에서 두벌식이 깨지는 이유: 리눅스 입력 스택을 패치한 기록</title>
       <link>https://nacyot.github.io/artifacts/dvorak-dubeolsik/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/dvorak-dubeolsik/</guid>
       <pubDate>Tue, 28 Jul 2026 12:00:00 +0000</pubDate>
