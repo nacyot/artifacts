@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="GB10에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc 클럭 상한만으로 동일 부하 전력을 70W대→40W대(약 40%)로 줄인 실측과 systemd 영구 적용, PD 저클럭 고착 버그 구분법.">
+<meta name="description" content="GB10에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc 클럭 상한으로 H3 전력 −47%·시간 +9~17%, DeepSeek-V4-Flash 전력 −49%·decode −5% 실측. systemd 영구 적용과 PD 저클럭 고착 버그 구분법.">
 <link rel="canonical" href="https://nacyot.github.io/artifacts/gb10-gpu-clock-cap/">
 <link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
 <meta property="og:type" content="article">
@@ -8,7 +8,7 @@
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://nacyot.github.io/artifacts/gb10-gpu-clock-cap/">
 <meta property="og:title" content="GB10 전력 상한 거는 법">
-<meta property="og:description" content="GB10에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc 클럭 상한만으로 동일 부하 전력을 70W대→40W대(약 40%)로 줄인 실측과 systemd 영구 적용, PD 저클럭 고착 버그 구분법.">
+<meta property="og:description" content="GB10에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc 클럭 상한으로 H3 전력 −47%·시간 +9~17%, DeepSeek-V4-Flash 전력 −49%·decode −5% 실측. systemd 영구 적용과 PD 저클럭 고착 버그 구분법.">
 <meta property="og:image" content="https://nacyot.github.io/artifacts/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="GB10 전력 상한 거는 법">
@@ -54,15 +54,16 @@
     .bar{grid-template-columns:1fr auto}.bar .bl{text-align:left;grid-column:1/-1}}
 </style></head><body><div class="doc">
 
-<p class="crumb"><a href="../">← nacyot / artifacts</a></p>
+<p class="crumb"><a href="https://nacyot.github.io/artifacts/">← nacyot / artifacts</a></p>
 
 <h1>GB10 전력 상한 거는 법</h1>
 
 <p class="lead">
 GB10에는 와트 단위 전력 한도를 거는 방법이 없다. 쓸 수 있는 손잡이는 <code>nvidia-smi -lgc</code>(클럭 상한)뿐이다.
 2026-08-09에 300~2000MHz 상한을 systemd 유닛으로 재부팅 후에도 유지되게 걸었고,
-MiniMax-H3 실측에서 부하 전력이 <strong>약 83W → 44W(−47%)</strong>로 줄고, 생성 시간은 <strong>약 9~17% 늘어났다</strong>.
-이 글은 적용 방법, 전력·온도·생성 시간 실측, 일상 운용, 그리고 헷갈리기 쉬운 “저클럭 고착 버그”와 구분하는 법을 정리한다.
+MiniMax-H3에서는 부하 전력이 <strong>약 83W → 44W(−47%)</strong>·생성 시간 <strong>+9~17%</strong>,
+DeepSeek-V4-Flash(UD-Q2_K_XL)에서는 부하 전력 <strong>약 43W → 22W(−49%)</strong>·decode <strong>−5%</strong>로 측정됐다.
+이 글은 적용 방법, 전력·온도·성능 실측, 일상 운용, 그리고 헷갈리기 쉬운 “저클럭 고착 버그”와 구분하는 법을 정리한다.
 </p>
 
 <h2>1. 왜 와트가 아니라 클럭인가</h2>
@@ -152,9 +153,34 @@ sudo systemctl enable --now gpu-clock-cap.service</code></pre>
 
 <p>조건 고정: 해상도 864×480, 124프레임(~5.2초), 시드 1234, 동일 프롬프트, ComfyUI API 헤드리스. DiT는 pruned NVFP4, 텍스트 인코더 NVFP4, 비디오 VAE int8_convrot. 상한 켬/끔만 바꿨다.</p>
 
-<details><summary>DeepSeek-V4-Flash 단대 벤치 (진행 중)</summary>
-<p>단대 121GB에 맞는 가중치는 Unsloth <code>UD-Q2_K_XL</code>(약 97GB, 공개 문서 기준 1× DGX Spark 레시피). 가중치 수신·llama-server 기동 후 동일 상한 on/off로 decode tok/s를 넣을 예정. 이 절은 측정이 끝나는 대로 갱신한다.</p>
-</details>
+<h3>3.3 DeepSeek-V4-Flash (단대 121GB)</h3>
+
+<p>단대에 맞는 가중치는 Unsloth <code>DeepSeek-V4-Flash-0731-UD-Q2_K_XL</code>(3 shard GGUF, 디스크 약 91GB). 러너는 네이티브 <code>llama-server</code>(CUDA, <code>-ngl 999</code>, flash-attn, ctx 4096). 각 상한마다 워밍업 64토큰 1회 + 256토큰 생성 3회, decode tok/s는 중앙값. 전력·온도는 util ≥ 40% 구간의 평균.</p>
+
+<p class="tcap">표 1b. DeepSeek-V4-Flash decode (2026-08-10, 3회 중앙값)</p>
+<table>
+<thead><tr><th>상한</th><th>decode tok/s</th><th>prompt tok/s</th><th>256tok wall</th><th>전력(부하)</th><th>온도(부하)</th></tr></thead>
+<tbody>
+<tr><td>끔 (~2.4–2.5GHz)</td><td><strong>17.5</strong></td><td>69.9</td><td>14.9s</td><td><strong>42.6W</strong></td><td>58.6°C</td></tr>
+<tr><td>켬 (~1.97GHz)</td><td><strong>16.6</strong></td><td>65.7</td><td>15.7s</td><td><strong>21.9W</strong></td><td>49.8°C</td></tr>
+</tbody>
+</table>
+
+<p class="fcap">그림 3. decode 속도 (높을수록 빠름)</p>
+<div class="bar"><div class="bl">상한 끔</div><div class="bt"><div class="bf hi" style="width:100%"></div></div><div class="bv">17.5 t/s</div></div>
+<div class="bar"><div class="bl">상한 켬</div><div class="bt"><div class="bf" style="width:95%"></div></div><div class="bv">16.6 t/s</div></div>
+
+<p class="fcap">그림 4. 부하 평균 전력</p>
+<div class="bar"><div class="bl">상한 끔</div><div class="bt"><div class="bf" style="width:100%"></div></div><div class="bv">42.6W</div></div>
+<div class="bar"><div class="bl">상한 켬</div><div class="bt"><div class="bf hi" style="width:51%"></div></div><div class="bv">21.9W</div></div>
+
+<ul>
+  <li><strong>전력:</strong> 부하 평균이 <strong>42.6 → 21.9W(−49%)</strong>. H3와 비슷한 비율로 절반 가까이 줄었다.</li>
+  <li><strong>속도:</strong> decode는 <strong>17.5 → 16.6 tok/s(−4.9%)</strong>로, 전력 절감 대비 성능 손실이 작다. 비디오 DiT(+9~17%)보다 LLM decode 쪽이 상한에 덜 민감했다.</li>
+  <li><strong>온도:</strong> 부하 평균 58.6 → 49.8°C(약 −9°C). H3 Turbo 구간의 −20°C만큼은 아니지만, 절대 온도 자체가 낮다.</li>
+</ul>
+
+<p>조건 고정: 동일 프롬프트, <code>n_predict=256</code>, temperature 0.6, top_p 0.95, <code>cache_prompt=false</code>. 모델 로드만으로 통합 메모리 약 94GB 사용. 상한 켬/끔만 바꿨다.</p>
 
 <h2>4. 일상 운용</h2>
 
@@ -220,14 +246,13 @@ sudo systemctl enable --now gpu-clock-cap.service</code></pre>
 <h2>6. 남은 것</h2>
 
 <ul>
-<li><strong>DeepSeek-V4-Flash tok/s</strong>: UD-Q2_K_XL 단대 로드 후 상한 on/off decode 실측을 표에 추가.</li>
-<li><strong>상한 2200 구간</strong>: 2000이 체감상 아쉬우면 한 단계 올려 같은 표로 재측정.</li>
+<li><strong>상한 2200 구간</strong>: 2000이 체감상 아쉬우면 한 단계 올려 H3·DS 같은 표로 재측정.</li>
 <li><strong>USB-C 펌웨어 업데이트</strong>: 다음 재부팅 때 <code>fwupdmgr update</code> (PD 버그 예방).</li>
 </ul>
 
 <p style="color:var(--soft);font-size:.84rem;margin-top:2.5rem">
-작성 2026-08-10 · 전력·성능 실측 2026-08-10 (GB10 / DGX Spark, UEFI GX10DGX.0105, 드라이버 580.173.02) ·
-<a href="../">nacyot / artifacts</a>
+작성 2026-08-10 · H3·DeepSeek 전력·성능 실측 2026-08-10 (GB10 / DGX Spark, UEFI GX10DGX.0105, 드라이버 580.173.02) ·
+<a href="https://nacyot.github.io/artifacts/">nacyot / artifacts</a>
 </p>
 
 </div></body></html>
