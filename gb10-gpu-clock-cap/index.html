@@ -1,0 +1,200 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="GB10에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc 클럭 상한만으로 동일 부하 전력을 70W대→40W대(약 40%)로 줄인 실측과 systemd 영속 적용, PD 저클럭 고착 버그 구분법.">
+<link rel="canonical" href="https://nacyot.github.io/artifacts/gb10-gpu-clock-cap/">
+<link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="nacyot / artifacts">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:url" content="https://nacyot.github.io/artifacts/gb10-gpu-clock-cap/">
+<meta property="og:title" content="gx10(GB10) 전력 상한 거는 법">
+<meta property="og:description" content="GB10에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc 클럭 상한만으로 동일 부하 전력을 70W대→40W대(약 40%)로 줄인 실측과 systemd 영속 적용, PD 저클럭 고착 버그 구분법.">
+<meta property="og:image" content="https://nacyot.github.io/artifacts/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="gx10(GB10) 전력 상한 거는 법">
+<meta name="twitter:description" content="GB10에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc 클럭 상한만으로 동일 부하 전력을 70W대→40W대(약 40%)로 줄인 실측과 systemd 영속 적용, PD 저클럭 고착 버그 구분법.">
+<meta name="twitter:image" content="https://nacyot.github.io/artifacts/og.png">
+<title>gx10(GB10) 전력 상한 거는 법</title>
+<style>
+  :root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--barbg:#eceae2;--bar:#cbc9bf;--bar-hi:#4a4a46;--box:#f3f2ec}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Pretendard GOV",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+    font-size:18px;line-height:1.72;word-break:keep-all;overflow-wrap:anywhere}
+  .doc{max-width:42em;margin:0 auto;padding:4.5rem 1.5rem 7rem}
+  h1{font-size:1.7rem;font-weight:700;line-height:1.36;margin:0 0 1.4rem}
+  h2{font-size:1.18rem;font-weight:700;margin:2.6rem 0 .7rem;padding-top:.7rem;border-top:1px solid var(--rule)}
+  h3{font-size:1.02rem;font-weight:700;margin:1.6rem 0 .5rem}
+  p{margin:0 0 .95rem} strong{font-weight:700}
+  ul,ol{margin:.4rem 0 1.1rem;padding-left:1.1rem} li{margin:.5rem 0}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8em;color:#46443f;background:#efeee7;padding:0 .25em;border-radius:2px}
+  pre{background:var(--box);border:1px solid var(--rule);border-radius:4px;padding:.9rem 1rem;overflow-x:auto;font-size:.8rem;line-height:1.55;margin:0 0 1.2rem}
+  pre code{background:none;padding:0;font-size:1em}
+  a{color:inherit}
+  .lead{background:var(--box);border-radius:4px;padding:1rem 1.2rem;margin:0 0 1.6rem;font-size:.95rem}
+  .tcap,.fcap{font-size:.84rem;color:var(--soft);margin:1.5rem 0 .55rem}
+  table{width:100%;border-collapse:collapse;font-size:.88rem;line-height:1.55;margin:0 0 1.2rem}
+  th,td{text-align:left;vertical-align:top;padding:.52rem .8rem .52rem 0}
+  thead th{border-bottom:1px solid var(--ink);font-weight:700;font-size:.82rem}
+  tbody tr+tr td{border-top:1px solid var(--rule)} td:first-child,th:first-child{font-weight:600}
+  .bar{display:grid;grid-template-columns:8.5rem 1fr auto;gap:.7rem;align-items:center;margin:.42rem 0;font-size:.88rem}
+  .bar .bl{text-align:right} .bar .bt{background:var(--barbg);height:.8rem;border-radius:1px}
+  .bar .bf{height:100%;background:var(--bar);border-radius:1px} .bar .bf.hi{background:var(--bar-hi)}
+  .bar .bv{color:var(--soft);font-size:.8rem}
+  .flow{display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;margin:.4rem 0 1.1rem;font-size:.85rem}
+  .flow .b{border:1px solid var(--faint);background:var(--box);border-radius:4px;padding:.38rem .65rem}
+  .flow .a{color:var(--faint)} .flow .out{border-color:var(--ink)}
+  details{margin:1rem 0;border-top:1px solid var(--rule);padding-top:.7rem}
+  summary{cursor:pointer;font-weight:700;list-style:none} summary::before{content:"▸ ";color:var(--faint)}
+  details[open] summary::before{content:"▾ "}
+  @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.2rem 5rem}
+    .bar{grid-template-columns:1fr auto}.bar .bl{text-align:left;grid-column:1/-1}}
+</style></head><body><div class="doc">
+
+<h1>gx10(GB10) 전력 상한 거는 법</h1>
+
+<p class="lead">
+GB10에는 와트 단위 전력 한도 조정이 없다. 유일한 손잡이는 <code>nvidia-smi -lgc</code>(클럭 상한)이다.
+2026-08-09에 gx10에 300~2000MHz 상한을 systemd 유닛으로 영속 적용했고,
+같은 부하에서 <strong>전력이 70W대에서 40W대로 40% 줄었다</strong>(클럭은 17% 하락, 온도 80~88°C → 74~78°C).
+이 문서는 그 방법과 실측, 일상 운용법, 그리고 혼동하기 쉬운 "저클럭 고착 버그"와의 구분법을 담는다.
+</p>
+
+<h2>1. 왜 와트가 아니라 클럭인가</h2>
+
+<p>일반 데스크톱 GPU라면 <code>nvidia-smi -pl 150</code>처럼 와트를 직접 지정한다. GB10(Grace Blackwell 통합 SoC)은 그 인터페이스가 아예 없다. gx10 실기에서 확인한 사실:</p>
+
+<ul>
+  <li><code>nvidia-smi -q -d POWER</code>의 전력 한도 필드(Current/Default/Min/Max Power Limit)가 전부 <code>N/A</code>. 드라이버(NVML)가 노출하지 않는다.</li>
+  <li>리눅스 표준 전력 인터페이스(<code>/sys/class/powercap</code>, <code>devfreq</code>)도 비어 있고, Jetson 계열 도구(<code>nvpmodel</code>, <code>jetson_clocks</code>)도 없다.</li>
+  <li>X 커뮤니티 조사(2025-10~2026-08 범위)에서도 GB10 계열에서 <code>-pl</code> 성공 사례는 0건. 전력은 SoC 펌웨어가 전적으로 관리한다(SoC TDP 약 140W, PSU 240W, 추론 실사용 50~160W 관측).</li>
+</ul>
+
+<p>대신 클럭 상한을 걸면 전압이 함께 내려가서(전력은 대략 전압²×클럭에 비례) 와트 제한과 같은 효과를 더 크게 얻는다. 실제로 커뮤니티의 여름 운용 표준도 <code>-lgc</code>다. DGX Spark 사용자 hagihagi는 <code>300,2500</code>(통상)과 <code>300,1500</code>(저소음)을 오가며 쓰고, limegreenpeper1은 2100MHz 제한으로 70°C 운용을 보고했다.</p>
+
+<h2>2. 거는 법</h2>
+
+<h3>일회성 (재부팅하면 풀림)</h3>
+
+<pre><code>sudo nvidia-smi -lgc 300,2000   # 상한 2000MHz (하한 300은 유휴용, 낮게 둬야 idle 전력 절약)
+sudo nvidia-smi -rgc            # 즉시 해제</code></pre>
+
+<p>지정값은 내부 이산 스텝으로 반올림된다. 2000을 넣으면 실제로는 1989MHz에 앉는 것을 확인했다. 지원 스텝 표는 조회 불가(<code>SUPPORTED_CLOCKS</code>도 N/A)라서, 적용 후 부하 중 <code>clocks.current.sm</code>을 읽어야 실값을 안다.</p>
+
+<h3>영속 (현재 gx10에 적용된 방식)</h3>
+
+<p><code>/etc/systemd/system/gpu-clock-cap.service</code>:</p>
+
+<pre><code>[Unit]
+Description=GPU clock cap 300-2000MHz (thermal/power tuning, 2026-08-09)
+After=multi-user.target
+Wants=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nvidia-smi -lgc 300,2000
+RemainAfterExit=yes
+ExecStop=/usr/bin/nvidia-smi -rgc
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+<pre><code>sudo systemctl daemon-reload
+sudo systemctl enable --now gpu-clock-cap.service</code></pre>
+
+<p><code>ExecStop</code>에 해제 명령을 넣어 두면 <code>systemctl stop</code>이 곧 "캡 풀기"가 된다. 유닛 상태와 캡이 항상 일치해서 조작이 직관적이다.</p>
+
+<h2>3. 실측: 무엇이 얼마나 달라졌나</h2>
+
+<p>적용 전후를 같은 워크로드(ComfyUI MiniMax-H3 생성, GPU util 96% 유지)에서 30초씩 샘플링했다.</p>
+
+<p class="tcap">표 1. 동일 부하 전후 비교 (2026-08-09, 각 30초·5초 간격 6샘플)</p>
+<table>
+<thead><tr><th></th><th>클럭</th><th>전력</th><th>온도</th></tr></thead>
+<tbody>
+<tr><td>스톡</td><td>2281~2444MHz</td><td>66~76W</td><td>80~88°C</td></tr>
+<tr><td>캡 300,2000</td><td>1989MHz 고정</td><td><strong>38~56W</strong></td><td><strong>74~78°C</strong></td></tr>
+</tbody>
+</table>
+
+<p class="fcap">그림 1. 부하 중 평균 전력: 클럭 17% 하락에 전력은 40% 하락</p>
+<div class="bar"><div class="bl">스톡 (~2.4GHz)</div><div class="bt"><div class="bf" style="width:100%"></div></div><div class="bv">~70W</div></div>
+<div class="bar"><div class="bl">캡 (1989MHz)</div><div class="bt"><div class="bf hi" style="width:57%"></div></div><div class="bv">~40W</div></div>
+
+<p>클럭이 17% 내려갔는데 전력이 40% 내려간 것이 핵심이다. 전압이 클럭과 함께 내려가는 V²f 효과 때문으로, 발열 대비 성능의 효율 구간으로 이동한 것이다. LLM 추론은 메모리 대역폭 병목 구간이 많아 실효 tok/s 손실은 클럭 낙폭보다 작게 나오는 것이 보통이다. 단 이번 측정은 전력·온도까지이고, tok/s 체감 벤치는 아직 남아 있다(아래 §6).</p>
+
+<h2>4. 일상 운용</h2>
+
+<p class="tcap">표 2. 조작 명령</p>
+<table>
+<thead><tr><th>하고 싶은 것</th><th>명령</th></tr></thead>
+<tbody>
+<tr><td>풀클럭이 잠깐 필요</td><td><code>sudo systemctl stop gpu-clock-cap</code></td></tr>
+<tr><td>캡 다시 적용</td><td><code>sudo systemctl start gpu-clock-cap</code></td></tr>
+<tr><td>완전 제거</td><td><code>sudo systemctl disable --now gpu-clock-cap</code></td></tr>
+<tr><td>수치 변경</td><td>유닛 파일의 <code>300,2000</code> 수정 후 <code>daemon-reload</code> + <code>restart</code></td></tr>
+<tr><td>현재 상태 확인</td><td><code>nvidia-smi --query-gpu=clocks.sm,power.draw,temperature.gpu --format=csv</code></td></tr>
+</tbody>
+</table>
+
+<p class="tcap">표 3. 상한값 선택 가이드 (max clock 3003MHz 기준)</p>
+<table>
+<thead><tr><th>상한</th><th>용도</th><th>예상</th></tr></thead>
+<tbody>
+<tr><td>2200</td><td>2000이 체감상 아쉬울 때 한 단계 위</td><td>전력·온도 소폭 상승</td></tr>
+<tr><td><strong>2000 (현재)</strong></td><td>성능·발열 균형 기본값</td><td>실측 40W대·74~78°C</td></tr>
+<tr><td>1800</td><td>한여름·환기 나쁜 날</td><td>온도 여유 추가</td></tr>
+<tr><td>1500</td><td>야간 장시간 배치·저소음</td><td>성능 약 -25%, 최저 발열</td></tr>
+</tbody>
+</table>
+
+<h2>5. 혼동 주의: 저클럭 고착 버그는 별개다</h2>
+
+<p>GB10 전 제조사 변종에서 반복 보고되는 펌웨어 버그가 있다. 어느 날 갑자기 풀로드인데 클럭이 400~950MHz에 박히고 전력이 10W 근처로 떨어지며 성능이 1/3~1/5이 된다. 스로틀 플래그(thermal/power slowdown)는 전부 Not Active로 나와서 원인 표시가 없다. 원인은 USB-C PD(전원 공급) 컨트롤러 펌웨어의 전원 협상 오류로, SoC가 전력 부족 상태로 오인해 스스로 클럭을 묶는 것이다.</p>
+
+<p>우리가 거는 캡과는 발생도 해제도 무관하다. 구분은 부하 중 클럭 숫자 하나로 된다:</p>
+
+<p class="tcap">표 4. 성능이 떨어졌을 때 판별</p>
+<table>
+<thead><tr><th>부하 중 클럭</th><th>진단</th><th>조치</th></tr></thead>
+<tbody>
+<tr><td>~1989MHz</td><td>우리가 건 캡 (정상)</td><td>필요하면 <code>systemctl stop gpu-clock-cap</code></td></tr>
+<tr><td>400~950MHz 고정</td><td><strong>PD 버그</strong></td><td>아래 절차. 재부팅·<code>-rgc</code>로는 안 풀림</td></tr>
+</tbody>
+</table>
+
+<p class="fcap">그림 2. PD 버그 해제 절차 (커뮤니티 표준, 재부팅 무효)</p>
+<div class="flow">
+<div class="b">종료</div><div class="a">→</div>
+<div class="b">전원 케이블 뽑기</div><div class="a">→</div>
+<div class="b">전원 버튼 눌러 방전</div><div class="a">→</div>
+<div class="b">1분 대기</div><div class="a">→</div>
+<div class="b out">재연결·부팅</div>
+</div>
+
+<p>PD 컨트롤러는 재부팅해도 전원이 유지되어 상태가 그대로이기 때문에 완전 차단이 필요하다. 예방책은 PD/UEFI 펌웨어 최신화다. gx10에는 8/9 기준 <code>fwupdmgr</code>에 USB-C 관련 업데이트 1건이 대기 중인데(SBU mux, EXIT_DP_MODE 수정) 재부팅이 필요해서 아직 적용하지 않았다.</p>
+
+<details><summary>근거가 된 커뮤니티 1차 소스</summary>
+<ul>
+<li>ASUS GX10에서 PD 펌웨어 0x1→0x507 + <code>-lgc 300,2100</code>으로 942MHz/10W 상태를 2086MHz/67W로 복구: <a href="https://x.com/runsonai/status/2051757564019212657">@runsonai</a></li>
+<li>ThinkStation PGX에서 400MHz 고착을 전원 케이블 재연결로 2.4~2.5GHz 복구: <a href="https://x.com/hnakamur2/status/2086253048050159846">@hnakamur2</a></li>
+<li>클럭·전원 모드 조정 전부 실패 후 1분 전원 차단으로만 해결: <a href="https://x.com/MichaelHutu/status/2081721593206546789">@MichaelHutu</a></li>
+<li>여름 클럭 제한 운용(2500/1500): <a href="https://x.com/hagihagi/status/2060565048104509695">@hagihagi</a>, 2100MHz 제한·70°C: <a href="https://x.com/limegreenpeper1/status/2083232756809818181">@limegreenpeper1</a></li>
+<li>전력이 100W 근처에서 캡되고 정격 240W의 절반이라는 관측: <a href="https://x.com/ID_AA_Carmack/status/1982831774850748825">@ID_AA_Carmack</a></li>
+</ul>
+</details>
+
+<h2>6. 남은 것</h2>
+
+<ul>
+<li><strong>tok/s 체감 벤치</strong>: ComfyUI 생성 시간 또는 ollama 벤치로 캡 전후 성능 손실을 수치화. 아쉬우면 2200으로 한 단계 상향.</li>
+<li><strong>USB-C 펌웨어 업데이트</strong>: 다음 재부팅 기회에 <code>fwupdmgr update</code> (PD 버그 예방).</li>
+</ul>
+
+<p style="color:var(--soft);font-size:.84rem;margin-top:2.5rem">
+작성 2026-08-10 · 실측 2026-08-09 (GB10/DGX Spark 계열, UEFI GX10DGX.0105, 드라이버 580.173.02) · nacyot / artifacts
+</p>
+
+</div></body></html>

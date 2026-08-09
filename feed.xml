@@ -5,10 +5,21 @@
     <link>https://nacyot.github.io/artifacts/</link>
     <description>공개해도 되는 작업 산출물 모음 — 실측 정리, 리서치, 시각화.</description>
     <language>ko</language>
-    <lastBuildDate>Tue, 28 Jul 2026 12:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 10 Aug 2026 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://nacyot.github.io/artifacts/feed.xml" rel="self" type="application/rss+xml"/>
 
     <!-- newest first -->
+    <item>
+      <title>gx10(GB10) 전력 상한 거는 법</title>
+      <link>https://nacyot.github.io/artifacts/gb10-gpu-clock-cap/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/gb10-gpu-clock-cap/</guid>
+      <pubDate>Sun, 10 Aug 2026 00:00:00 +0000</pubDate>
+      <description><![CDATA[GB10에는 와트 단위 전력 한도 조정이 없다. 유일한 손잡이는 nvidia-smi -lgc(클럭 상한). 동일 부하에서 전력을 70W대→40W대(약 40%)로 줄인 실측, systemd oneshot 영속 적용, 그리고 PD 펌웨어 저클럭 고착 버그와의 구분법.]]></description>
+      <category>GB10</category>
+      <category>DGX Spark</category>
+      <category>nvidia-smi</category>
+      <category>systemd</category>
+    </item>
     <item>
       <title>Dvorak에서 두벌식이 깨지는 이유: 리눅스 입력 스택을 패치한 기록</title>
       <link>https://nacyot.github.io/artifacts/dvorak-dubeolsik/</link>
