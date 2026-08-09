@@ -61,8 +61,8 @@
 <p class="lead">
 GB10에는 와트 단위 전력 한도를 거는 방법이 없다. 쓸 수 있는 손잡이는 <code>nvidia-smi -lgc</code>(클럭 상한)뿐이다.
 2026-08-09에 300~2000MHz 상한을 systemd 유닛으로 재부팅 후에도 유지되게 걸었고,
-같은 부하에서 <strong>전력이 70W대에서 40W대로 약 40% 줄었다</strong>(클럭은 17% 하락, 온도 80~88°C → 74~78°C).
-이 글은 적용 방법, 실측 결과, 일상 운용, 그리고 헷갈리기 쉬운 “저클럭 고착 버그”와 구분하는 법을 정리한다.
+MiniMax-H3 실측에서 부하 전력이 <strong>약 83W → 44W(−47%)</strong>로 줄고, 생성 시간은 <strong>약 9~17% 늘어났다</strong>.
+이 글은 적용 방법, 전력·온도·생성 시간 실측, 일상 운용, 그리고 헷갈리기 쉬운 “저클럭 고착 버그”와 구분하는 법을 정리한다.
 </p>
 
 <h2>1. 왜 와트가 아니라 클럭인가</h2>
@@ -111,24 +111,50 @@ sudo systemctl enable --now gpu-clock-cap.service</code></pre>
 
 <p><code>ExecStop</code>에 해제 명령을 넣어 두면 <code>systemctl stop</code>이 곧 상한 해제가 된다. 유닛 상태와 클럭 제한이 항상 맞춰져 조작이 단순하다.</p>
 
-<h2>3. 실측: 무엇이 얼마나 달라졌나</h2>
+<h2>3. 실측: 전력·온도·생성 시간</h2>
 
-<p>적용 전후를 같은 워크로드(ComfyUI MiniMax-H3 생성, GPU util 96% 유지)에서 30초씩 샘플링했다.</p>
+<p>장비는 ASUS Ascent GX10(GB10), 통합 메모리 121GB, 드라이버 580.173.02. 클럭 상한은 systemd 유닛으로 <code>300,2000</code>(실측 안착 ~1969MHz). 제한 없음일 때 부하 중 SM 클럭은 ~2400MHz대.</p>
 
-<p class="tcap">표 1. 동일 부하 전후 비교 (2026-08-09, 각 30초·5초 간격 6샘플)</p>
+<h3>3.1 전력·온도 (부하 구간)</h3>
+
+<p>ComfyUI로 MiniMax-H3를 돌리는 동안 1초 간격으로 샘플링했다. 아래 전력·온도는 GPU util ≥ 50% 구간의 평균이다.</p>
+
+<p class="tcap">표 1. MiniMax-H3 생성 중 전력·온도 (2026-08-10, util≥50% 평균)</p>
 <table>
-<thead><tr><th></th><th>클럭</th><th>전력</th><th>온도</th></tr></thead>
+<thead><tr><th>워크로드</th><th>상한</th><th>총 시간</th><th>샘플링</th><th>전력(부하)</th><th>온도(부하)</th></tr></thead>
 <tbody>
-<tr><td>제한 없음</td><td>2281~2444MHz</td><td>66~76W</td><td>80~88°C</td></tr>
-<tr><td>상한 300,2000</td><td>1989MHz 고정</td><td><strong>38~56W</strong></td><td><strong>74~78°C</strong></td></tr>
+<tr><td>Turbo 8 step<br><span style="font-weight:400;color:var(--soft)">NVFP4 DiT + Sage + VAE int8</span></td><td>끔 (~2.4GHz)</td><td>97.7s</td><td>77.5s</td><td><strong>82.6W</strong></td><td>80.8°C</td></tr>
+<tr><td>Turbo 8 step</td><td>켬 (~1.97GHz)</td><td>114.4s</td><td>87.8s</td><td><strong>44.0W</strong></td><td>59.5°C</td></tr>
+<tr><td>20 step + TeaCache<br><span style="font-weight:400;color:var(--soft)">NVFP4 DiT + Sage + VAE int8</span></td><td>끔</td><td>81.9s</td><td>61.4s</td><td><strong>87.0W</strong></td><td>84.5°C</td></tr>
+<tr><td>20 step + TeaCache</td><td>켬</td><td>89.7s</td><td>66.0s</td><td><strong>51.2W</strong></td><td>68.1°C</td></tr>
 </tbody>
 </table>
 
-<p class="fcap">그림 1. 부하 중 평균 전력: 클럭 17% 하락에 전력은 40% 하락</p>
-<div class="bar"><div class="bl">제한 없음 (~2.4GHz)</div><div class="bt"><div class="bf" style="width:100%"></div></div><div class="bv">~70W</div></div>
-<div class="bar"><div class="bl">상한 (1989MHz)</div><div class="bt"><div class="bf hi" style="width:57%"></div></div><div class="bv">~40W</div></div>
+<p class="fcap">그림 1. 부하 중 평균 전력 (Turbo 8 기준)</p>
+<div class="bar"><div class="bl">상한 끔 (~2.4GHz)</div><div class="bt"><div class="bf" style="width:100%"></div></div><div class="bv">82.6W</div></div>
+<div class="bar"><div class="bl">상한 켬 (~1.97GHz)</div><div class="bt"><div class="bf hi" style="width:53%"></div></div><div class="bv">44.0W</div></div>
 
-<p>클럭이 17% 내려갔는데 전력이 40% 내려간 것이 핵심이다. 전압이 클럭과 함께 내려가는 V²f 효과 때문이고, 발열 대비 성능 효율이 좋은 구간으로 이동한 셈이다. LLM 추론은 메모리 대역폭 병목이 큰 경우가 많아, 실제 처리량 손실은 클럭 낙폭보다 작게 나오는 일이 흔하다. 다만 이번 측정은 전력·온도까지이고, 생성 시간·처리량 벤치는 아직이다(아래 §6).</p>
+<p class="fcap">그림 2. 생성 총 시간 (낮을수록 빠름)</p>
+<div class="bar"><div class="bl">20step 끔</div><div class="bt"><div class="bf hi" style="width:72%"></div></div><div class="bv">81.9s</div></div>
+<div class="bar"><div class="bl">20step 켬</div><div class="bt"><div class="bf" style="width:78%"></div></div><div class="bv">89.7s</div></div>
+<div class="bar"><div class="bl">Turbo8 끔</div><div class="bt"><div class="bf hi" style="width:85%"></div></div><div class="bv">97.7s</div></div>
+<div class="bar"><div class="bl">Turbo8 켬</div><div class="bt"><div class="bf" style="width:100%"></div></div><div class="bv">114.4s</div></div>
+
+<h3>3.2 해석</h3>
+
+<ul>
+  <li><strong>전력:</strong> 상한을 켜면 부하 전력이 대략 <strong>절반</strong>으로 떨어진다 (Turbo 8: 82.6→44.0W, −47%. 20 step: 87.0→51.2W, −41%).</li>
+  <li><strong>온도:</strong> 부하 평균이 약 15~20°C 내려간다 (Turbo 8: 80.8→59.5°C).</li>
+  <li><strong>시간:</strong> 같은 워크플로에서 총 시간은 <strong>약 9~17% 늘어난다</strong> (20 step: 81.9→89.7s, +9.5%. Turbo 8: 97.7→114.4s, +17%).</li>
+  <li><strong>클럭 낙폭 대비:</strong> SM 클럭은 ~2.4GHz→1.97GHz(약 −18%)인데 전력은 그보다 크게 줄고, 생성 시간 증가는 그보다 작다. 전압 동반 하락(V²f)과, 비디오 DiT가 대역폭·스케줄 대기에도 시간을 쓰는 탓으로 보인다.</li>
+  <li><strong>워크플로 선택:</strong> 이 장비에서는 “20 step + Sage + TeaCache + VAE int8”이 Turbo 8보다 빠르고, 상한을 켠 상태에서도 89.7s로 Turbo 8(114s)보다 짧다. 품질 확인 없이 step만 줄이는 것이 항상 이득은 아니다.</li>
+</ul>
+
+<p>조건 고정: 해상도 864×480, 124프레임(~5.2초), 시드 1234, 동일 프롬프트, ComfyUI API 헤드리스. DiT는 pruned NVFP4, 텍스트 인코더 NVFP4, 비디오 VAE int8_convrot. 상한 켬/끔만 바꿨다.</p>
+
+<details><summary>DeepSeek-V4-Flash 단대 벤치 (진행 중)</summary>
+<p>단대 121GB에 맞는 가중치는 Unsloth <code>UD-Q2_K_XL</code>(약 97GB, 공개 문서 기준 1× DGX Spark 레시피). 가중치 수신·llama-server 기동 후 동일 상한 on/off로 decode tok/s를 넣을 예정. 이 절은 측정이 끝나는 대로 갱신한다.</p>
+</details>
 
 <h2>4. 일상 운용</h2>
 
@@ -194,12 +220,13 @@ sudo systemctl enable --now gpu-clock-cap.service</code></pre>
 <h2>6. 남은 것</h2>
 
 <ul>
-<li><strong>생성 시간·처리량 벤치</strong>: ComfyUI 생성 시간 또는 ollama 벤치로 상한 전후 성능 손실을 수치화. 아쉬우면 2200으로 한 단계 올린다.</li>
+<li><strong>DeepSeek-V4-Flash tok/s</strong>: UD-Q2_K_XL 단대 로드 후 상한 on/off decode 실측을 표에 추가.</li>
+<li><strong>상한 2200 구간</strong>: 2000이 체감상 아쉬우면 한 단계 올려 같은 표로 재측정.</li>
 <li><strong>USB-C 펌웨어 업데이트</strong>: 다음 재부팅 때 <code>fwupdmgr update</code> (PD 버그 예방).</li>
 </ul>
 
 <p style="color:var(--soft);font-size:.84rem;margin-top:2.5rem">
-작성 2026-08-10 · 실측 2026-08-09 (GB10 / DGX Spark 계열, UEFI GX10DGX.0105, 드라이버 580.173.02) ·
+작성 2026-08-10 · 전력·성능 실측 2026-08-10 (GB10 / DGX Spark, UEFI GX10DGX.0105, 드라이버 580.173.02) ·
 <a href="../">nacyot / artifacts</a>
 </p>
 
