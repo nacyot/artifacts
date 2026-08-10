@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="GB10(DGX Spark 제품군)에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc로 클럭 상한을 거는 방법과 MiniMax-H3·DeepSeek 실측 결과.">
+<meta name="description" content="GB10(DGX Spark 제품군)에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc로 클럭 상한을 설정하는 방법과 MiniMax-H3·DeepSeek 실측 결과.">
 <link rel="canonical" href="https://nacyot.github.io/artifacts/gb10-gpu-clock-cap/">
 <link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
 <meta property="og:type" content="article">
@@ -8,11 +8,11 @@
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://nacyot.github.io/artifacts/gb10-gpu-clock-cap/">
 <meta property="og:title" content="DGX Spark(GB10 제품군) 클럭 제한 설정하는 방법">
-<meta property="og:description" content="GB10(DGX Spark 제품군)에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc로 클럭 상한을 거는 방법과 MiniMax-H3·DeepSeek 실측 결과.">
+<meta property="og:description" content="GB10(DGX Spark 제품군)에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc로 클럭 상한을 설정하는 방법과 MiniMax-H3·DeepSeek 실측 결과.">
 <meta property="og:image" content="https://nacyot.github.io/artifacts/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="DGX Spark(GB10 제품군) 클럭 제한 설정하는 방법">
-<meta name="twitter:description" content="GB10(DGX Spark 제품군)에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc로 클럭 상한을 거는 방법과 MiniMax-H3·DeepSeek 실측 결과.">
+<meta name="twitter:description" content="GB10(DGX Spark 제품군)에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc로 클럭 상한을 설정하는 방법과 MiniMax-H3·DeepSeek 실측 결과.">
 <meta name="twitter:image" content="https://nacyot.github.io/artifacts/og.png">
 <title>DGX Spark(GB10 제품군) 클럭 제한 설정하는 방법</title>
 <style>
@@ -470,7 +470,7 @@ hwmon 팬 노드·IPMI·PWM 칩도 없다. CSV <code>fan_pct</code> 컬럼은 �
 <h2 id="next">다음에 할 일</h2>
 <ul>
 <li><strong>USB-C 펌웨어 업데이트</strong>: 다음 재부팅 때 <code>fwupdmgr update</code> (PD 버그 예방).</li>
-<li><strong>H3 Turbo 8 격자</strong>: 지금은 20step 스택만 200MHz 간격으로 측정했다. Turbo 8도 같은 격자로 찍으면 비교가 더 분명해진다.</li>
+<li><strong>H3 Turbo 8 스윕</strong>: 지금은 20step 스택만 200MHz 간격으로 측정했다. Turbo 8도 같은 간격으로 찍으면 비교가 더 분명해진다.</li>
 </ul>
 
 
