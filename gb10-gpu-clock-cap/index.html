@@ -220,11 +220,13 @@ nvidia-smi --query-gpu=power.draw,utilization.gpu,temperature.gpu \
 
 <p class="note">한계: H3 생성 시간은 조건당 1회라 런-투-런 분산은 안 보인다. DeepSeek는 3회라 속도 쪽 신뢰는 더 낫다. 전력은 GPU 센서 기준이라 SoC 전체·보드 소비와는 다를 수 있다. 샘플 간격 ~1초라 수 ms 스파이크는 안 잡힌다.</p>
 
-<h3>3.1 MiniMax-H3 — 요약표</h3>
+<h3>3.1 MiniMax-H3 — 2000 on/off 비교 (워크플로 2종)</h3>
+
+<p>여기서는 상한을 <strong>2000 vs 무제한</strong>만 바꿔, Turbo 8과 20step 두 워크플로를 나란히 본다. <strong>1400~무제한을 200MHz 간격으로 찍은 결과는 §3.5</strong>에 있다.</p>
 
 <p>ComfyUI 헤드리스 생성 중 1초 샘플. 전력·온도는 util ≥ 50% 평균, 괄호는 그 구간 min~max.</p>
 
-<p class="tcap">표 1. MiniMax-H3 (2026-08-10, 864×480 · 124f · seed 1234 · NVFP4 DiT + Sage + VAE int8)</p>
+<p class="tcap">표 1. MiniMax-H3 2000 on/off (2026-08-10, 864×480 · 124f · seed 1234 · NVFP4 DiT + Sage + VAE int8)</p>
 <table>
 <thead><tr><th>워크로드</th><th>상한</th><th>총 시간</th><th>샘플 수</th><th>전력(부하 평균)</th><th>온도(부하)</th></tr></thead>
 <tbody>
