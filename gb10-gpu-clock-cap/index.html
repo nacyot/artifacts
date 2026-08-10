@@ -53,6 +53,20 @@
 
   .chart{width:100%;height:auto;display:block;margin:.4rem 0 1.1rem;border:1px solid var(--rule);border-radius:4px}
   .note{font-size:.88rem;color:var(--soft);border-left:2px solid var(--rule);padding:.15rem 0 .15rem .85rem;margin:.6rem 0 1.1rem}
+  .tweet{display:block;margin:.7rem 0 1rem;padding:.95rem 1.05rem 0.85rem;background:#fff;border:1px solid var(--rule);border-radius:12px;text-decoration:none;color:inherit;box-shadow:0 1px 0 rgba(0,0,0,.02)}
+  a.tweet:hover{border-color:var(--faint);background:#fff}
+  .tweet-hd{display:flex;align-items:center;gap:.65rem;margin:0 0 .55rem}
+  .tweet-av{width:2.35rem;height:2.35rem;border-radius:999px;object-fit:cover;background:var(--box);flex:0 0 auto}
+  .tweet-who{min-width:0;line-height:1.25}
+  .tweet-name{display:block;font-weight:700;font-size:.92rem}
+  .tweet-handle{display:block;color:var(--soft);font-size:.8rem}
+  .tweet-x{margin-left:auto;color:var(--faint);font-size:.85rem;flex:0 0 auto}
+  .tweet-body{margin:0 0 .65rem;font-size:.92rem;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+  .tweet-meta{display:flex;flex-wrap:wrap;gap:.35rem .8rem;color:var(--soft);font-size:.78rem}
+  .tweet-meta a{color:var(--soft);text-decoration:none}
+  .tweet-meta a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+  .tweet-grid{display:grid;gap:.85rem;margin:.6rem 0 1.3rem}
+
   .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82em}
   @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.2rem 5rem}
     .bar{grid-template-columns:1fr auto}.bar .bl{text-align:left;grid-column:1/-1}}
@@ -80,7 +94,55 @@ DeepSeek-V4-Flash(UD-Q2_K_XL)에서는 부하 전력 <strong>약 43W → 22W(−
   <li>X 커뮤니티 조사(2025-10~2026-08)에서도 GB10 계열에서 <code>-pl</code> 성공 사례는 없었다. 전력은 SoC 펌웨어가 관리한다(SoC TDP 약 140W, PSU 240W, 실제 추론 부하에서는 50~160W 관측).</li>
 </ul>
 
-<p>대신 클럭 상한을 걸면 전압도 같이 내려간다. 전력은 대략 전압²×클럭에 비례하므로, 와트 제한보다 효과가 더 크게 나오는 경우가 많다. 커뮤니티에서 여름 운용 표준으로 쓰는 것도 <code>-lgc</code>다. DGX Spark 사용자 hagihagi는 <code>300,2500</code>(평소)과 <code>300,1500</code>(저소음)을 오가며 쓰고, limegreenpeper1은 2100MHz 제한으로 70°C 운용을 보고했다.</p>
+<p>대신 클럭 상한을 걸면 전압도 같이 내려간다. 전력은 대략 전압²×클럭에 비례하므로, 와트 제한보다 효과가 더 크게 나오는 경우가 많다. 커뮤니티에서 여름 운용 표준으로 쓰는 것도 <code>-lgc</code>다. 아래는 그 1차 소스.</p>
+
+<div class="tweet-grid">
+<a class="tweet" href="https://x.com/hagihagi/status/2060565048104509695">
+  <div class="tweet-hd">
+    <img class="tweet-av" src="https://pbs.twimg.com/profile_images/1687678966122029057/3h3pZUNe.jpg" alt="" loading="lazy" width="40" height="40">
+    <div class="tweet-who">
+      <span class="tweet-name">hagihagi</span>
+      <span class="tweet-handle">@hagihagi</span>
+    </div>
+    <span class="tweet-x" aria-hidden="true">𝕏</span>
+  </div>
+  <p class="tweet-body">dgx spark これから夏場に向けてGPUのクロック数を落とせば少しの速度低下と引き換えに熱さがマシになります。デフォルトの排熱の熱さはヤバい。
+MAX3000ですが、我が家では1500～2500で運用
+sudo nvidia-smi -lgc 300,2500  ←通常運用
+sudo nvidia-smi -lgc 300,1500  ←急がない場合</p>
+  <div class="tweet-meta"><a href="https://x.com/hagihagi/status/2060565048104509695">2026-05-30</a><span>조회 163</span><span>♥ 1</span><a href="https://x.com/hagihagi/status/2060565048104509695">X에서 보기 ↗</a></div>
+</a>
+<a class="tweet" href="https://x.com/limegreenpeper1/status/2083232756809818181">
+  <div class="tweet-hd">
+    <img class="tweet-av" src="https://abs.twimg.com/sticky/default_profile_images/default_profile.png" alt="" loading="lazy" width="40" height="40">
+    <div class="tweet-who">
+      <span class="tweet-name">limegreenpeper753</span>
+      <span class="tweet-handle">@limegreenpeper1</span>
+    </div>
+    <span class="tweet-x" aria-hidden="true">𝕏</span>
+  </div>
+  <p class="tweet-body">deepseek-ai/DeepSeek-V4-Flash-0731
+モデル公開に感謝
+2X DGX Spark(互換機) 夏仕様 2100MHz制限(70度)で7:49で生成
+同じプロンプトでM3 Ultraの約3分の1の時間
+DSpark版の登場に期待しています</p>
+  <div class="tweet-meta"><a href="https://x.com/limegreenpeper1/status/2083232756809818181">2026-07-31</a><span>조회 281</span><span>♥ 2</span><a href="https://x.com/limegreenpeper1/status/2083232756809818181">X에서 보기 ↗</a></div>
+</a>
+<a class="tweet" href="https://x.com/ID_AA_Carmack/status/1982831774850748825">
+  <div class="tweet-hd">
+    <img class="tweet-av" src="https://pbs.twimg.com/profile_images/1560764938083352577/B1X3m4NN.jpg" alt="" loading="lazy" width="40" height="40">
+    <div class="tweet-who">
+      <span class="tweet-name">John Carmack</span>
+      <span class="tweet-handle">@ID_AA_Carmack</span>
+    </div>
+    <span class="tweet-x" aria-hidden="true">𝕏</span>
+  </div>
+  <p class="tweet-body">DGX Spark appears to be maxing out at only 100 watts power draw, less than half of the rated 240 watts, and it only seems to be delivering about half the quoted performance (assuming 1 PF sparse FP4 = 125 TF dense BF16) . It gets quite hot even at this level, and I saw a report of spontaneous rebooting on a long run, so was it de-rated before launch?</p>
+  <div class="tweet-meta"><a href="https://x.com/ID_AA_Carmack/status/1982831774850748825">2025-10-27</a><span>조회 26.5만</span><span>♥ 1171</span><a href="https://x.com/ID_AA_Carmack/status/1982831774850748825">X에서 보기 ↗</a></div>
+</a>
+</div>
+
+<p class="note">Carmack 관측은 “정격 240W의 절반 근처에서 막힌다”는 SoC 전력 상한 논의의 출발점이다. 와트 한도 API가 없는 것과는 별개로, 보드가 실제로 그리는 전력이 스펙 라벨보다 낮다는 현장 보고다.</p>
 
 <h2>2. 거는 법</h2>
 
@@ -291,13 +353,65 @@ nvidia-smi --query-gpu=power.draw,utilization.gpu,temperature.gpu \
 
 <p>PD 컨트롤러는 재부팅해도 전원이 유지되어 상태가 남는다. 그래서 완전 차단이 필요하다. 예방은 PD/UEFI 펌웨어 최신화다. 이 장비에는 8/9 기준 <code>fwupdmgr</code>에 USB-C 관련 업데이트 1건이 대기 중인데(SBU mux, EXIT_DP_MODE 수정), 재부팅이 필요해서 아직 적용하지 않았다.</p>
 
-<details><summary>근거가 된 커뮤니티 1차 소스</summary>
+<h3>커뮤니티 1차 소스 (PD 버그·복구)</h3>
+
+<p>저클럭 고착은 여러 OEM에서 같은 패턴으로 보고됐다. 원문 일부를 그대로 둔다.</p>
+
+<div class="tweet-grid">
+<a class="tweet" href="https://x.com/runsonai/status/2051757564019212657">
+  <div class="tweet-hd">
+    <img class="tweet-av" src="https://pbs.twimg.com/profile_images/2014711264220413952/v3ynOzXp.jpg" alt="" loading="lazy" width="40" height="40">
+    <div class="tweet-who">
+      <span class="tweet-name">Thanh Pham</span>
+      <span class="tweet-handle">@runsonai</span>
+    </div>
+    <span class="tweet-x" aria-hidden="true">𝕏</span>
+  </div>
+  <p class="tweet-body">Root cause: the GX10 USB-C PD firmware (0x00000001) has a known high-urgency update to 0x00000507. A reboot + nvidia-smi -lgc 300,2100 to cap the clock range (not lock it) was enough to recover. GPU hit 2086 MHz @ 67 W under load.</p>
+  <div class="tweet-meta"><a href="https://x.com/runsonai/status/2051757564019212657">2026-05-05</a><span>조회 1978</span><span>♥ 5</span><a href="https://x.com/runsonai/status/2051757564019212657">X에서 보기 ↗</a></div>
+</a>
+<a class="tweet" href="https://x.com/hnakamur2/status/2086253048050159846">
+  <div class="tweet-hd">
+    <img class="tweet-av" src="https://pbs.twimg.com/profile_images/1143665153457569793/O7PzM9es.png" alt="" loading="lazy" width="40" height="40">
+    <div class="tweet-who">
+      <span class="tweet-name">Hiroaki Nakamura</span>
+      <span class="tweet-handle">@hnakamur2</span>
+    </div>
+    <span class="tweet-x" aria-hidden="true">𝕏</span>
+  </div>
+  <p class="tweet-body">nvidia-smi --query-gpu=timestamp,pstate,power.draw,clocks.sm --format=csv -l 1
+を流しながらベンチマークを実行するとクロックが400MHz程度に下がっていました。
+[NVIDIA forum] を参考に電源切って電源ケーブル挿しなおしたら治りました。
+
+治った後は…ベンチマーク中は2411～2502 MHzになっていました。</p>
+  <div class="tweet-meta"><a href="https://x.com/hnakamur2/status/2086253048050159846">2026-08-09</a><span>조회 152</span><span>♥ 0</span><a href="https://x.com/hnakamur2/status/2086253048050159846">X에서 보기 ↗</a></div>
+</a>
+<a class="tweet" href="https://x.com/MichaelHutu/status/2081721593206546789">
+  <div class="tweet-hd">
+    <img class="tweet-av" src="https://pbs.twimg.com/profile_images/1939985572463816705/OMts34kP.jpg" alt="" loading="lazy" width="40" height="40">
+    <div class="tweet-who">
+      <span class="tweet-name">Mike Hutu</span>
+      <span class="tweet-handle">@MichaelHutu</span>
+    </div>
+    <span class="tweet-x" aria-hidden="true">𝕏</span>
+  </div>
+  <p class="tweet-body">Definitely, but this post is not about how to prevent it. The DGX Sparks (at least the Asus gx10) goes in to a safe state sometimes, could be something else than OOM aswell, like heat, or other reason.
+
+I tried manually tweak the clock and power mode, but it still keeps it in the safe low power state. For now, the only method to clear the state is the 1m power break.</p>
+  <div class="tweet-meta"><a href="https://x.com/MichaelHutu/status/2081721593206546789">2026-07-27</a><span>조회 63</span><span>♥ 0</span><a href="https://x.com/MichaelHutu/status/2081721593206546789">X에서 보기 ↗</a></div>
+</a>
+</div>
+
+<p class="note">runsonai는 PD 펌웨어 갱신 + <code>-lgc 300,2100</code> 복구 수치(2086MHz @ 67W)를, hnakamur2·MichaelHutu는 <strong>전원 케이블 완전 차단</strong>만이 상태를 지운다는 점을 각각 확인했다. 우리가 거는 상한(~1969MHz)과 버그(400~950MHz)는 클럭 숫자로 구분한다.</p>
+
+<details><summary>링크만 모으기</summary>
 <ul>
-<li>ASUS GX10에서 PD 펌웨어 0x1→0x507 + <code>-lgc 300,2100</code>으로 942MHz/10W 상태를 2086MHz/67W로 복구: <a href="https://x.com/runsonai/status/2051757564019212657">@runsonai</a></li>
-<li>ThinkStation PGX에서 400MHz 고착을 전원 케이블 재연결로 2.4~2.5GHz 복구: <a href="https://x.com/hnakamur2/status/2086253048050159846">@hnakamur2</a></li>
-<li>클럭·전원 모드 조정 전부 실패 후 1분 전원 차단으로만 해결: <a href="https://x.com/MichaelHutu/status/2081721593206546789">@MichaelHutu</a></li>
-<li>여름 클럭 제한 운용(2500/1500): <a href="https://x.com/hagihagi/status/2060565048104509695">@hagihagi</a>, 2100MHz 제한·70°C: <a href="https://x.com/limegreenpeper1/status/2083232756809818181">@limegreenpeper1</a></li>
-<li>전력이 100W 근처에서 막히고 정격 240W의 절반이라는 관측: <a href="https://x.com/ID_AA_Carmack/status/1982831774850748825">@ID_AA_Carmack</a></li>
+<li><a href="https://x.com/runsonai/status/2051757564019212657">@runsonai — PD FW + -lgc 복구</a></li>
+<li><a href="https://x.com/hnakamur2/status/2086253048050159846">@hnakamur2 — 400MHz → 전원 재연결</a></li>
+<li><a href="https://x.com/MichaelHutu/status/2081721593206546789">@MichaelHutu — 1분 전원 차단</a></li>
+<li><a href="https://x.com/hagihagi/status/2060565048104509695">@hagihagi — 2500/1500 여름 운용</a></li>
+<li><a href="https://x.com/limegreenpeper1/status/2083232756809818181">@limegreenpeper1 — 2100MHz·70°C</a></li>
+<li><a href="https://x.com/ID_AA_Carmack/status/1982831774850748825">@ID_AA_Carmack — ~100W 캡 관측</a></li>
 </ul>
 </details>
 
