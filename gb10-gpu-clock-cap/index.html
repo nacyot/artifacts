@@ -71,6 +71,10 @@
   .tweet-meta{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .75rem;padding-top:.55rem;border-top:1px solid var(--rule);color:var(--soft);font-size:.78rem}
   .tweet-meta a{color:var(--soft);text-decoration:none}
   .tweet-meta a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+
+  .sources{display:flex;flex-direction:column;gap:.35rem;margin:0 0 1.5rem}
+  a.source-line{display:block;margin:0;padding:.35rem 0;font-size:.92rem;line-height:1.45;color:inherit;text-decoration:underline;text-underline-offset:2px;word-break:break-all}
+  a.source-line:hover{color:var(--ink)}
   .tweet-grid{display:grid;gap:1rem;margin:.7rem 0 1.35rem}
 
 
@@ -86,9 +90,6 @@
   .toc li{margin:.28rem 0;font-size:.92rem}
   .toc a{color:inherit;text-decoration:none;border-bottom:1px solid transparent}
   .toc a:hover{border-bottom-color:var(--faint)}
-  .source-line{margin:0 0 .45rem;font-size:.92rem;line-height:1.5;word-break:break-all}
-  .source-line a{color:inherit;text-decoration:underline;text-underline-offset:2px}
-  .source-line a:hover{color:var(--ink)}
   .toc .toc-sub{list-style:disc;margin:.15rem 0 .35rem;padding-left:1.1rem;font-size:.88rem;color:var(--soft)}
   h2[id],h3[id]{scroll-margin-top:1.2rem}
 
@@ -504,69 +505,20 @@ hwmon 팬 노드·IPMI·PWM 칩도 없다. CSV <code>fan_pct</code> 컬럼은 �
 
 <p>PD 컨트롤러는 재부팅만으로 전원이 안 끊기는 경우가 있어, 전원 케이블을 뽑는 쪽이 확실하다. 예방은 PD/UEFI 펌웨어를 최신으로 두는 것이다. 이 장비에는 당시 <code>fwupdmgr</code>에 USB-C 관련 업데이트가 대기 중이었고, 재부팅이 필요해서 아직 적용하지 않았다.</p>
 
-<h3>관련 글 (원문·AI 번역)</h3>
-<p>부록에서 인용한 트윗이다. 원문 아래 회색 상자는 AI 번역이다.</p>
-<div class="tweet-grid">
-<article class="tweet">
-  <div class="tweet-hd">
-    <div class="tweet-av tweet-av-fallback" aria-hidden="true">T</div>
-    <div class="tweet-who">
-      <span class="tweet-name">Thanh Pham</span>
-      <span class="tweet-handle">@runsonai</span>
-    </div>
-    <span class="tweet-x" aria-hidden="true">𝕏</span>
-  </div>
-  <p class="tweet-body">Root cause: the GX10 USB-C PD firmware (0x00000001) has a known high-urgency update to 0x00000507. A reboot + nvidia-smi -lgc 300,2100 to cap the clock range (not lock it) was enough to recover. GPU hit 2086 MHz @ 67 W under load.</p>
-  <p class="tweet-tr"><span class="tr-label">한국어 · AI 번역</span>원인: GX10 USB-C PD 펌웨어(0x00000001)에 긴급 업데이트(0x00000507)가 있다. 재부팅 후 nvidia-smi -lgc 300,2100으로 클럭 범위 상한만 걸면(고정 잠금이 아님) 복구됐다. 부하 중 GPU 2086MHz @ 67W.</p>
-  <div class="tweet-meta"><span>2026-05-05</span><span>조회 1978</span><span>♥ 5</span><a href="https://x.com/runsonai/status/2051757564019212657" rel="noopener">X에서 보기 ↗</a></div>
-</article>
-<article class="tweet">
-  <div class="tweet-hd">
-    <div class="tweet-av tweet-av-fallback" aria-hidden="true">H</div>
-    <div class="tweet-who">
-      <span class="tweet-name">Hiroaki Nakamura</span>
-      <span class="tweet-handle">@hnakamur2</span>
-    </div>
-    <span class="tweet-x" aria-hidden="true">𝕏</span>
-  </div>
-  <p class="tweet-body">nvidia-smi を流しながらベンチマークを実行するとクロックが400MHz程度に下がっていました。
-電源切って電源ケーブル挿しなおしたら治りました。
-治った後はベンチマーク中は2411～2502 MHzになっていました。</p>
-  <p class="tweet-tr"><span class="tr-label">한국어 · AI 번역</span>nvidia-smi를 돌리며 벤치마크를 하니 클럭이 400MHz 근처로 내려가 있었다.
-전원을 끄고 전원 케이블을 다시 꽂으니 나았다.
-고친 뒤에는 벤치 중 2411~2502MHz였다.</p>
-  <div class="tweet-meta"><span>2026-08-09</span><span>조회 152</span><span>♥ 0</span><a href="https://x.com/hnakamur2/status/2086253048050159846" rel="noopener">X에서 보기 ↗</a></div>
-</article>
-<article class="tweet">
-  <div class="tweet-hd">
-    <div class="tweet-av tweet-av-fallback" aria-hidden="true">M</div>
-    <div class="tweet-who">
-      <span class="tweet-name">Mike Hutu</span>
-      <span class="tweet-handle">@MichaelHutu</span>
-    </div>
-    <span class="tweet-x" aria-hidden="true">𝕏</span>
-  </div>
-  <p class="tweet-body">The DGX Sparks (at least the Asus gx10) goes in to a safe state sometimes…
-I tried manually tweak the clock and power mode, but it still keeps it in the safe low power state. For now, the only method to clear the state is the 1m power break.</p>
-  <p class="tweet-tr"><span class="tr-label">한국어 · AI 번역</span>DGX Spark(적어도 ASUS GX10)가 가끔 안전 모드(세이프 상태)로 들어간다…
-클럭·전원 모드를 손으로 바꿔 봤지만 저전력 안전 상태가 유지된다. 지금으로서는 상태를 지우는 유일한 방법은 1분 전원 차단이다.</p>
-  <div class="tweet-meta"><span>2026-07-27</span><span>조회 63</span><span>♥ 0</span><a href="https://x.com/MichaelHutu/status/2081721593206546789" rel="noopener">X에서 보기 ↗</a></div>
-</article>
+<h2 id="sources">출처</h2>
+<div class="sources">
+<a class="source-line" href="https://x.com/hagihagi/status/2060565048104509695">@hagihagi — 여름 클럭 제한 (2500 / 1500)</a>
+<a class="source-line" href="https://x.com/limegreenpeper1/status/2083232756809818181">@limegreenpeper1 — 2100MHz 제한 · 약 70°C</a>
+<a class="source-line" href="https://x.com/ID_AA_Carmack/status/1982831774850748825">@ID_AA_Carmack — DGX Spark 전력·성능 관측</a>
+<a class="source-line" href="https://x.com/runsonai/status/2051757564019212657">@runsonai — GX10 PD 펌웨어 + -lgc 복구</a>
+<a class="source-line" href="https://x.com/hnakamur2/status/2086253048050159846">@hnakamur2 — 400MHz 고착 · 전원 케이블 재연결</a>
+<a class="source-line" href="https://x.com/MichaelHutu/status/2081721593206546789">@MichaelHutu — 1분 전원 차단</a>
 </div>
 
-<h2 id="sources">출처</h2>
-<p class="source-line"><a href="https://x.com/hagihagi/status/2060565048104509695">@hagihagi — 여름 클럭 제한 (2500 / 1500)</a></p>
-<p class="source-line"><a href="https://x.com/limegreenpeper1/status/2083232756809818181">@limegreenpeper1 — 2100MHz 제한 · 약 70°C</a></p>
-<p class="source-line"><a href="https://x.com/ID_AA_Carmack/status/1982831774850748825">@ID_AA_Carmack — DGX Spark 전력·성능 관측</a></p>
-<p class="source-line"><a href="https://x.com/runsonai/status/2051757564019212657">@runsonai — GX10 PD 펌웨어 + -lgc 복구</a></p>
-<p class="source-line"><a href="https://x.com/hnakamur2/status/2086253048050159846">@hnakamur2 — 400MHz 고착 · 전원 케이블 재연결</a></p>
-<p class="source-line"><a href="https://x.com/MichaelHutu/status/2081721593206546789">@MichaelHutu — 1분 전원 차단</a></p>
-
 <p style="color:var(--soft);font-size:.84rem;margin-top:2.5rem">
-작성 2026-08-10 · H3·DeepSeek 전력·성능 실측 2026-08-10 (GB10 / DGX Spark, UEFI GX10DGX.0105, 드라이버 580.173.02) ·
+작성 2026-08-10 · H3·DeepSeek 실측 2026-08-10 (GB10 / ASUS Ascent GX10, 드라이버 580.173.02) ·
 <a href="https://nacyot.github.io/artifacts/">nacyot / artifacts</a>
 </p>
-
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
