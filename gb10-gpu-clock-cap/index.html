@@ -79,6 +79,16 @@
   #d3-tip strong{font-weight:700}
   .chart-legacy{display:none}
 
+
+  .toc{margin:0 0 1.8rem;padding:1rem 1.15rem;background:var(--box);border-radius:4px}
+  .toc-title{font-size:.82rem;font-weight:700;color:var(--soft);margin:0 0 .55rem;letter-spacing:.02em}
+  .toc ol{margin:0;padding-left:1.15rem}
+  .toc li{margin:.28rem 0;font-size:.92rem}
+  .toc a{color:inherit;text-decoration:none;border-bottom:1px solid transparent}
+  .toc a:hover{border-bottom-color:var(--faint)}
+  .toc .toc-sub{list-style:disc;margin:.15rem 0 .35rem;padding-left:1.1rem;font-size:.88rem;color:var(--soft)}
+  h2[id],h3[id]{scroll-margin-top:1.2rem}
+
   @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.2rem 5rem}
     .bar{grid-template-columns:1fr auto}.bar .bl{text-align:left;grid-column:1/-1}}
 </style></head><body><div class="doc">
@@ -88,14 +98,34 @@
 <h1>GB10 전력 상한 거는 법</h1>
 
 <p class="lead">
-GB10에는 와트 단위 전력 한도를 거는 방법이 없다. 쓸 수 있는 손잡이는 <code>nvidia-smi -lgc</code>(클럭 상한)뿐이다.
-2026-08-09에 300~2000MHz 상한을 systemd 유닛으로 재부팅 후에도 유지되게 걸었고,
-MiniMax-H3에서는 부하 전력이 <strong>약 83W → 44W(−47%)</strong>·생성 시간 <strong>+9~17%</strong>,
-DeepSeek-V4-Flash(UD-Q2_K_XL)에서는 부하 전력 <strong>약 43W → 22W(−49%)</strong>·decode <strong>−5%</strong>로 측정됐다.
-이 글은 적용 방법, 전력·온도·성능 실측, 일상 운용, 그리고 헷갈리기 쉬운 “저클럭 고착 버그”와 구분하는 법을 정리한다.
+GB10에는 와트 단위 전력 한도(<code>nvidia-smi -pl</code>)가 없다. 쓸 수 있는 손잡이는 <code>nvidia-smi -lgc</code> 클럭 상한뿐이다.
+이 장비(ASUS Ascent GX10)에는 300~2000MHz 상한을 systemd로 걸어 두었고, 재부팅 후에도 유지된다.
+MiniMax-H3에서는 부하 전력이 대략 <strong>83W → 44W(−47%)</strong>로 줄고 생성 시간은 <strong>9~17% 늘어났다</strong>.
+DeepSeek-V4-Flash(UD-Q2_K_XL)에서는 부하 전력 <strong>약 43W → 22W(−49%)</strong>, decode 속도는 <strong>약 5% 느려졌다</strong>.
+아래는 거는 법, 측정 방법, 워크로드별 실측, 상한 격자 스윕, 일상 운용이다.
 </p>
 
-<h2>1. 왜 와트가 아니라 클럭인가</h2>
+
+<nav class="toc" aria-label="목차">
+<p class="toc-title">목차</p>
+<ol>
+  <li><a href="#why-clock">왜 와트가 아니라 클럭인가</a></li>
+  <li><a href="#how-to">거는 법</a></li>
+  <li><a href="#bench">실측: 전력·온도·성능</a>
+    <ul class="toc-sub">
+      <li><a href="#method">어떻게 쟀나</a></li>
+      <li><a href="#h3-onoff">MiniMax-H3 · 2000 on/off</a></li>
+      <li><a href="#ds-onoff">DeepSeek-V4-Flash · 2000 on/off</a></li>
+      <li><a href="#ds-sweep">DeepSeek 상한 스윕 (200MHz 간격)</a></li>
+      <li><a href="#h3-sweep">MiniMax-H3 상한 스윕 (200MHz 간격)</a></li>
+    </ul>
+  </li>
+  <li><a href="#daily">일상 운용</a></li>
+  <li><a href="#appendix">부록 · PD 저클럭 고착 버그</a></li>
+</ol>
+</nav>
+
+<h2 id="why-clock">왜 와트가 아니라 클럭인가</h2>
 
 <p>일반 데스크톱 GPU라면 <code>nvidia-smi -pl 150</code>처럼 와트를 직접 지정한다. GB10(Grace Blackwell 통합 SoC)에는 그 인터페이스 자체가 없다. 이 장비에서 확인한 내용:</p>
 
@@ -105,7 +135,7 @@ DeepSeek-V4-Flash(UD-Q2_K_XL)에서는 부하 전력 <strong>약 43W → 22W(−
   <li>X 커뮤니티 조사(2025-10~2026-08)에서도 GB10 계열에서 <code>-pl</code> 성공 사례는 없었다. 전력은 SoC 펌웨어가 관리한다(SoC TDP 약 140W, PSU 240W, 실제 추론 부하에서는 50~160W 관측).</li>
 </ul>
 
-<p>대신 클럭 상한을 걸면 전압도 같이 내려간다. 전력은 대략 전압²×클럭에 비례하므로, 와트 제한보다 효과가 더 크게 나오는 경우가 많다. 커뮤니티에서 여름 운용 표준으로 쓰는 것도 <code>-lgc</code>다. 아래는 그 1차 소스.</p>
+<p>대신 클럭 상한을 걸면 전압도 같이 내려간다. 전력은 대략 전압²×클럭에 비례하므로, 와트 제한보다 효과가 더 크게 나오는 경우가 많다. 커뮤니티에서 여름 운용 표준으로 쓰는 것도 <code>-lgc</code>다. 커뮤니티에서 자주 거론되는 글 몇 개다.</p>
 
 <div class="tweet-grid">
 <article class="tweet">
@@ -165,14 +195,14 @@ DSpark 버전 등장을 기대한다.</p>
 
 <p class="note">Carmack 관측은 “정격 240W의 절반 근처에서 막힌다”는 SoC 전력 상한 논의의 출발점이다. 와트 한도 API가 없는 것과는 별개로, 보드가 실제로 그리는 전력이 스펙 라벨보다 낮다는 현장 보고다.</p>
 
-<h2>2. 거는 법</h2>
+<h2 id="how-to">거는 법</h2>
 
 <h3>일회성 (재부팅하면 풀림)</h3>
 
 <pre><code>sudo nvidia-smi -lgc 300,2000   # 상한 2000MHz (하한 300은 idle용 — 낮게 둬야 유휴 전력 절약)
 sudo nvidia-smi -rgc            # 즉시 해제</code></pre>
 
-<p>지정값은 내부 단계 단위로 반올림된다. 2000을 넣으면 실제로는 1989MHz에 붙는 것을 확인했다. 지원 단계 표는 조회할 수 없다(<code>SUPPORTED_CLOCKS</code>도 N/A). 그래서 적용 후 부하 중 <code>clocks.current.sm</code>을 읽어 실값을 확인한다.</p>
+<p>지정값은 내부 단계로 맞춰진다. 2000을 넣으면 실측으로는 약 1989MHz에 붙었다. 지원 클럭 표는 조회가 안 된다(<code>SUPPORTED_CLOCKS</code>도 N/A). 적용 뒤에는 부하 중 <code>clocks.current.sm</code>을 읽어 확인하면 된다.</p>
 
 <h3>재부팅 후에도 유지</h3>
 
@@ -197,32 +227,32 @@ WantedBy=multi-user.target</code></pre>
 <pre><code>sudo systemctl daemon-reload
 sudo systemctl enable --now gpu-clock-cap.service</code></pre>
 
-<p><code>ExecStop</code>에 해제 명령을 넣어 두면 <code>systemctl stop</code>이 곧 상한 해제가 된다. 유닛 상태와 클럭 제한이 항상 맞춰져 조작이 단순하다.</p>
+<p><code>ExecStop</code>에 해제 명령을 넣어 두면 <code>systemctl stop</code>이 곧 상한 해제가 된다. 유닛을 켜고 끄는 것과 클럭 상태가 같이 움직인다.</p>
 
-<h2>3. 실측: 전력·온도·생성 시간</h2>
+<h2 id="bench">실측: 전력·온도·성능</h2>
 
-<p>장비는 ASUS Ascent GX10(GB10), 통합 메모리 121GB, 드라이버 580.173.02. 클럭 상한은 systemd 유닛으로 <code>300,2000</code>(실측 안착 ~1969MHz). 제한 없음일 때 부하 중 SM 클럭은 ~2400~2500MHz대.</p>
+<p>장비는 ASUS Ascent GX10(GB10), 통합 메모리 121GB, 드라이버 580.173.02. 클럭 상한은 systemd로 <code>300,2000</code>(실측 약 1969MHz). 상한을 끄면 부하 중 SM은 대략 2400~2500MHz대다.</p>
 
-<h3>3.0 어떻게 쟀나</h3>
+<h3 id="method">어떻게 쟀나</h3>
 
-<p>표의 “숫자 하나”만 보면 한 번의 우연처럼 보일 수 있다. 실제로는 <strong>1초 간격 시계열</strong>을 남기고, 그중에서 부하 구간만 평균냈다.</p>
+<p>표에 적힌 값은 한 번 찍은 순간값이 아니다. 벤치 동안 <strong>1초마다</strong> 샘플을 남기고, GPU 이용률이 높은 구간만 골라 평균냈다.</p>
 
 <ul>
-  <li><strong>샘플러:</strong> 약 1초마다 <code>nvidia-smi</code>로 전력·util·GPU온도·SM클럭·팬을 CSV에 기록. 벽면 전력계가 아니라 <strong>GPU 레일 전력</strong>이다. 팬은 GB10에서 <code>[N/A]</code>라 값이 비고, 대신 ACPI <code>acpitz</code> 최고 온도를 같이 남긴다.</li>
-  <li><strong>부하 구간:</strong> H3는 util ≥ 50%, DeepSeek는 util ≥ 40%인 샘플만 모아 전력·온도 평균. 로딩·유휴·디코드 사이의 골을 빼기 위한 기준이다. 표에 min~max도 같이 적는다.</li>
-  <li><strong>성능:</strong> H3는 ComfyUI API 한 번의 생성 wall time(동일 시드·해상도·프레임). DeepSeek는 워밍업 1회 뒤 256토큰 생성 <strong>3회</strong>의 decode tok/s <strong>중앙값</strong> (런별 값도 표로 공개).</li>
-  <li><strong>바꾸는 변수:</strong> 클럭 상한 on/off만. 워크로드·프롬프트·시드·양자화는 고정.</li>
+  <li><strong>샘플러:</strong> 약 1초마다 <code>nvidia-smi</code>로 전력·이용률·GPU 온도·SM 클럭·팬 값을 CSV에 남겼다. 벽면 전력계가 아니라 드라이버가 보고하는 <strong>GPU 패키지 전력</strong>이다. 팬 속도는 GB10에서 <code>[N/A]</code>라 비어 있고, 대신 ACPI 온도(<code>acpitz</code> 최댓값)를 같이 기록했다.</li>
+  <li><strong>부하 구간:</strong> H3는 util 50% 이상, DeepSeek는 40% 이상인 샘플만 모아 전력·온도 평균을 냈다. 로딩·유휴처럼 쉬는 구간을 빼기 위한 기준이다. 표에는 그 구간의 최솟값~최댓값도 적었다.</li>
+  <li><strong>성능:</strong> H3는 ComfyUI API로 한 번 생성한 wall time이다(시드·해상도·프레임 고정). DeepSeek는 워밍업 1회 뒤 256토큰 생성을 <strong>3번</strong> 돌린 뒤 decode tok/s의 <strong>중앙값</strong>을 썼고, 런별 값도 표에 넣었다.</li>
+  <li><strong>바꾸는 변수:</strong> 바꾼 것은 클럭 상한 on/off뿐이다. 워크로드·프롬프트·시드·양자화는 같다.</li>
 </ul>
 
 <pre><code># 전력 로거 핵심 (약 1Hz)
 nvidia-smi --query-gpu=power.draw,utilization.gpu,temperature.gpu \
   --format=csv,noheader,nounits</code></pre>
 
-<p class="note">한계: H3 생성 시간은 조건당 1회라 런-투-런 분산은 안 보인다. DeepSeek는 3회라 속도 쪽 신뢰는 더 낫다. 전력은 GPU 센서 기준이라 SoC 전체·보드 소비와는 다를 수 있다. 샘플 간격 ~1초라 수 ms 스파이크는 안 잡힌다.</p>
+<p class="note">한계도 있다. H3 생성 시간은 조건당 1회라 실행마다의 흔들림은 안 보인다. DeepSeek는 3회라 속도 쪽은 조금 더 안심할 수 있다. 전력은 GPU 센서 기준이라 보드 전체 소비와는 다를 수 있고, 샘플 간격이 약 1초라 수 ms 단위 스파이크는 놓친다.</p>
 
-<h3>3.1 MiniMax-H3 — 2000 on/off 비교 (워크플로 2종)</h3>
+<h3 id="h3-onoff">MiniMax-H3 · 2000 on/off 비교</h3>
 
-<p>여기서는 상한을 <strong>2000 vs 무제한</strong>만 바꿔, Turbo 8과 20step 두 워크플로를 나란히 본다. <strong>1400~무제한을 200MHz 간격으로 찍은 결과는 §3.5</strong>에 있다.</p>
+<p>상한을 <strong>2000과 무제한</strong>만 바꿔, Turbo 8과 20step 두 워크플로를 나란히 본다. 1400부터 무제한까지 200MHz 간격 스윕은 아래 <a href="#h3-sweep">H3 상한 스윕</a>에 있다.</p>
 
 <p>ComfyUI 헤드리스 생성 중 1초 샘플. 전력·온도는 util ≥ 50% 평균, 괄호는 그 구간 min~max.</p>
 
@@ -260,20 +290,20 @@ nvidia-smi --query-gpu=power.draw,utilization.gpu,temperature.gpu \
 <div class="bar"><div class="bl">Turbo8 끔</div><div class="bt"><div class="bf hi" style="width:85%"></div></div><div class="bv">97.7s</div></div>
 <div class="bar"><div class="bl">Turbo8 켬</div><div class="bt"><div class="bf" style="width:100%"></div></div><div class="bv">114.4s</div></div>
 
-<h3>3.2 해석 (H3)</h3>
+<h3 id="h3-read">H3 결과 해석</h3>
 
 <ul>
   <li><strong>전력:</strong> 상한을 켜면 부하 전력이 대략 <strong>절반</strong> (Turbo 8: 82.6→44.0W, −47%. 20 step: 87.0→51.2W, −41%). 시계열에서도 고원이 통째로 아래로 이동한다.</li>
   <li><strong>온도:</strong> 부하 평균 약 15~20°C 하락 (Turbo 8: 80.8→59.5°C).</li>
   <li><strong>시간:</strong> 총 시간 <strong>+9~17%</strong> (20 step +9.5%, Turbo 8 +17%). 클럭 −18%보다 시간 증가가 작다.</li>
-  <li><strong>워크플로:</strong> 이 장비에서는 20 step + TeaCache가 Turbo 8보다 빠르고, 상한 켠 상태에서도 89.7s &lt; Turbo 8 114s.</li>
+  <li><strong>워크플로:</strong> 이 장비에서는 20 step + TeaCache가 Turbo 8보다 빨랐다. 상한을 켠 상태에서도 89.7초로, Turbo 8의 114초보다 짧다.</li>
 </ul>
 
-<p>조건 고정: 해상도 864×480, 124프레임(~5.2초), 시드 1234, 동일 프롬프트, ComfyUI API 헤드리스. DiT pruned NVFP4, 텍스트 인코더 NVFP4, 비디오 VAE int8_convrot.</p>
+<p>조건은 해상도 864×480, 124프레임(약 5.2초), 시드 1234, 같은 프롬프트, ComfyUI API 헤드리스. DiT는 pruned NVFP4, 텍스트 인코더 NVFP4, 비디오 VAE int8_convrot.</p>
 
-<h3>3.3 DeepSeek-V4-Flash (1대 · 통합 메모리 121GB)</h3>
+<h3 id="ds-onoff">DeepSeek-V4-Flash · 1대 (통합 메모리 121GB)</h3>
 
-<p>DGX Spark / GX10 한 대에 올리는 Unsloth 레시피 기준 가중치다. Unsloth <code>UD-Q2_K_XL</code>(3 shard, 디스크 ~91GB). 네이티브 <code>llama-server</code> CUDA (<code>-ngl 999</code>, flash-attn, ctx 4096). 각 상한마다 워밍업 64토큰 1회 + 256토큰 3회. 전력은 util ≥ 40% 평균.</p>
+<p>GX10 한 대(통합 메모리 121GB)에 맞게 고른 Unsloth 양자화다. Unsloth <code>UD-Q2_K_XL</code>(3 shard, 디스크 ~91GB). 러너는 네이티브 <code>llama-server</code>(CUDA, <code>-ngl 999</code>, flash-attn, ctx 4096). 각 상한마다 워밍업 64토큰 한 번 뒤 256토큰 생성을 세 번. 전력은 util 40% 이상 구간의 평균.</p>
 
 <p class="tcap">표 1b. decode 요약 (3회 중앙값)</p>
 <table>
@@ -293,7 +323,7 @@ nvidia-smi --query-gpu=power.draw,utilization.gpu,temperature.gpu \
 </tbody>
 </table>
 
-<p class="note">3회 분산이 1% 미만이다. “한 번 찍힌 숫자”가 아니라, 같은 조건에서 반복해도 거의 같은 속도가 나온다. 상한 on/off 차이(−4.9%)는 그 분산보다 훨씬 크다.</p>
+<p class="note">세 번의 편차가 1% 미만이다. 우연한 한 점이 아니라, 같은 조건에서 거의 같은 속도가 나온다. 상한 on/off 차이(약 −4.9%)는 그 편차보다 훨씬 크다.</p>
 
 <p class="fcap">그림 3a. DeepSeek — 전력 (1Hz, 워밍업+3회)</p>
 <div class="d3-chart" data-chart="ds_ab_pwr" style="min-height:300px"></div>
@@ -315,12 +345,12 @@ nvidia-smi --query-gpu=power.draw,utilization.gpu,temperature.gpu \
   <li><strong>온도</strong> 58.6→49.8°C(약 −9°C).</li>
 </ul>
 
-<p>조건 고정: 동일 프롬프트, <code>n_predict=256</code>, temperature 0.6, top_p 0.95, <code>cache_prompt=false</code>. 모델 상주 시 통합 메모리 약 94GB.</p>
+<p>고정 조건: 동일 프롬프트, <code>n_predict=256</code>, temperature 0.6, top_p 0.95, <code>cache_prompt=false</code>. 모델 상주 시 통합 메모리 약 94GB.</p>
 
 
-<h3>3.4 클럭 상한 스윕 (1400 → 무제한, 200MHz 단위)</h3>
+<h3 id="ds-sweep">DeepSeek 상한 스윕 (1400 → 무제한, 200MHz)</h3>
 
-<p>DeepSeek-V4-Flash 동일 조건으로 상한만 바꿔 10점을 찍었다.
+<p>DeepSeek-V4-Flash만, 동일 조건으로 상한만 바꿔 10점을 찍었다.
 각 점: 워밍업 64토큰 + 256토큰 3회(중앙값). 1Hz CSV에 전력·util·GPU온도·SM클럭·팬·ACPI 온도를 남겼다.</p>
 
 <p class="note"><strong>팬 속도:</strong> 이 장비(GB10)에서 <code>nvidia-smi fan.speed</code>는 항상 <code>[N/A]</code>다.
@@ -365,12 +395,14 @@ hwmon 팬 노드·IPMI·PWM 칩도 없다. CSV <code>fan_pct</code> 컬럼은 �
 <div class="d3-chart" data-chart="ds_eff" style="min-height:300px"></div>
 <p class="note">효율만. 낮은 상한일수록 높다.</p>
 
-<p class="note">권장: 일상 기본값 <strong>2000</strong> 유지. 속도가 아쉬우면 2200~2400. 2600 이상은 DS 디코드 기준으로 이득이 없다. (H3 비디오 부하는 대역·스케줄이 달라 최적점이 다를 수 있다.)</p>
+<p class="note">정리하면, 일상 기본값은 <strong>2000</strong> 유지. 속도가 아쉬우면 2200~2400. 2600 이상은 DS 디코드 기준으로 이득이 없다. (H3 비디오 부하는 대역·스케줄이 달라 최적점이 다를 수 있다.)</p>
 
-<h3>3.5 MiniMax-H3 클럭 스윕 (1400 → 무제한, 200MHz)</h3>
+<h3 id="h3-sweep">MiniMax-H3 상한 스윕 (1400 → 무제한, 200MHz)</h3>
 
-<p>DeepSeek와 동일한 상한 점. 워크플로: NVFP4 DiT + Sage + TeaCache + VAE int8, 20 step, 864×480, 124f, 시드 점마다 고유.
-점당 1회 생성(조건당 약 95~125초). 1Hz로 전력·온도·SM·팬 기록(팬은 N/A).</p>
+<p>DeepSeek 스윕과 같은 상한 점이다:
+<code>1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 무제한</code>.
+워크플로는 이전에 가장 빨랐던 스택 하나(NVFP4 DiT + Sage + TeaCache + VAE int8, 20 step, 864×480, 124프레임). 시드는 상한마다 다르게 잡았다.
+상한마다 생성 한 번(약 95~125초). 1초 간격으로 전력·온도·SM을 기록했다(팬은 N/A).</p>
 
 <p class="tcap">표 1e. H3 상한 스윕 (util≥50% 부하 평균, 2026-08-10)</p>
 <table>
@@ -400,14 +432,14 @@ hwmon 팬 노드·IPMI·PWM 칩도 없다. CSV <code>fan_pct</code> 컬럼은 �
 <p class="note">온도만 4선.</p>
 
 <ul>
-  <li><strong>시간:</strong> 1400=125s → 2000=103s → 2200=97s → 2400 이후 <strong>~95–97s로 정체</strong>. 풀클럭 대비 2000은 약 +7%.</li>
+  <li><strong>시간:</strong> 1400=125s → 2000=103s → 2200=97s → 2400 이후 <strong>~95–97s로 정체</strong>. 무제한 대비 2000MHz는 약 7% 더 걸린다.</li>
   <li><strong>전력:</strong> 1400=28W → 2000=50W → 2400=83W → 2600+ ≈86W. DS와 달리 2400까지 전력이 크게 오른다.</li>
   <li><strong>온도:</strong> 52°C(1400) → 66°C(2000) → 80°C(2400) → 84°C(무제한).</li>
   <li><strong>클럭 천장:</strong> 2400 이상에서도 SM 실측은 ~2340–2360MHz 근처(H3 부하). 상한 2800·3000·무제한은 사실상 동일 성능·유사 전력.</li>
-  <li><strong>권장 (H3):</strong> 속도 우선이면 <strong>2200</strong>(97s · 65W · 73°C). 균형은 <strong>2000</strong>(103s · 50W · 66°C). 2400+는 시간 이득이 거의 없고 전력·온도만 악화.</li>
+  <li><strong>권장 :</strong> 속도를 더 쓰고 싶으면 <strong>2200</strong>(97s · 65W · 73°C). 균형은 <strong>2000</strong>(103s · 50W · 66°C). 2400 이상은 시간 이득이 거의 없고 전력·온도만 올라간다.</li>
 </ul>
 
-<h2>4. 일상 운용</h2>
+<h2 id="daily">일상 운용</h2>
 
 <p class="tcap">표 2. 조작 명령</p>
 <table>
@@ -432,84 +464,48 @@ hwmon 팬 노드·IPMI·PWM 칩도 없다. CSV <code>fan_pct</code> 컬럼은 �
 </tbody>
 </table>
 
-<h2>5. 헷갈리지 말 것: 저클럭 고착 버그는 별개다</h2>
+<h2 id="next">다음에 할 일</h2>
+<ul>
+<li><strong>USB-C 펌웨어 업데이트</strong>: 다음 재부팅 때 <code>fwupdmgr update</code> (PD 버그 예방).</li>
+<li><strong>H3 Turbo 8 격자</strong>: 지금은 20step 스택만 200MHz 간격으로 측정했다. Turbo 8도 같은 격자로 찍으면 비교가 더 분명해진다.</li>
+</ul>
 
-<p>GB10 계열 여러 제조사에서 반복 보고되는 펌웨어 버그가 있다. 어느 날 갑자기 최대 부하인데도 클럭이 400~950MHz에 고정되고, 전력은 10W 근처로 떨어지며 성능이 1/3~1/5로 내려간다. 스로틀 플래그(thermal/power slowdown)는 전부 Not Active라 원인이 안 보인다. USB-C PD(전원) 컨트롤러 펌웨어의 전원 협상 오류로, SoC가 전력 부족으로 오인해 스스로 클럭을 묶는 경우다.</p>
 
-<p>우리가 거는 상한과는 발생도 해제도 무관하다. 부하시 클럭 숫자 하나로 구분한다:</p>
+<h2 id="appendix">부록 · PD 저클럭 고착 버그</h2>
 
-<p class="tcap">표 4. 성능이 떨어졌을 때 판별</p>
+<p>앞에서 말한 클럭 상한과는 별개 이야기다. 성능이 갑자기 이상하게 떨어졌을 때만 보면 된다.</p>
+
+<p>GB10 계열에서 가끔 보고되는 펌웨어 쪽 현상이다. 최대 부하인데도 클럭이 400~950MHz에 붙고, 전력은 10W 근처, 성능은 1/3~1/5로 내려간다. thermal/power slowdown 플래그는 전부 Not Active라 스로틀로 오해하기 쉽다. USB-C PD 컨트롤러가 전력 협상을 잘못해 SoC가 스스로 클럭을 묶는 경우로 알려져 있다.</p>
+
+<p>우리가 건 상한(~1969MHz)과 구분한다. 부하 중 SM 클럭이 400~950이면 이 버그 쪽을 의심하고, ~1970 안팎이면 상한이 정상 동작 중이다.</p>
+
+<p class="tcap">부하 중 클럭으로 구분</p>
 <table>
 <thead><tr><th>부하 중 클럭</th><th>진단</th><th>조치</th></tr></thead>
 <tbody>
-<tr><td>~1989MHz</td><td>우리가 건 상한 (정상)</td><td>필요하면 <code>systemctl stop gpu-clock-cap</code></td></tr>
-<tr><td>400~950MHz 고정</td><td><strong>PD 버그</strong></td><td>아래 절차. 재부팅·<code>-rgc</code>로는 안 풀림</td></tr>
+<tr><td>~1970MHz 안팎</td><td>클럭 상한 정상</td><td>필요하면 <code>systemctl stop gpu-clock-cap</code></td></tr>
+<tr><td>400~950MHz 고정</td><td>PD 고착 가능</td><td>아래 절차. 재부팅·<code>-rgc</code>만으로는 안 풀리는 경우가 많다</td></tr>
 </tbody>
 </table>
 
-<p class="fcap">그림 2. PD 버그 해제 절차 (커뮤니티 표준, 재부팅만으로는 안 됨)</p>
+<p class="fcap">해제 절차 (커뮤니티에서 반복 확인)</p>
 <div class="flow">
 <div class="b">종료</div><div class="a">→</div>
 <div class="b">전원 케이블 뽑기</div><div class="a">→</div>
-<div class="b">전원 버튼 눌러 방전</div><div class="a">→</div>
+<div class="b">전원 버튼으로 방전</div><div class="a">→</div>
 <div class="b">1분 대기</div><div class="a">→</div>
 <div class="b out">재연결·부팅</div>
 </div>
 
-<p>PD 컨트롤러는 재부팅해도 전원이 유지되어 상태가 남는다. 그래서 완전 차단이 필요하다. 예방은 PD/UEFI 펌웨어 최신화다. 이 장비에는 8/9 기준 <code>fwupdmgr</code>에 USB-C 관련 업데이트 1건이 대기 중인데(SBU mux, EXIT_DP_MODE 수정), 재부팅이 필요해서 아직 적용하지 않았다.</p>
+<p>PD 컨트롤러는 재부팅만으로 전원이 안 끊기는 경우가 있어, 케이블을 뽑는 완전 차단이 필요하다. 예방은 PD/UEFI 펌웨어를 최신으로 두는 것이다. 이 장비에는 당시 기준 <code>fwupdmgr</code>에 USB-C 관련 업데이트가 대기 중이었고, 재부팅이 필요해 아직 안 넣었다.</p>
 
-<h3>커뮤니티 1차 소스 (PD 버그·복구)</h3>
-
-<p>저클럭 고착은 여러 OEM에서 같은 패턴으로 보고됐다. 원문 일부를 그대로 둔다.</p>
-
+<h3 id="appendix-sources">관련 커뮤니티 글</h3>
+<p>원문과 AI 번역.</p>
 <div class="tweet-grid">
 <article class="tweet">
   <div class="tweet-hd">
     <div class="tweet-av tweet-av-fallback" aria-hidden="true">T</div>
-    <div class="tweet-who">
-      <span class="tweet-name">Thanh Pham</span>
-      <span class="tweet-handle">@runsonai</span>
-    </div>
-    <span class="tweet-x" aria-hidden="true">𝕏</span>
-  </div>
-  <p class="tweet-body">Root cause: the GX10 USB-C PD firmware (0x00000001) has a known high-urgency update to 0x00000507. A reboot + nvidia-smi -lgc 300,2100 to cap the clock range (not lock it) was enough to recover. GPU hit 2086 MHz @ 67 W under load.</p>
-  <p class="tweet-tr"><span class="tr-label">한국어 · AI 번역</span>원인: GX10 USB-C PD 펌웨어(0x00000001)에 긴급 업데이트(0x00000507)가 있다. 재부팅 후 nvidia-smi -lgc 300,2100으로 클럭 범위 상한만 걸면(고정 잠금이 아님) 복구됐다. 부하 중 GPU 2086MHz @ 67W.</p>
-  <div class="tweet-meta"><span>2026-05-05</span><span>조회 1978</span><span>♥ 5</span><a href="https://x.com/runsonai/status/2051757564019212657" rel="noopener">X에서 보기 ↗</a></div>
-</article>
-<article class="tweet">
-  <div class="tweet-hd">
-    <div class="tweet-av tweet-av-fallback" aria-hidden="true">H</div>
-    <div class="tweet-who">
-      <span class="tweet-name">Hiroaki Nakamura</span>
-      <span class="tweet-handle">@hnakamur2</span>
-    </div>
-    <span class="tweet-x" aria-hidden="true">𝕏</span>
-  </div>
-  <p class="tweet-body">nvidia-smi を流しながらベンチマークを実行するとクロックが400MHz程度に下がっていました。
-電源切って電源ケーブル挿しなおしたら治りました。
-治った後はベンチマーク中は2411～2502 MHzになっていました。</p>
-  <p class="tweet-tr"><span class="tr-label">한국어 · AI 번역</span>nvidia-smi를 돌리며 벤치마크를 하니 클럭이 400MHz 근처로 내려가 있었다.
-전원을 끄고 전원 케이블을 다시 꽂으니 나았다.
-고친 뒤에는 벤치 중 2411~2502MHz였다.</p>
-  <div class="tweet-meta"><span>2026-08-09</span><span>조회 152</span><span>♥ 0</span><a href="https://x.com/hnakamur2/status/2086253048050159846" rel="noopener">X에서 보기 ↗</a></div>
-</article>
-<article class="tweet">
-  <div class="tweet-hd">
-    <div class="tweet-av tweet-av-fallback" aria-hidden="true">M</div>
-    <div class="tweet-who">
-      <span class="tweet-name">Mike Hutu</span>
-      <span class="tweet-handle">@MichaelHutu</span>
-    </div>
-    <span class="tweet-x" aria-hidden="true">𝕏</span>
-  </div>
-  <p class="tweet-body">The DGX Sparks (at least the Asus gx10) goes in to a safe state sometimes…
-I tried manually tweak the clock and power mode, but it still keeps it in the safe low power state. For now, the only method to clear the state is the 1m power break.</p>
-  <p class="tweet-tr"><span class="tr-label">한국어 · AI 번역</span>DGX Spark(적어도 ASUS GX10)가 가끔 안전 모드(세이프 상태)로 들어간다…
-클럭·전원 모드를 손으로 바꿔 봤지만 저전력 안전 상태가 유지된다. 지금으로서는 상태를 지우는 유일한 방법은 1분 전원 차단이다.</p>
-  <div class="tweet-meta"><span>2026-07-27</span><span>조회 63</span><span>♥ 0</span><a href="https://x.com/MichaelHutu/status/2081721593206546789" rel="noopener">X에서 보기 ↗</a></div>
-</article>
-</div>
-
+    
 <details><summary>링크만 모으기</summary>
 <ul>
 <li><a href="https://x.com/runsonai/status/2051757564019212657">@runsonai — PD FW + -lgc 복구</a></li>
@@ -521,19 +517,12 @@ I tried manually tweak the clock and power mode, but it still keeps it in the sa
 </ul>
 </details>
 
-<h2>6. 남은 것</h2>
-<ul>
-<li><strong>USB-C 펌웨어 업데이트</strong>: 다음 재부팅 때 <code>fwupdmgr update</code> (PD 버그 예방).</li>
-<li><strong>H3 Turbo 스택 스윕</strong>: 지금은 20step 챔피언 스택만 다구간 측정. Turbo 8도 같은 격자면 더 확실하다.</li>
-</ul>
-
 <p style="color:var(--soft);font-size:.84rem;margin-top:2.5rem">
 작성 2026-08-10 · H3·DeepSeek 전력·성능 실측 2026-08-10 (GB10 / DGX Spark, UEFI GX10DGX.0105, 드라이버 580.173.02) ·
 <a href="https://nacyot.github.io/artifacts/">nacyot / artifacts</a>
 </p>
 
 </div>
-
 
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 <script>
