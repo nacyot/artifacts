@@ -309,9 +309,9 @@ nvidia-smi --query-gpu=power.draw,utilization.gpu,temperature.gpu \
 
 <p>조건 고정: 해상도 864×480, 124프레임(~5.2초), 시드 1234, 동일 프롬프트, ComfyUI API 헤드리스. DiT pruned NVFP4, 텍스트 인코더 NVFP4, 비디오 VAE int8_convrot.</p>
 
-<h3>3.3 DeepSeek-V4-Flash (단대 121GB)</h3>
+<h3>3.3 DeepSeek-V4-Flash (1대 · 통합 메모리 121GB)</h3>
 
-<p>Unsloth <code>UD-Q2_K_XL</code>(3 shard, 디스크 ~91GB). 네이티브 <code>llama-server</code> CUDA (<code>-ngl 999</code>, flash-attn, ctx 4096). 각 상한마다 워밍업 64토큰 1회 + 256토큰 3회. 전력은 util ≥ 40% 평균.</p>
+<p>DGX Spark / GX10 한 대에 올리는 Unsloth 레시피 기준 가중치다. Unsloth <code>UD-Q2_K_XL</code>(3 shard, 디스크 ~91GB). 네이티브 <code>llama-server</code> CUDA (<code>-ngl 999</code>, flash-attn, ctx 4096). 각 상한마다 워밍업 64토큰 1회 + 256토큰 3회. 전력은 util ≥ 40% 평균.</p>
 
 <p class="tcap">표 1b. decode 요약 (3회 중앙값)</p>
 <table>
