@@ -1,20 +1,20 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="GB10에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc 클럭 상한으로 H3 전력 −47%·시간 +9~17%, DeepSeek-V4-Flash 전력 −49%·decode −5% 실측. systemd 영구 적용과 PD 저클럭 고착 버그 구분법.">
+<meta name="description" content="GB10(DGX Spark 제품군)에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc로 클럭 상한을 거는 방법과 MiniMax-H3·DeepSeek 실측 결과.">
 <link rel="canonical" href="https://nacyot.github.io/artifacts/gb10-gpu-clock-cap/">
 <link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="nacyot / artifacts">
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://nacyot.github.io/artifacts/gb10-gpu-clock-cap/">
-<meta property="og:title" content="GB10 전력 상한 거는 법">
-<meta property="og:description" content="GB10에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc 클럭 상한으로 H3 전력 −47%·시간 +9~17%, DeepSeek-V4-Flash 전력 −49%·decode −5% 실측. systemd 영구 적용과 PD 저클럭 고착 버그 구분법.">
+<meta property="og:title" content="DGX Spark(GB10 제품군) 클럭 제한 설정하는 방법">
+<meta property="og:description" content="GB10(DGX Spark 제품군)에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc로 클럭 상한을 거는 방법과 MiniMax-H3·DeepSeek 실측 결과.">
 <meta property="og:image" content="https://nacyot.github.io/artifacts/og.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="GB10 전력 상한 거는 법">
-<meta name="twitter:description" content="GB10에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc 클럭 상한으로 H3 전력 −47%·시간 +9~17%, DeepSeek-V4-Flash 전력 −49%·decode −5% 실측. systemd 영구 적용과 PD 저클럭 고착 버그 구분법.">
+<meta name="twitter:title" content="DGX Spark(GB10 제품군) 클럭 제한 설정하는 방법">
+<meta name="twitter:description" content="GB10(DGX Spark 제품군)에는 와트 전력 한도(-pl)가 없다. nvidia-smi -lgc로 클럭 상한을 거는 방법과 MiniMax-H3·DeepSeek 실측 결과.">
 <meta name="twitter:image" content="https://nacyot.github.io/artifacts/og.png">
-<title>GB10 전력 상한 거는 법</title>
+<title>DGX Spark(GB10 제품군) 클럭 제한 설정하는 방법</title>
 <style>
   :root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--barbg:#eceae2;--bar:#cbc9bf;--bar-hi:#4a4a46;--box:#f3f2ec}
   *{box-sizing:border-box}
@@ -95,14 +95,15 @@
 
 <p class="crumb"><a href="https://nacyot.github.io/artifacts/">← nacyot / artifacts</a></p>
 
-<h1>GB10 전력 상한 거는 법</h1>
+<h1>DGX Spark(GB10 제품군) 클럭 제한 설정하는 방법</h1>
 
 <p class="lead">
-GB10에는 와트 단위 전력 한도(<code>nvidia-smi -pl</code>)가 없다. 쓸 수 있는 손잡이는 <code>nvidia-smi -lgc</code> 클럭 상한뿐이다.
-이 장비(ASUS Ascent GX10)에는 300~2000MHz 상한을 systemd로 걸어 두었고, 재부팅 후에도 유지된다.
+DGX Spark 계열(GB10 SoC)에는 와트 단위 전력 한도(<code>nvidia-smi -pl</code>)를 걸 수 없다.
+대신 <code>nvidia-smi -lgc</code>로 <strong>GPU 클럭 상한</strong>을 지정하는 방식이 사실상 표준이다.
+ASUS Ascent GX10에는 300~2000MHz 상한을 systemd 서비스로 걸어 두었고, 재부팅 후에도 유지된다.
 MiniMax-H3에서는 부하 전력이 대략 <strong>83W → 44W(−47%)</strong>로 줄고 생성 시간은 <strong>9~17% 늘어났다</strong>.
 DeepSeek-V4-Flash(UD-Q2_K_XL)에서는 부하 전력 <strong>약 43W → 22W(−49%)</strong>, decode 속도는 <strong>약 5% 느려졌다</strong>.
-아래는 거는 법, 측정 방법, 워크로드별 실측, 상한 격자 스윕, 일상 운용이다.
+아래에서 설정 방법, 측정 방법, 워크로드별 실측, 상한 스윕, 일상 운용을 정리한다.
 </p>
 
 
@@ -110,10 +111,10 @@ DeepSeek-V4-Flash(UD-Q2_K_XL)에서는 부하 전력 <strong>약 43W → 22W(−
 <p class="toc-title">목차</p>
 <ol>
   <li><a href="#why-clock">왜 와트가 아니라 클럭인가</a></li>
-  <li><a href="#how-to">거는 법</a></li>
+  <li><a href="#how-to">클럭 제한 설정하는 법</a></li>
   <li><a href="#bench">실측: 전력·온도·성능</a>
     <ul class="toc-sub">
-      <li><a href="#method">어떻게 쟀나</a></li>
+      <li><a href="#method">측정 방법</a></li>
       <li><a href="#h3-onoff">MiniMax-H3 · 2000 on/off</a></li>
       <li><a href="#ds-onoff">DeepSeek-V4-Flash · 2000 on/off</a></li>
       <li><a href="#ds-sweep">DeepSeek 상한 스윕 (200MHz 간격)</a></li>
@@ -121,7 +122,9 @@ DeepSeek-V4-Flash(UD-Q2_K_XL)에서는 부하 전력 <strong>약 43W → 22W(−
     </ul>
   </li>
   <li><a href="#daily">일상 운용</a></li>
+  <li><a href="#next">다음에 할 일</a></li>
   <li><a href="#appendix">부록 · PD 저클럭 고착 버그</a></li>
+  <li><a href="#sources">출처</a></li>
 </ol>
 </nav>
 
@@ -135,7 +138,7 @@ DeepSeek-V4-Flash(UD-Q2_K_XL)에서는 부하 전력 <strong>약 43W → 22W(−
   <li>X 커뮤니티 조사(2025-10~2026-08)에서도 GB10 계열에서 <code>-pl</code> 성공 사례는 없었다. 전력은 SoC 펌웨어가 관리한다(SoC TDP 약 140W, PSU 240W, 실제 추론 부하에서는 50~160W 관측).</li>
 </ul>
 
-<p>대신 클럭 상한을 걸면 전압도 같이 내려간다. 전력은 대략 전압²×클럭에 비례하므로, 와트 제한보다 효과가 더 크게 나오는 경우가 많다. 커뮤니티에서 여름 운용 표준으로 쓰는 것도 <code>-lgc</code>다. 커뮤니티에서 자주 거론되는 글 몇 개다.</p>
+<p>대신 클럭 상한을 걸면 전압도 같이 내려간다. 전력은 대략 전압²×클럭에 비례하므로, 와트 제한보다 효과가 더 크게 나오는 경우가 많다. 커뮤니티에서도 여름 운용 때 흔히 쓰는 방법이 <code>-lgc</code>다. 참고할 만한 커뮤니티 글이다.</p>
 
 <div class="tweet-grid">
 <article class="tweet">
@@ -195,16 +198,16 @@ DSpark 버전 등장을 기대한다.</p>
 
 <p class="note">Carmack 관측은 “정격 240W의 절반 근처에서 막힌다”는 SoC 전력 상한 논의의 출발점이다. 와트 한도 API가 없는 것과는 별개로, 보드가 실제로 그리는 전력이 스펙 라벨보다 낮다는 현장 보고다.</p>
 
-<h2 id="how-to">거는 법</h2>
+<h2 id="how-to">클럭 제한 설정하는 법</h2>
 
-<h3>일회성 (재부팅하면 풀림)</h3>
+<h3>한 번만 적용 (재부팅하면 풀림)</h3>
 
-<pre><code>sudo nvidia-smi -lgc 300,2000   # 상한 2000MHz (하한 300은 idle용 — 낮게 둬야 유휴 전력 절약)
+<pre><code>sudo nvidia-smi -lgc 300,2000   # 상한 2000MHz (하한 300MHz는 유휴용. 낮게 두는 편이 유휴 전력에 유리하다)
 sudo nvidia-smi -rgc            # 즉시 해제</code></pre>
 
-<p>지정값은 내부 단계로 맞춰진다. 2000을 넣으면 실측으로는 약 1989MHz에 붙었다. 지원 클럭 표는 조회가 안 된다(<code>SUPPORTED_CLOCKS</code>도 N/A). 적용 뒤에는 부하 중 <code>clocks.current.sm</code>을 읽어 확인하면 된다.</p>
+<p>지정한 값은 내부 클럭 단계에 맞춰 반올림된다. 2000을 넣으면 실측으로는 약 1989MHz에 붙었다. 지원 클럭 표는 조회가 안 된다(<code>SUPPORTED_CLOCKS</code>도 N/A). 적용한 뒤에는 부하 중 <code>clocks.current.sm</code>을 보면 실제 클럭을 확인할 수 있다.</p>
 
-<h3>재부팅 후에도 유지</h3>
+<h3>재부팅 후에도 유지되게</h3>
 
 <p><code>/etc/systemd/system/gpu-clock-cap.service</code>:</p>
 
@@ -227,21 +230,21 @@ WantedBy=multi-user.target</code></pre>
 <pre><code>sudo systemctl daemon-reload
 sudo systemctl enable --now gpu-clock-cap.service</code></pre>
 
-<p><code>ExecStop</code>에 해제 명령을 넣어 두면 <code>systemctl stop</code>이 곧 상한 해제가 된다. 유닛을 켜고 끄는 것과 클럭 상태가 같이 움직인다.</p>
+<p><code>ExecStop</code>에 해제 명령을 넣어 두면 <code>systemctl stop</code>이 곧 상한 해제가 된다. 서비스를 켜고 끄면 클럭 제한도 같이 켜지고 꺼진다.</p>
 
 <h2 id="bench">실측: 전력·온도·성능</h2>
 
 <p>장비는 ASUS Ascent GX10(GB10), 통합 메모리 121GB, 드라이버 580.173.02. 클럭 상한은 systemd로 <code>300,2000</code>(실측 약 1969MHz). 상한을 끄면 부하 중 SM은 대략 2400~2500MHz대다.</p>
 
-<h3 id="method">어떻게 쟀나</h3>
+<h3 id="method">측정 방법</h3>
 
-<p>표에 적힌 값은 한 번 찍은 순간값이 아니다. 벤치 동안 <strong>1초마다</strong> 샘플을 남기고, GPU 이용률이 높은 구간만 골라 평균냈다.</p>
+<p>표의 숫자는 한 순간만 찍은 값이 아니다. 벤치 동안 <strong>1초마다</strong> 샘플을 남긴 뒤, GPU 이용률이 높은 구간만 골라 평균냈다.</p>
 
 <ul>
   <li><strong>샘플러:</strong> 약 1초마다 <code>nvidia-smi</code>로 전력·이용률·GPU 온도·SM 클럭·팬 값을 CSV에 남겼다. 벽면 전력계가 아니라 드라이버가 보고하는 <strong>GPU 패키지 전력</strong>이다. 팬 속도는 GB10에서 <code>[N/A]</code>라 비어 있고, 대신 ACPI 온도(<code>acpitz</code> 최댓값)를 같이 기록했다.</li>
   <li><strong>부하 구간:</strong> H3는 util 50% 이상, DeepSeek는 40% 이상인 샘플만 모아 전력·온도 평균을 냈다. 로딩·유휴처럼 쉬는 구간을 빼기 위한 기준이다. 표에는 그 구간의 최솟값~최댓값도 적었다.</li>
   <li><strong>성능:</strong> H3는 ComfyUI API로 한 번 생성한 wall time이다(시드·해상도·프레임 고정). DeepSeek는 워밍업 1회 뒤 256토큰 생성을 <strong>3번</strong> 돌린 뒤 decode tok/s의 <strong>중앙값</strong>을 썼고, 런별 값도 표에 넣었다.</li>
-  <li><strong>바꾸는 변수:</strong> 바꾼 것은 클럭 상한 on/off뿐이다. 워크로드·프롬프트·시드·양자화는 같다.</li>
+  <li><strong>바꾸는 변수:</strong> 바꾼 변수는 클럭 상한 on/off뿐이다. 워크로드·프롬프트·시드·양자화는 같다.</li>
 </ul>
 
 <pre><code># 전력 로거 핵심 (약 1Hz)
@@ -303,7 +306,7 @@ nvidia-smi --query-gpu=power.draw,utilization.gpu,temperature.gpu \
 
 <h3 id="ds-onoff">DeepSeek-V4-Flash · 1대 (통합 메모리 121GB)</h3>
 
-<p>GX10 한 대(통합 메모리 121GB)에 맞게 고른 Unsloth 양자화다. Unsloth <code>UD-Q2_K_XL</code>(3 shard, 디스크 ~91GB). 러너는 네이티브 <code>llama-server</code>(CUDA, <code>-ngl 999</code>, flash-attn, ctx 4096). 각 상한마다 워밍업 64토큰 한 번 뒤 256토큰 생성을 세 번. 전력은 util 40% 이상 구간의 평균.</p>
+<p>GX10 한 대(통합 메모리 121GB)에서 돌아가도록 고른 Unsloth 양자화다. Unsloth <code>UD-Q2_K_XL</code>(3 shard, 디스크 ~91GB). 러너는 네이티브 <code>llama-server</code>(CUDA, <code>-ngl 999</code>, flash-attn, ctx 4096). 각 상한마다 워밍업 64토큰 한 번 뒤 256토큰 생성을 세 번. 전력은 util 40% 이상 구간의 평균.</p>
 
 <p class="tcap">표 1b. decode 요약 (3회 중앙값)</p>
 <table>
@@ -473,11 +476,11 @@ hwmon 팬 노드·IPMI·PWM 칩도 없다. CSV <code>fan_pct</code> 컬럼은 �
 
 <h2 id="appendix">부록 · PD 저클럭 고착 버그</h2>
 
-<p>앞에서 말한 클럭 상한과는 별개 이야기다. 성능이 갑자기 이상하게 떨어졌을 때만 보면 된다.</p>
+<p>앞에서 다룬 클럭 제한 설정과는 별개다. 성능이 갑자기 이상하게 떨어졌을 때만 보면 된다.</p>
 
 <p>GB10 계열에서 가끔 보고되는 펌웨어 쪽 현상이다. 최대 부하인데도 클럭이 400~950MHz에 붙고, 전력은 10W 근처, 성능은 1/3~1/5로 내려간다. thermal/power slowdown 플래그는 전부 Not Active라 스로틀로 오해하기 쉽다. USB-C PD 컨트롤러가 전력 협상을 잘못해 SoC가 스스로 클럭을 묶는 경우로 알려져 있다.</p>
 
-<p>우리가 건 상한(~1969MHz)과 구분한다. 부하 중 SM 클럭이 400~950이면 이 버그 쪽을 의심하고, ~1970 안팎이면 상한이 정상 동작 중이다.</p>
+<p>의도적으로 건 상한(약 1969MHz)과 구분한다. 부하 중 SM 클럭이 400~950MHz면 이 버그를 의심하고, 1970MHz 안팎이면 설정한 상한이 정상 동작 중인 것이다.</p>
 
 <p class="tcap">부하 중 클럭으로 구분</p>
 <table>
@@ -497,25 +500,33 @@ hwmon 팬 노드·IPMI·PWM 칩도 없다. CSV <code>fan_pct</code> 컬럼은 �
 <div class="b out">재연결·부팅</div>
 </div>
 
-<p>PD 컨트롤러는 재부팅만으로 전원이 안 끊기는 경우가 있어, 케이블을 뽑는 완전 차단이 필요하다. 예방은 PD/UEFI 펌웨어를 최신으로 두는 것이다. 이 장비에는 당시 기준 <code>fwupdmgr</code>에 USB-C 관련 업데이트가 대기 중이었고, 재부팅이 필요해 아직 안 넣었다.</p>
+<p>PD 컨트롤러는 재부팅만으로 전원이 안 끊기는 경우가 있어, 전원 케이블을 뽑는 쪽이 확실하다. 예방은 PD/UEFI 펌웨어를 최신으로 두는 것이다. 이 장비에는 당시 <code>fwupdmgr</code>에 USB-C 관련 업데이트가 대기 중이었고, 재부팅이 필요해서 아직 적용하지 않았다.</p>
 
-<h3 id="appendix-sources">관련 커뮤니티 글</h3>
-<p>원문과 AI 번역.</p>
+<h3>관련 글 (원문·AI 번역)</h3>
+<p>부록 본문에서 인용한 트윗이다. 원문 아래 회색 상자는 AI 번역이다.</p>
 <div class="tweet-grid">
 <article class="tweet">
   <div class="tweet-hd">
     <div class="tweet-av tweet-av-fallback" aria-hidden="true">T</div>
     
-<details><summary>링크만 모으기</summary>
+
+<h2 id="sources">출처</h2>
+
+<p>본문과 부록에서 인용한 글의 URL이다. 트윗 전문·번역은 부록 카드에 있고, 아래는 목록이다.</p>
+
+<p class="tcap">클럭 제한·전력</p>
 <ul>
-<li><a href="https://x.com/runsonai/status/2051757564019212657">@runsonai — PD FW + -lgc 복구</a></li>
-<li><a href="https://x.com/hnakamur2/status/2086253048050159846">@hnakamur2 — 400MHz → 전원 재연결</a></li>
-<li><a href="https://x.com/MichaelHutu/status/2081721593206546789">@MichaelHutu — 1분 전원 차단</a></li>
-<li><a href="https://x.com/hagihagi/status/2060565048104509695">@hagihagi — 2500/1500 여름 운용</a></li>
-<li><a href="https://x.com/limegreenpeper1/status/2083232756809818181">@limegreenpeper1 — 2100MHz·70°C</a></li>
-<li><a href="https://x.com/ID_AA_Carmack/status/1982831774850748825">@ID_AA_Carmack — ~100W 캡 관측</a></li>
+<li><a href="https://x.com/hagihagi/status/2060565048104509695">@hagihagi</a> — 여름 클럭 제한 운용 (2500 / 1500)</li>
+<li><a href="https://x.com/limegreenpeper1/status/2083232756809818181">@limegreenpeper1</a> — 2100MHz 제한, 약 70°C</li>
+<li><a href="https://x.com/ID_AA_Carmack/status/1982831774850748825">@ID_AA_Carmack</a> — DGX Spark 전력·성능 관측 (~100W)</li>
 </ul>
-</details>
+
+<p class="tcap">PD 저클럭 고착</p>
+<ul>
+<li><a href="https://x.com/runsonai/status/2051757564019212657">@runsonai</a> — GX10 PD 펌웨어 + <code>-lgc 300,2100</code> 복구</li>
+<li><a href="https://x.com/hnakamur2/status/2086253048050159846">@hnakamur2</a> — 400MHz 고착, 전원 케이블 재연결</li>
+<li><a href="https://x.com/MichaelHutu/status/2081721593206546789">@MichaelHutu</a> — 1분 전원 차단으로만 해제</li>
+</ul>
 
 <p style="color:var(--soft);font-size:.84rem;margin-top:2.5rem">
 작성 2026-08-10 · H3·DeepSeek 전력·성능 실측 2026-08-10 (GB10 / DGX Spark, UEFI GX10DGX.0105, 드라이버 580.173.02) ·
