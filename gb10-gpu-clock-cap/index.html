@@ -50,6 +50,10 @@
   details{margin:1rem 0;border-top:1px solid var(--rule);padding-top:.7rem}
   summary{cursor:pointer;font-weight:700;list-style:none} summary::before{content:"▸ ";color:var(--faint)}
   details[open] summary::before{content:"▾ "}
+
+  .chart{width:100%;height:auto;display:block;margin:.4rem 0 1.1rem;border:1px solid var(--rule);border-radius:4px}
+  .note{font-size:.88rem;color:var(--soft);border-left:2px solid var(--rule);padding:.15rem 0 .15rem .85rem;margin:.6rem 0 1.1rem}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.82em}
   @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.2rem 5rem}
     .bar{grid-template-columns:1fr auto}.bar .bl{text-align:left;grid-column:1/-1}}
 </style></head><body><div class="doc">
@@ -114,26 +118,56 @@ sudo systemctl enable --now gpu-clock-cap.service</code></pre>
 
 <h2>3. 실측: 전력·온도·생성 시간</h2>
 
-<p>장비는 ASUS Ascent GX10(GB10), 통합 메모리 121GB, 드라이버 580.173.02. 클럭 상한은 systemd 유닛으로 <code>300,2000</code>(실측 안착 ~1969MHz). 제한 없음일 때 부하 중 SM 클럭은 ~2400MHz대.</p>
+<p>장비는 ASUS Ascent GX10(GB10), 통합 메모리 121GB, 드라이버 580.173.02. 클럭 상한은 systemd 유닛으로 <code>300,2000</code>(실측 안착 ~1969MHz). 제한 없음일 때 부하 중 SM 클럭은 ~2400~2500MHz대.</p>
 
-<h3>3.1 전력·온도 (부하 구간)</h3>
+<h3>3.0 어떻게 쟀나</h3>
 
-<p>ComfyUI로 MiniMax-H3를 돌리는 동안 1초 간격으로 샘플링했다. 아래 전력·온도는 GPU util ≥ 50% 구간의 평균이다.</p>
+<p>표의 “숫자 하나”만 보면 한 번의 우연처럼 보일 수 있다. 실제로는 <strong>1초 간격 시계열</strong>을 남기고, 그중에서 부하 구간만 평균냈다.</p>
 
-<p class="tcap">표 1. MiniMax-H3 생성 중 전력·온도 (2026-08-10, util≥50% 평균)</p>
+<ul>
+  <li><strong>샘플러:</strong> 벤치 동안 백그라운드로 <code>nvidia-smi</code>를 약 1초마다 읽어 CSV에 기록 (<code>t_rel_s, gpu_power_w, gpu_util, gpu_temp_c</code>). GPU 패키지 전력·이용률·온도다. 벽면 전력계(wall power)가 아니라 <strong>드라이버가 보고하는 GPU 레일 전력</strong>이다.</li>
+  <li><strong>부하 구간:</strong> H3는 util ≥ 50%, DeepSeek는 util ≥ 40%인 샘플만 모아 전력·온도 평균. 로딩·유휴·디코드 사이의 골을 빼기 위한 기준이다. 표에 min~max도 같이 적는다.</li>
+  <li><strong>성능:</strong> H3는 ComfyUI API 한 번의 생성 wall time(동일 시드·해상도·프레임). DeepSeek는 워밍업 1회 뒤 256토큰 생성 <strong>3회</strong>의 decode tok/s <strong>중앙값</strong> (런별 값도 표로 공개).</li>
+  <li><strong>바꾸는 변수:</strong> 클럭 상한 on/off만. 워크로드·프롬프트·시드·양자화는 고정.</li>
+</ul>
+
+<pre><code># 전력 로거 핵심 (약 1Hz)
+nvidia-smi --query-gpu=power.draw,utilization.gpu,temperature.gpu \
+  --format=csv,noheader,nounits</code></pre>
+
+<p class="note">한계: H3 생성 시간은 조건당 1회라 런-투-런 분산은 안 보인다. DeepSeek는 3회라 속도 쪽 신뢰는 더 낫다. 전력은 GPU 센서 기준이라 SoC 전체·보드 소비와는 다를 수 있다. 샘플 간격 ~1초라 수 ms 스파이크는 안 잡힌다.</p>
+
+<h3>3.1 MiniMax-H3 — 요약표</h3>
+
+<p>ComfyUI 헤드리스 생성 중 1초 샘플. 전력·온도는 util ≥ 50% 평균, 괄호는 그 구간 min~max.</p>
+
+<p class="tcap">표 1. MiniMax-H3 (2026-08-10, 864×480 · 124f · seed 1234 · NVFP4 DiT + Sage + VAE int8)</p>
 <table>
-<thead><tr><th>워크로드</th><th>상한</th><th>총 시간</th><th>샘플링</th><th>전력(부하)</th><th>온도(부하)</th></tr></thead>
+<thead><tr><th>워크로드</th><th>상한</th><th>총 시간</th><th>샘플 수</th><th>전력(부하 평균)</th><th>온도(부하)</th></tr></thead>
 <tbody>
-<tr><td>Turbo 8 step<br><span style="font-weight:400;color:var(--soft)">NVFP4 DiT + Sage + VAE int8</span></td><td>끔 (~2.4GHz)</td><td>97.7s</td><td>77.5s</td><td><strong>82.6W</strong></td><td>80.8°C</td></tr>
-<tr><td>Turbo 8 step</td><td>켬 (~1.97GHz)</td><td>114.4s</td><td>87.8s</td><td><strong>44.0W</strong></td><td>59.5°C</td></tr>
-<tr><td>20 step + TeaCache<br><span style="font-weight:400;color:var(--soft)">NVFP4 DiT + Sage + VAE int8</span></td><td>끔</td><td>81.9s</td><td>61.4s</td><td><strong>87.0W</strong></td><td>84.5°C</td></tr>
-<tr><td>20 step + TeaCache</td><td>켬</td><td>89.7s</td><td>66.0s</td><td><strong>51.2W</strong></td><td>68.1°C</td></tr>
+<tr><td>Turbo 8 step</td><td>끔 (~2.4GHz)</td><td>97.7s</td><td>94 (부하 87)</td><td><strong>82.6W</strong> <span style="font-weight:400;color:var(--soft)">(61.7–88.2)</span></td><td>80.8°C</td></tr>
+<tr><td>Turbo 8 step</td><td>켬 (~1.97GHz)</td><td>114.4s</td><td>111 (부하 95)</td><td><strong>44.0W</strong> <span style="font-weight:400;color:var(--soft)">(23.8–48.3)</span></td><td>59.5°C</td></tr>
+<tr><td>20 step + TeaCache</td><td>끔</td><td>81.9s</td><td>80 (부하 72)</td><td><strong>87.0W</strong> <span style="font-weight:400;color:var(--soft)">(75.2–90.7)</span></td><td>84.5°C</td></tr>
+<tr><td>20 step + TeaCache</td><td>켬</td><td>89.7s</td><td>87 (부하 79)</td><td><strong>51.2W</strong> <span style="font-weight:400;color:var(--soft)">(34.6–56.0)</span></td><td>68.1°C</td></tr>
 </tbody>
 </table>
 
-<p class="fcap">그림 1. 부하 중 평균 전력 (Turbo 8 기준)</p>
-<div class="bar"><div class="bl">상한 끔 (~2.4GHz)</div><div class="bt"><div class="bf" style="width:100%"></div></div><div class="bv">82.6W</div></div>
-<div class="bar"><div class="bl">상한 켬 (~1.97GHz)</div><div class="bt"><div class="bf hi" style="width:53%"></div></div><div class="bv">44.0W</div></div>
+<p class="fcap">그림 1. Turbo 8 생성 중 GPU 전력 시계열 (1초 샘플, 원 CSV)</p>
+<svg class="chart" viewBox="0 0 680 240" role="img" aria-label="H3 Turbo8 GPU power over time">
+  <rect x="0" y="0" width="680" height="240" fill="#faf9f7"/>
+  <line x1="48" y1="204.0" x2="664" y2="204.0" stroke="#e4e2da" stroke-width="1"/><text x="42" y="208.0" text-anchor="end" fill="#5b5b57" font-size="11">0</text><line x1="48" y1="157.5" x2="664" y2="157.5" stroke="#e4e2da" stroke-width="1"/><text x="42" y="161.5" text-anchor="end" fill="#5b5b57" font-size="11">25</text><line x1="48" y1="111.0" x2="664" y2="111.0" stroke="#e4e2da" stroke-width="1"/><text x="42" y="115.0" text-anchor="end" fill="#5b5b57" font-size="11">50</text><line x1="48" y1="64.5" x2="664" y2="64.5" stroke="#e4e2da" stroke-width="1"/><text x="42" y="68.5" text-anchor="end" fill="#5b5b57" font-size="11">75</text><line x1="48" y1="18.0" x2="664" y2="18.0" stroke="#e4e2da" stroke-width="1"/><text x="42" y="22.0" text-anchor="end" fill="#5b5b57" font-size="11">100</text>
+  <text x="48.0" y="222" text-anchor="middle" fill="#5b5b57" font-size="11">0s</text><text x="202.0" y="222" text-anchor="middle" fill="#5b5b57" font-size="11">29s</text><text x="356.0" y="222" text-anchor="middle" fill="#5b5b57" font-size="11">58s</text><text x="510.0" y="222" text-anchor="middle" fill="#5b5b57" font-size="11">87s</text><text x="664.0" y="222" text-anchor="middle" fill="#5b5b57" font-size="11">116s</text>
+  <text x="14" y="111.0" fill="#5b5b57" font-size="11" transform="rotate(-90 14 111.0)" text-anchor="middle">W</text>
+  <path d="M48.1,178.4 L53.6,178.5 L59.4,89.2 L65.0,53.8 L70.6,59.8 L76.1,57.3 L87.4,57.2 L93.1,58.9 L98.7,54.0 L104.4,54.6 L109.9,41.0 L115.7,53.8 L127.1,50.1 L132.7,54.5 L138.4,54.5 L144.1,48.5 L149.8,50.1 L155.4,51.7 L166.7,52.1 L172.3,49.3 L177.9,53.8 L183.6,53.2 L189.3,47.5 L200.6,54.6 L206.3,54.2 L211.9,41.8 L217.4,50.8 L223.1,53.5 L228.9,54.1 L240.1,52.9 L245.7,53.2 L251.5,48.3 L257.1,48.2 L262.8,44.1 L268.4,49.5 L279.8,48.6 L285.4,52.1 L291.0,52.7 L296.7,47.9 L302.2,52.1 L307.9,52.6 L318.9,50.4 L324.5,53.7 L330.4,49.1 L335.9,49.3 L341.6,52.7 L353.1,49.7 L358.7,49.5 L364.3,46.0 L369.9,48.0 L375.8,50.8 L381.3,50.1 L392.7,53.1 L398.4,49.2 L404.0,50.0 L409.6,53.0 L415.3,42.2 L420.9,46.0 L432.1,53.5 L437.8,49.6 L443.3,52.7 L449.0,53.9 L454.6,50.1 L465.9,47.0 L471.4,72.3 L477.0,43.2 L482.5,42.0 L488.1,42.4 L493.7,43.4 L504.8,42.0 L510.4,42.3 L516.0,40.8 L521.6,41.3 L527.1,42.3 L532.7,41.6 L543.9,42.0 L549.4,158.4 L554.9,171.7 L560.4,172.1 L566.0,172.4 L571.5,173.2" fill="none" stroke="#1c1c1c" stroke-width="1.6"/>
+  <path d="M48.2,189.8 L53.7,189.8 L59.3,144.5 L70.4,158.2 L75.9,188.7 L81.6,135.3 L92.8,124.9 L98.4,124.2 L109.6,126.8 L115.3,138.9 L120.8,144.9 L132.0,147.2 L137.5,149.0 L148.5,159.2 L154.2,116.9 L159.8,122.1 L171.0,120.0 L176.7,121.0 L182.3,121.3 L193.5,120.0 L199.1,120.7 L210.2,116.9 L215.9,120.8 L221.5,120.0 L232.9,121.1 L238.5,120.9 L249.6,119.8 L255.2,120.2 L260.8,115.4 L272.0,120.7 L277.7,120.8 L289.0,120.1 L294.6,119.3 L300.2,119.1 L311.5,119.4 L317.1,114.2 L322.9,118.9 L334.1,119.2 L339.8,120.6 L351.0,118.3 L356.8,120.4 L362.4,118.9 L373.7,114.6 L379.3,119.1 L390.6,119.6 L396.3,118.7 L401.8,119.3 L413.0,118.8 L418.6,119.8 L424.3,115.9 L435.5,120.7 L441.1,118.4 L452.5,119.1 L458.0,118.6 L463.6,118.7 L474.9,119.3 L480.5,114.1 L491.8,119.9 L497.4,117.8 L503.1,119.5 L514.2,118.0 L519.9,118.6 L531.1,118.9 L536.6,116.9 L542.1,174.4 L553.2,122.9 L558.8,123.9 L564.3,122.5 L575.4,122.4 L581.0,122.3 L592.1,122.4 L597.7,122.6 L603.2,122.2 L614.3,122.0 L619.9,122.1 L630.9,156.9 L636.4,187.4 L641.9,187.5 L653.0,187.6 L658.5,188.1 L664.0,188.3" fill="none" stroke="#8a8a84" stroke-width="1.6"/>
+  
+    <rect x="48" y="16" width="10" height="3" fill="#1c1c1c"/>
+    <text x="62" y="20" fill="#1c1c1c" font-size="12">상한 끔</text>
+    <rect x="128" y="16" width="10" height="3" fill="#8a8a84"/>
+    <text x="142" y="20" fill="#5b5b57" font-size="12">상한 켬</text>
+    
+</svg>
+<p class="note">검은 선=상한 끔, 회색=상한 켬. 둘 다 초반 수 초 idle 뒤 util이 올라가며 전력이 고원(plateau)을 이룬다. 고원 높이가 표의 “부하 평균”과 대응한다 — 끔은 ~80W대, 켬은 ~40W대에 붙는다.</p>
 
 <p class="fcap">그림 2. 생성 총 시간 (낮을수록 빠름)</p>
 <div class="bar"><div class="bl">20step 끔</div><div class="bt"><div class="bf hi" style="width:72%"></div></div><div class="bv">81.9s</div></div>
@@ -141,46 +175,70 @@ sudo systemctl enable --now gpu-clock-cap.service</code></pre>
 <div class="bar"><div class="bl">Turbo8 끔</div><div class="bt"><div class="bf hi" style="width:85%"></div></div><div class="bv">97.7s</div></div>
 <div class="bar"><div class="bl">Turbo8 켬</div><div class="bt"><div class="bf" style="width:100%"></div></div><div class="bv">114.4s</div></div>
 
-<h3>3.2 해석</h3>
+<h3>3.2 해석 (H3)</h3>
 
 <ul>
-  <li><strong>전력:</strong> 상한을 켜면 부하 전력이 대략 <strong>절반</strong>으로 떨어진다 (Turbo 8: 82.6→44.0W, −47%. 20 step: 87.0→51.2W, −41%).</li>
-  <li><strong>온도:</strong> 부하 평균이 약 15~20°C 내려간다 (Turbo 8: 80.8→59.5°C).</li>
-  <li><strong>시간:</strong> 같은 워크플로에서 총 시간은 <strong>약 9~17% 늘어난다</strong> (20 step: 81.9→89.7s, +9.5%. Turbo 8: 97.7→114.4s, +17%).</li>
-  <li><strong>클럭 낙폭 대비:</strong> SM 클럭은 ~2.4GHz→1.97GHz(약 −18%)인데 전력은 그보다 크게 줄고, 생성 시간 증가는 그보다 작다. 전압 동반 하락(V²f)과, 비디오 DiT가 대역폭·스케줄 대기에도 시간을 쓰는 탓으로 보인다.</li>
-  <li><strong>워크플로 선택:</strong> 이 장비에서는 “20 step + Sage + TeaCache + VAE int8”이 Turbo 8보다 빠르고, 상한을 켠 상태에서도 89.7s로 Turbo 8(114s)보다 짧다. 품질 확인 없이 step만 줄이는 것이 항상 이득은 아니다.</li>
+  <li><strong>전력:</strong> 상한을 켜면 부하 전력이 대략 <strong>절반</strong> (Turbo 8: 82.6→44.0W, −47%. 20 step: 87.0→51.2W, −41%). 시계열에서도 고원이 통째로 아래로 이동한다.</li>
+  <li><strong>온도:</strong> 부하 평균 약 15~20°C 하락 (Turbo 8: 80.8→59.5°C).</li>
+  <li><strong>시간:</strong> 총 시간 <strong>+9~17%</strong> (20 step +9.5%, Turbo 8 +17%). 클럭 −18%보다 시간 증가가 작다.</li>
+  <li><strong>워크플로:</strong> 이 장비에서는 20 step + TeaCache가 Turbo 8보다 빠르고, 상한 켠 상태에서도 89.7s &lt; Turbo 8 114s.</li>
 </ul>
 
-<p>조건 고정: 해상도 864×480, 124프레임(~5.2초), 시드 1234, 동일 프롬프트, ComfyUI API 헤드리스. DiT는 pruned NVFP4, 텍스트 인코더 NVFP4, 비디오 VAE int8_convrot. 상한 켬/끔만 바꿨다.</p>
+<p>조건 고정: 해상도 864×480, 124프레임(~5.2초), 시드 1234, 동일 프롬프트, ComfyUI API 헤드리스. DiT pruned NVFP4, 텍스트 인코더 NVFP4, 비디오 VAE int8_convrot.</p>
 
 <h3>3.3 DeepSeek-V4-Flash (단대 121GB)</h3>
 
-<p>단대에 맞는 가중치는 Unsloth <code>DeepSeek-V4-Flash-0731-UD-Q2_K_XL</code>(3 shard GGUF, 디스크 약 91GB). 러너는 네이티브 <code>llama-server</code>(CUDA, <code>-ngl 999</code>, flash-attn, ctx 4096). 각 상한마다 워밍업 64토큰 1회 + 256토큰 생성 3회, decode tok/s는 중앙값. 전력·온도는 util ≥ 40% 구간의 평균.</p>
+<p>Unsloth <code>UD-Q2_K_XL</code>(3 shard, 디스크 ~91GB). 네이티브 <code>llama-server</code> CUDA (<code>-ngl 999</code>, flash-attn, ctx 4096). 각 상한마다 워밍업 64토큰 1회 + 256토큰 3회. 전력은 util ≥ 40% 평균.</p>
 
-<p class="tcap">표 1b. DeepSeek-V4-Flash decode (2026-08-10, 3회 중앙값)</p>
+<p class="tcap">표 1b. decode 요약 (3회 중앙값)</p>
 <table>
 <thead><tr><th>상한</th><th>decode tok/s</th><th>prompt tok/s</th><th>256tok wall</th><th>전력(부하)</th><th>온도(부하)</th></tr></thead>
 <tbody>
-<tr><td>끔 (~2.4–2.5GHz)</td><td><strong>17.5</strong></td><td>69.9</td><td>14.9s</td><td><strong>42.6W</strong></td><td>58.6°C</td></tr>
-<tr><td>켬 (~1.97GHz)</td><td><strong>16.6</strong></td><td>65.7</td><td>15.7s</td><td><strong>21.9W</strong></td><td>49.8°C</td></tr>
+<tr><td>끔 (~2.4–2.5GHz)</td><td><strong>17.5</strong></td><td>69.9</td><td>14.9s</td><td><strong>42.6W</strong> <span style="font-weight:400;color:var(--soft)">(41.3–43.7)</span></td><td>58.6°C</td></tr>
+<tr><td>켬 (~1.97GHz)</td><td><strong>16.6</strong></td><td>65.7</td><td>15.7s</td><td><strong>21.9W</strong> <span style="font-weight:400;color:var(--soft)">(18.5–22.4)</span></td><td>49.8°C</td></tr>
 </tbody>
 </table>
 
-<p class="fcap">그림 3. decode 속도 (높을수록 빠름)</p>
-<div class="bar"><div class="bl">상한 끔</div><div class="bt"><div class="bf hi" style="width:100%"></div></div><div class="bv">17.5 t/s</div></div>
-<div class="bar"><div class="bl">상한 켬</div><div class="bt"><div class="bf" style="width:95%"></div></div><div class="bv">16.6 t/s</div></div>
+<p class="tcap">표 1c. 런별 decode tok/s (256 토큰, 동일 프롬프트)</p>
+<table>
+<thead><tr><th>상한</th><th>run1</th><th>run2</th><th>run3</th><th>중앙값</th><th>범위</th></tr></thead>
+<tbody>
+<tr><td>끔</td><td>17.49</td><td>17.51</td><td>17.49</td><td><strong>17.49</strong></td><td>17.49–17.51 (±0.1%)</td></tr>
+<tr><td>켬</td><td>16.55</td><td>16.67</td><td>16.64</td><td><strong>16.64</strong></td><td>16.55–16.67 (±0.4%)</td></tr>
+</tbody>
+</table>
 
-<p class="fcap">그림 4. 부하 평균 전력</p>
-<div class="bar"><div class="bl">상한 끔</div><div class="bt"><div class="bf" style="width:100%"></div></div><div class="bv">42.6W</div></div>
-<div class="bar"><div class="bl">상한 켬</div><div class="bt"><div class="bf hi" style="width:51%"></div></div><div class="bv">21.9W</div></div>
+<p class="note">3회 분산이 1% 미만이다. “한 번 찍힌 숫자”가 아니라, 같은 조건에서 반복해도 거의 같은 속도가 나온다. 상한 on/off 차이(−4.9%)는 그 분산보다 훨씬 크다.</p>
+
+<p class="fcap">그림 3. DeepSeek 벤치 구간 GPU 전력 시계열 (워밍업+3회 생성 포함, ~50초)</p>
+<svg class="chart" viewBox="0 0 680 240" role="img" aria-label="DeepSeek-V4-Flash GPU power over time">
+  <rect x="0" y="0" width="680" height="240" fill="#faf9f7"/>
+  <line x1="48" y1="204.0" x2="664" y2="204.0" stroke="#e4e2da" stroke-width="1"/><text x="42" y="208.0" text-anchor="end" fill="#5b5b57" font-size="11">0</text><line x1="48" y1="157.5" x2="664" y2="157.5" stroke="#e4e2da" stroke-width="1"/><text x="42" y="161.5" text-anchor="end" fill="#5b5b57" font-size="11">12</text><line x1="48" y1="111.0" x2="664" y2="111.0" stroke="#e4e2da" stroke-width="1"/><text x="42" y="115.0" text-anchor="end" fill="#5b5b57" font-size="11">25</text><line x1="48" y1="64.5" x2="664" y2="64.5" stroke="#e4e2da" stroke-width="1"/><text x="42" y="68.5" text-anchor="end" fill="#5b5b57" font-size="11">38</text><line x1="48" y1="18.0" x2="664" y2="18.0" stroke="#e4e2da" stroke-width="1"/><text x="42" y="22.0" text-anchor="end" fill="#5b5b57" font-size="11">50</text>
+  <text x="48.0" y="222" text-anchor="middle" fill="#5b5b57" font-size="11">0s</text><text x="202.0" y="222" text-anchor="middle" fill="#5b5b57" font-size="11">13s</text><text x="356.0" y="222" text-anchor="middle" fill="#5b5b57" font-size="11">26s</text><text x="510.0" y="222" text-anchor="middle" fill="#5b5b57" font-size="11">39s</text><text x="664.0" y="222" text-anchor="middle" fill="#5b5b57" font-size="11">52s</text>
+  <text x="14" y="111.0" fill="#5b5b57" font-size="11" transform="rotate(-90 14 111.0)" text-anchor="middle">W</text>
+  <path d="M48.3,159.4 L60.5,159.7 L72.8,41.5 L85.1,47.0 L97.4,47.0 L109.7,47.3 L122.0,48.7 L134.4,46.3 L146.7,46.8 L159.0,46.2 L171.4,46.1 L183.7,46.6 L196.0,50.4 L208.3,46.4 L220.6,45.9 L232.9,46.3 L245.3,45.4 L257.6,45.6 L269.9,45.0 L282.2,49.8 L294.6,48.4 L306.9,44.5 L319.3,44.7 L331.6,44.8 L343.9,44.4 L356.2,44.2 L368.5,48.6 L380.8,44.1 L393.1,44.3 L405.4,44.6 L417.8,44.6 L430.1,44.3 L442.4,44.2 L454.7,47.9 L467.1,43.6 L479.4,44.3 L491.7,43.6 L504.0,43.7 L516.3,43.9 L528.7,43.0 L541.0,47.7 L553.3,43.8 L565.6,43.6 L577.9,43.8 L590.3,43.0 L602.6,42.8 L614.9,42.5 L627.2,47.8" fill="none" stroke="#1c1c1c" stroke-width="1.6"/>
+  <path d="M48.4,175.1 L60.5,175.1 L72.9,135.1 L85.2,123.1 L97.5,122.8 L109.8,122.6 L122.1,121.7 L134.4,122.9 L146.7,122.8 L159.0,122.9 L171.3,122.4 L183.6,122.5 L195.9,123.2 L208.2,122.4 L220.5,122.1 L232.8,122.1 L245.1,122.3 L257.4,122.5 L269.8,122.2 L282.0,122.0 L294.4,126.1 L306.7,121.4 L318.9,121.9 L331.2,122.0 L343.5,121.9 L355.8,121.8 L368.2,122.0 L380.5,121.8 L392.8,123.5 L405.1,121.5 L417.4,121.9 L429.8,121.6 L442.2,121.9 L454.5,121.7 L466.8,122.0 L479.2,123.7 L491.5,120.7 L503.8,121.5 L516.1,121.8 L528.4,121.6 L540.8,121.4 L553.1,121.6 L565.4,121.6 L577.7,123.9 L590.1,121.6 L602.4,121.8 L614.7,121.6 L627.0,121.6 L639.3,121.8 L651.7,121.3 L664.0,123.6" fill="none" stroke="#8a8a84" stroke-width="1.6"/>
+  
+    <rect x="48" y="16" width="10" height="3" fill="#1c1c1c"/>
+    <text x="62" y="20" fill="#1c1c1c" font-size="12">상한 끔</text>
+    <rect x="128" y="16" width="10" height="3" fill="#8a8a84"/>
+    <text x="142" y="20" fill="#5b5b57" font-size="12">상한 켬</text>
+    
+</svg>
+<p class="note">끔은 ~42W 고원, 켬은 ~22W 고원. H3만큼 절대 와트는 낮지만, 상한을 켠 상대 절감(−49%)은 비슷하다. 샘플 48~51개(약 1Hz).</p>
+
+<p class="fcap">그림 4. decode 속도 / 부하 평균 전력</p>
+<div class="bar"><div class="bl">끔 tok/s</div><div class="bt"><div class="bf hi" style="width:100%"></div></div><div class="bv">17.5</div></div>
+<div class="bar"><div class="bl">켬 tok/s</div><div class="bt"><div class="bf" style="width:95%"></div></div><div class="bv">16.6</div></div>
+<div class="bar"><div class="bl">끔 전력</div><div class="bt"><div class="bf" style="width:100%"></div></div><div class="bv">42.6W</div></div>
+<div class="bar"><div class="bl">켬 전력</div><div class="bt"><div class="bf hi" style="width:51%"></div></div><div class="bv">21.9W</div></div>
 
 <ul>
-  <li><strong>전력:</strong> 부하 평균이 <strong>42.6 → 21.9W(−49%)</strong>. H3와 비슷한 비율로 절반 가까이 줄었다.</li>
-  <li><strong>속도:</strong> decode는 <strong>17.5 → 16.6 tok/s(−4.9%)</strong>로, 전력 절감 대비 성능 손실이 작다. 비디오 DiT(+9~17%)보다 LLM decode 쪽이 상한에 덜 민감했다.</li>
-  <li><strong>온도:</strong> 부하 평균 58.6 → 49.8°C(약 −9°C). H3 Turbo 구간의 −20°C만큼은 아니지만, 절대 온도 자체가 낮다.</li>
+  <li><strong>전력 −49%, 속도 −4.9%.</strong> LLM decode가 비디오 DiT(+9~17% 시간)보다 클럭 상한에 덜 민감했다.</li>
+  <li><strong>온도</strong> 58.6→49.8°C(약 −9°C).</li>
 </ul>
 
-<p>조건 고정: 동일 프롬프트, <code>n_predict=256</code>, temperature 0.6, top_p 0.95, <code>cache_prompt=false</code>. 모델 로드만으로 통합 메모리 약 94GB 사용. 상한 켬/끔만 바꿨다.</p>
+<p>조건 고정: 동일 프롬프트, <code>n_predict=256</code>, temperature 0.6, top_p 0.95, <code>cache_prompt=false</code>. 모델 상주 시 통합 메모리 약 94GB.</p>
 
 <h2>4. 일상 운용</h2>
 
