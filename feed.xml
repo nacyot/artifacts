@@ -22,7 +22,7 @@
       <category>RoCE</category>
     </item>
     <item>
-      <title>10G 랜을 깔았는데 151MB/s밖에 안 나왔다</title>
+      <title>10G 전송을 151MB/s에서 872MB/s로: 병목을 한 겹씩 벗겨낸 기록</title>
       <link>https://nacyot.github.io/artifacts/10gbe-transfer-bottlenecks/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/10gbe-transfer-bottlenecks/</guid>
       <pubDate>Mon, 10 Aug 2026 12:00:00 +0000</pubDate>
