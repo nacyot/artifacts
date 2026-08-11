@@ -54,6 +54,18 @@ tbody tr+tr td{border-top:1px solid var(--rule)} td:first-child,th:first-child{f
 details{margin:1.2rem 0;border-top:1px solid var(--rule);padding-top:.8rem}
 summary{cursor:pointer;font-weight:700;list-style:none;font-size:.95rem}
 summary::before{content:"▸ ";color:var(--faint)} details[open] summary::before{content:"▾ "}
+.tw{border:1px solid var(--rule);border-radius:12px;padding:.85rem 1rem;background:#fff;margin:.7rem 0}
+.tw-head{display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem}
+.tw-av{width:30px;height:30px;border-radius:50%;background:var(--box);border:1px solid var(--rule);
+  display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:var(--soft);flex:0 0 auto}
+.tw-h{font-size:.84rem;font-weight:700;line-height:1.25}
+.tw-h span{display:block;font-weight:400;color:var(--soft);font-size:.78rem}
+.tw-body{font-size:.88rem;line-height:1.6;margin:0 0 .5rem}
+.tw-body b{font-weight:700}
+.tw-foot{font-size:.74rem;color:var(--faint);display:flex;justify-content:space-between;align-items:center;
+  border-top:1px solid var(--rule);padding-top:.45rem}
+.tw-foot a{color:var(--soft);text-decoration:none}
+.tw-foot a:hover{text-decoration:underline}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.7rem;margin:1rem 0 1.6rem}
 .card{display:block;border:1px solid var(--rule);border-radius:5px;padding:.75rem .85rem;background:#fff;
   text-decoration:none;color:inherit;transition:border-color .12s,transform .12s}
@@ -80,6 +92,51 @@ summary::before{content:"▸ ";color:var(--faint)} details[open] summary::before
 <h2>무엇을 만들었나</h2>
 
 <table><thead><tr><th>항목</th><th>값</th></tr></thead><tbody><tr><td>모델</td><td><code>deepseek-ai/DeepSeek-V4-Flash-0731</code>, FP8 e4m3 블록양자화(128×128)</td></tr><tr><td>검증</td><td>리비전 <code>9e165c30</code> 해시 전량 일치 — sha256 48/48 + git sha1 26/26, 양 노드 각각</td></tr><tr><td>구조</td><td>43층, routed expert 256개, 토큰당 6개 활성, MTP 레이어 1</td></tr><tr><td>런타임</td><td>vLLM <code>mp</code> + <code>--nnodes 2</code>, TP=2</td></tr><tr><td>컨텍스트</td><td>1,048,576 (실측 512k 통과)</td></tr><tr><td>투기 디코딩</td><td>DSpark k=5, 초안 수용률 83~87%</td></tr><tr><td>KV 캐시</td><td><code>nvfp4_ds_mla</code></td></tr><tr><td>인터커넥트</td><td>ConnectX-7 200GbE 직결, RoCE v2 듀얼 rail, 실측 196 Gb/s</td></tr></tbody></table>
+
+<h2>모델을 고르기까지</h2>
+
+<p>NAS에는 DS4F 계열이 다섯 갈래로 쌓여 있었다. 어느 걸 올릴지가 첫 갈림길이었다.</p>
+
+<table><thead><tr><th>체크포인트</th><th>크기</th><th>1노드(121GB)</th><th>판단</th></tr></thead><tbody><tr><td>원본 FP8 <code>deepseek-ai/…-0731</code></td><td>166.9 GB</td><td>불가</td><td><strong>채택</strong></td></tr><tr><td>antirez MXFP4 GGUF</td><td>156 GB</td><td>불가</td><td>llama.cpp 경로 후보</td></tr><tr><td>huihui Q4_K abliterated</td><td>164.6 GB</td><td>불가</td><td>무검열 실험용</td></tr><tr><td>unsloth UD-Q2_K_XL</td><td>90 GB</td><td>가능</td><td>1 vs 2노드 A/B 기준</td></tr><tr><td>unsloth UD-Q3~Q8_K_XL</td><td>178~245 GB</td><td>불가</td><td>2노드에도 빠듯</td></tr></tbody></table>
+
+<p>목표가 "타협 없는 원본"이었으므로 답은 정해져 있었다. 그리고 이 선택이 곧 2노드를 강제한다. <strong>166.9GB는 121GB 한 대에 안 들어간다.</strong> 커뮤니티가 2대를 스위트 스팟이라 부르는 이유가 이것이다. 1대로 가려면 IQ2급까지 내려야 하는데, 그건 다른 모델을 돌리는 것에 가깝다.</p>
+
+<p>받은 뒤에는 진짜인지 확인했다. HF API로 리비전 <code>9e165c30</code>의 파일 해시를 받아 로컬과 대조했다. safetensors 48샤드 sha256과 작은 파일 26개의 git sha1이 양 노드에서 각각 전량 일치했다.</p>
+
+<h2>런타임을 고르기까지</h2>
+
+<p>X 공개 게시물에서 실제로 돌려본 1차 보고만 추렸다. 두 가지가 방향을 바꿨다.</p>
+
+<div class="tw"><div class="tw-head"><div class="tw-av">MI</div><div class="tw-h">Mia AI Lab<span>@MiaAI_lab</span></div></div><p class="tw-body">2× DGX Spark에 DS4F를 올린 레시피를 공개하고 실측을 이어 보고했다. 싱글 스트림 <b>72 tok/s</b>, 6동시 <b>137 tok/s</b> 집계. 2대가 이 모델의 스위트 스팟이라는 관측.</p><div class="tw-foot"><span>2026-07-29</span><a href="https://x.com/MiaAI_lab/status/2082400506798862608" target="_blank" rel="noopener">원문 보기 ↗</a></div></div>
+
+<p>첫째, <strong>NVIDIA 공식 NGC vLLM 이미지로는 안 된다.</strong> 공식 DGX Spark 플레이북에 2노드 vLLM 절차가 있지만 예제가 Llama이고 DS4F 지원이 없다. 실제 성공 사례는 예외 없이 GB10 전용으로 빌드된 커뮤니티 이미지를 쓴다.</p>
+
+<p>둘째, <strong>Ray가 아니다.</strong> 공식 문서는 Ray 클러스터를 안내하는데, DS4F 2노드 1차 보고들은 전부 <code>--distributed-executor-backend mp</code>에 <code>--nnodes 2</code>를 쓰고 worker를 먼저 띄운 뒤 head를 올린다.</p>
+
+<div class="tw"><div class="tw-head"><div class="tw-av">TA</div><div class="tw-h">takuz0<span>@takuz0_</span></div></div><p class="tw-body">RoCE v2 토폴로지 체크리스트. 두 포트 모두에 IP가 필요하고(GID가 IP에서 생성됨), 같은 서브넷에 두면 라우팅이 한쪽으로 고정된다. 한쪽 rail만 쓰면 처리량이 <b>약 110 Gb/s로 반감</b>. LACP 본딩은 불필요.</p><div class="tw-foot"><span>2026-08-03</span><a href="https://x.com/takuz0_/status/2084851396734751182" target="_blank" rel="noopener">원문 보기 ↗</a></div></div>
+
+<p>네트워크는 이 체크리스트를 그대로 따랐다. 두 rail에 서로 다른 서브넷을 주고 본딩은 하지 않았다. 실측 196 Gb/s가 나온 건 이 구성 덕이다.</p>
+
+<h2>실험을 설계하기까지</h2>
+
+<p>세 축을 골랐다. <strong>컨텍스트 길이</strong>(256~512k)는 이 모델을 쓰는 이유가 1M 컨텍스트라서, <strong>동시성</strong>(1~12)은 서버로 쓸 때 몇 명까지 받을 수 있는지가 궁금해서, <strong>클럭 상한</strong>(2000~해제)은 전력 튜닝이 성능을 얼마나 깎는지 확인해야 해서다.</p>
+
+<p>벤치 도구는 레시피에 동봉된 것을 그대로 썼다. 공표 수치를 만든 스크립트와 같아야 비교가 성립한다. 다만 두 곳을 고쳤다.</p>
+
+<ul>
+<li><strong><code>max_tokens=2048</code>을 걸었다.</strong> 원본은 출력 상한이 없는데 서버 기본값이 <code>DEFAULT_THINKING=max</code>라, 요청 하나가 추론 토큰을 무한정 뽑았다. 레시피가 공표한 방법론도 완성 토큰 2,048 기준이다.</li>
+<li><strong>프리필 측정은 프롬프트를 실행마다 고유화했다.</strong> 프리픽스 캐시가 켜져 있어 같은 프롬프트를 다시 쓰면 두 번째 측정부터 캐시를 맞는다. 클럭 스윕처럼 같은 조건을 반복하는 실험에서는 이걸 안 막으면 수치가 무의미해진다.</li>
+</ul>
+
+<p>클럭 스윕에는 안전장치를 뒀다. 지점마다 70°C 미만까지 식히고, 84°C를 넘으면 남은 스윕을 중단하며, 어떤 경로로 끝나든 원래 캡으로 복구한다. 커뮤니티에 과열 셧다운 보고가 있어서다.</p>
+
+<div class="tw"><div class="tw-head"><div class="tw-av">KA</div><div class="tw-h">Kaustab Pal<span>@kaustabpal</span></div></div><p class="tw-body">2× MSI EdgeXpert에서 SM 클럭을 <b>2450 → 2200</b>으로 낮춘 A/B. 온도 정점 −10°C, 전력 −29%인데 <b>디코드는 거의 동일</b>하고 프리필만 +4% 느려졌다.</p><div class="tw-foot"><span>2026-08-10</span><a href="https://x.com/kaustabpal/status/2086817173318897858" target="_blank" rel="noopener">원문 보기 ↗</a></div></div>
+
+<p>클럭 스윕의 출발 가설이 이 보고였다. 우리 결과는 방향은 같고 폭은 더 컸다. 2000~2800 구간에서 디코드는 노이즈 범위였고 프리필만 2400까지 19% 움직였다.</p>
+
+<h2>참고한 자료</h2>
+<p>위에 인용한 것 외에 구성·검증에 쓴 자료들이다.</p>
+<div class="cards"><a class="card" href="https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-DSpark-2x-DGX-Spark" target="_blank" rel="noopener"><span class="kind">GitHub</span><span class="who">MiaAI-Lab</span><span class="what">DeepSeek-v4-Flash-DSpark-2x-DGX-Spark</span><span class="why">채택한 레시피. compose·기동 스크립트·pi 설정 예시까지 포함. 이미지 <code>ghcr.io/anemll/dspark-vllm-gx10:0.1.1</code></span></a><a class="card" href="https://x.com/MiaAI_lab/status/2082400506798862608" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@MiaAI_lab</span><span class="what">2노드 DSpark 레시피·1× vs 2× 품질 비교</span><span class="why">2대 스위트 스팟이 DS4F임을 제시. 싱글 ~72 tok/s, 6동시 ~137 agg 보고</span></a><a class="card" href="https://github.com/NVIDIA/dgx-spark-playbooks/blob/main/nvidia/vllm/README.md" target="_blank" rel="noopener"><span class="kind">GitHub</span><span class="who">NVIDIA</span><span class="what">dgx-spark-playbooks — connect-two-sparks · vllm</span><span class="why">네트워크 구성(두 rail·분리 서브넷)은 이걸 따랐다. 다만 vLLM 2노드 예제는 Llama용이라 DS4F에는 못 씀</span></a><a class="card" href="https://github.com/vllm-project/vllm/pull/41834" target="_blank" rel="noopener"><span class="kind">GitHub</span><span class="who">vllm-project</span><span class="what">PR #41834 — sm_121 지원</span><span class="why">GB10용 vLLM 빌드 경로. 0731 + DSpark serve 인자 원본</span></a><a class="card" href="https://github.com/tonyd2wild/Deepseek-v4-Flash-TP2-DGX-Spark-500k-CTX" target="_blank" rel="noopener"><span class="kind">GitHub</span><span class="who">tonyd2wild</span><span class="what">Deepseek-v4-Flash-TP2-DGX-Spark-500k-CTX</span><span class="why">대안 레시피(mtp k=2, fp8 KV). <code>mp</code> + <code>--nnodes 2</code> 패턴을 교차 확인</span></a><a class="card" href="https://github.com/eugr/spark-vllm-docker/blob/main/docs/NETWORKING.md" target="_blank" rel="noopener"><span class="kind">GitHub</span><span class="who">eugr</span><span class="what">spark-vllm-docker — NETWORKING.md</span><span class="why">RoCE twin 구조와 서브넷 분리 필요성 설명</span></a><a class="card" href="https://x.com/takuz0_/status/2084851396734751182" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@takuz0_</span><span class="what">RoCE v2 토폴로지 체크리스트</span><span class="why">두 포트 모두 IP 필요·같은 서브넷 금지·한쪽만 쓰면 대역 반감. 우리 구성의 근거</span></a><a class="card" href="https://x.com/Beast_Llama_/status/2086353699203428511" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@Beast_Llama_</span><span class="what">FP8 TP=2 12스트림 실측</span><span class="why">12 동시 스트림 150.8 tok/s agg. 우리 206.9와 비교 기준</span></a><a class="card" href="https://x.com/kaustabpal/status/2086817173318897858" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@kaustabpal</span><span class="what">클럭 캡 전후 A/B</span><span class="why">SM 2450→2200에서 decode 거의 동일·prefill +4% 보고. 우리 클럭 스윕의 출발 가설</span></a><a class="card" href="https://x.com/esteban_x64/status/2085356322883502430" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@esteban_x64</span><span class="what">CUDA 13 · SM121 빌드 + DSpark k=5</span><span class="why">raw 27 → DSpark 50~75 tok/s. 투기 디코딩 이득의 근거</span></a><a class="card" href="https://x.com/HuiYang41183/status/2080192896356270569" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@HuiYang41183</span><span class="what">NCCL 대역폭 실측</span><span class="why">양 rail 사용 시 NCCL 21.6 GB/s. GDR 없음이 병목이라는 오해를 정정</span></a><a class="card" href="https://x.com/mochi_mochi_lab/status/2084309990031147060" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@mochi_mochi_lab</span><span class="what">1대 컨텍스트 한계</span><span class="why">1× 128GB에서 768k 통과·1M OOM. 우리 512k 통과의 비교 기준</span></a></div>
 
 <h2>성능</h2>
 
@@ -127,10 +184,6 @@ summary::before{content:"▸ ";color:var(--faint)} details[open] summary::before
 
 <p>유휴 45~47°C·8W, 부하 시 평균 65~67°C·최고 80°C로 스로틀 시작선 82°C를 넘지 않았다. 노드 A가 B보다 1~3°C 높은 것은 API 서버와 스케줄링을 함께 지기 때문으로 보인다.</p>
 
-
-<h2>참고한 자료</h2>
-<p>공개된 1차 보고를 따라 구성을 정했다. 방향을 바꾼 것은 둘이다. NVIDIA 공식 vLLM 플레이북은 DS4F를 지원하지 않는다는 것, 그리고 실제 성공 사례는 Ray가 아니라 <code>mp</code> + <code>--nnodes 2</code>를 쓴다는 것.</p>
-<div class="cards"><a class="card" href="https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-DSpark-2x-DGX-Spark" target="_blank" rel="noopener"><span class="kind">GitHub</span><span class="who">MiaAI-Lab</span><span class="what">DeepSeek-v4-Flash-DSpark-2x-DGX-Spark</span><span class="why">채택한 레시피. compose·기동 스크립트·pi 설정 예시까지 포함. 이미지 <code>ghcr.io/anemll/dspark-vllm-gx10:0.1.1</code></span></a><a class="card" href="https://x.com/MiaAI_lab/status/2082400506798862608" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@MiaAI_lab</span><span class="what">2노드 DSpark 레시피·1× vs 2× 품질 비교</span><span class="why">2대 스위트 스팟이 DS4F임을 제시. 싱글 ~72 tok/s, 6동시 ~137 agg 보고</span></a><a class="card" href="https://github.com/NVIDIA/dgx-spark-playbooks/blob/main/nvidia/vllm/README.md" target="_blank" rel="noopener"><span class="kind">GitHub</span><span class="who">NVIDIA</span><span class="what">dgx-spark-playbooks — connect-two-sparks · vllm</span><span class="why">네트워크 구성(두 rail·분리 서브넷)은 이걸 따랐다. 다만 vLLM 2노드 예제는 Llama용이라 DS4F에는 못 씀</span></a><a class="card" href="https://github.com/vllm-project/vllm/pull/41834" target="_blank" rel="noopener"><span class="kind">GitHub</span><span class="who">vllm-project</span><span class="what">PR #41834 — sm_121 지원</span><span class="why">GB10용 vLLM 빌드 경로. 0731 + DSpark serve 인자 원본</span></a><a class="card" href="https://github.com/tonyd2wild/Deepseek-v4-Flash-TP2-DGX-Spark-500k-CTX" target="_blank" rel="noopener"><span class="kind">GitHub</span><span class="who">tonyd2wild</span><span class="what">Deepseek-v4-Flash-TP2-DGX-Spark-500k-CTX</span><span class="why">대안 레시피(mtp k=2, fp8 KV). <code>mp</code> + <code>--nnodes 2</code> 패턴을 교차 확인</span></a><a class="card" href="https://github.com/eugr/spark-vllm-docker/blob/main/docs/NETWORKING.md" target="_blank" rel="noopener"><span class="kind">GitHub</span><span class="who">eugr</span><span class="what">spark-vllm-docker — NETWORKING.md</span><span class="why">RoCE twin 구조와 서브넷 분리 필요성 설명</span></a><a class="card" href="https://x.com/takuz0_/status/2084851396734751182" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@takuz0_</span><span class="what">RoCE v2 토폴로지 체크리스트</span><span class="why">두 포트 모두 IP 필요·같은 서브넷 금지·한쪽만 쓰면 대역 반감. 우리 구성의 근거</span></a><a class="card" href="https://x.com/Beast_Llama_/status/2086353699203428511" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@Beast_Llama_</span><span class="what">FP8 TP=2 12스트림 실측</span><span class="why">12 동시 스트림 150.8 tok/s agg. 우리 206.9와 비교 기준</span></a><a class="card" href="https://x.com/kaustabpal/status/2086817173318897858" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@kaustabpal</span><span class="what">클럭 캡 전후 A/B</span><span class="why">SM 2450→2200에서 decode 거의 동일·prefill +4% 보고. 우리 클럭 스윕의 출발 가설</span></a><a class="card" href="https://x.com/esteban_x64/status/2085356322883502430" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@esteban_x64</span><span class="what">CUDA 13 · SM121 빌드 + DSpark k=5</span><span class="why">raw 27 → DSpark 50~75 tok/s. 투기 디코딩 이득의 근거</span></a><a class="card" href="https://x.com/HuiYang41183/status/2080192896356270569" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@HuiYang41183</span><span class="what">NCCL 대역폭 실측</span><span class="why">양 rail 사용 시 NCCL 21.6 GB/s. GDR 없음이 병목이라는 오해를 정정</span></a><a class="card" href="https://x.com/mochi_mochi_lab/status/2084309990031147060" target="_blank" rel="noopener"><span class="kind">X</span><span class="who">@mochi_mochi_lab</span><span class="what">1대 컨텍스트 한계</span><span class="why">1× 128GB에서 768k 통과·1M OOM. 우리 512k 통과의 비교 기준</span></a></div>
 
 <h2>막힌 곳</h2>
 

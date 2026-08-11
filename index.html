@@ -34,13 +34,18 @@
   .head-links a:hover{color:var(--blu)}
   .sub{color:var(--mut);margin:0 0 2.2rem}
   a{color:var(--blu);text-decoration:none}
-  .item{display:block;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:1.1rem 1.3rem;margin:1rem 0;transition:border-color .15s}
+  .item{display:grid;grid-template-columns:190px 1fr;gap:1.1rem;align-items:start;
+    background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:1.1rem 1.3rem;margin:1rem 0;transition:border-color .15s}
+  .item:hover .thumb{border-color:var(--blu)}
+  .thumb{display:block;width:100%;aspect-ratio:1200/630;object-fit:cover;border:1px solid var(--bd);border-radius:8px;background:#faf9f7;transition:border-color .15s}
+  .body{min-width:0}
   .item:hover{border-color:var(--blu)}
   .item h2{font-size:1.15rem;margin:0 0 .3rem;color:#fff}
   .item p{margin:0;color:var(--mut);font-size:14px}
   .meta{font-size:12px;color:var(--mut);margin-top:.5rem;display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .5rem}
   .meta time{color:var(--mut);margin-left:auto;font-variant-numeric:tabular-nums}
   .tag{display:inline-block;font-size:11px;font-weight:700;padding:.1em .55em;border-radius:20px;border:1px solid var(--tea);color:var(--tea)}
+  @media(max-width:560px){.item{grid-template-columns:1fr;gap:.85rem}}
   footer{margin-top:3rem;color:var(--mut);font-size:13px;border-top:1px solid var(--bd);padding-top:1rem;display:flex;flex-wrap:wrap;gap:.5rem 1.2rem;justify-content:space-between}
   footer a{color:var(--tea)}
 </style>
@@ -57,122 +62,146 @@
 <p class="sub">공개해도 되는 작업 산출물 모음 — 실측 정리 · 리서치 · 시각화. 개인 식별 정보와 자격증명은 제거한 것만 올린다. 최신순.</p>
 
 <a class="item" href="./deepseek-v4-flash-2x-dgx-spark/">
-  <h2>DGX Spark 2대로 DeepSeek V4 Flash 0731 원본 FP8 돌리기</h2>
+  <img class="thumb" src="./deepseek-v4-flash-2x-dgx-spark/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>DGX Spark 2대로 DeepSeek V4 Flash 0731 원본 FP8 돌리기</h2>
   <p>DGX Spark(GB10) 2노드에 166.9GB 원본 FP8을 vLLM TP=2로. 디코드는 컨텍스트(256→512k)도 클럭(2000→2800MHz)도 거의 타지 않고, 프리필만 2400MHz에서 포화한다. 전성비는 최저 클럭이 두 배 앞선다. 95개 케이스 벤치와 d3 인터랙티브.</p>
   <div class="meta">
     <span class="tag">실측</span>
     <span>DGX Spark, GB10, DeepSeek V4 Flash, vLLM, RoCE</span>
     <time datetime="2026-08-11">2026-08-11</time>
   </div>
+  </div>
 </a>
 
 <a class="item" href="./10gbe-transfer-bottlenecks/">
-  <h2>10G 전송을 151MB/s에서 872MB/s로: 병목을 한 겹씩 벗겨낸 기록</h2>
+  <img class="thumb" src="./10gbe-transfer-bottlenecks/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>10G 전송을 151MB/s에서 872MB/s로: 병목을 한 겹씩 벗겨낸 기록</h2>
   <p>10GbE 홈랩 NAS 전송이 링크 용량의 7분의 1에 묶인 원인을 한 겹씩 벗겨낸 기록. rsync 구현·ssh 암호화·라이브러리 버퍼·커널 소켓 버퍼 상한, 그리고 readahead 힌트로 최종 872MB/s.</p>
   <div class="meta">
     <span class="tag">실측</span>
     <span>10GbE, NAS, TCP 튜닝, Go, posix_fadvise</span>
     <time datetime="2026-08-10">2026-08-10</time>
   </div>
+  </div>
 </a>
 
 <a class="item" href="./gb10-clock-cap/">
-  <h2>GB10 전력 상한 거는 법</h2>
+  <img class="thumb" src="./gb10-clock-cap/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>GB10 전력 상한 거는 법</h2>
   <p>GB10 클럭 상한(300–2000MHz) 실측: MiniMax-H3 부하 전력 약 −47%, 생성 시간 +9~17%. systemd 영구 적용과 PD 고착 버그 구분법.</p>
   <div class="meta">
     <span class="tag">실측</span>
     <span>GB10, DGX Spark, nvidia-smi, systemd</span>
     <time datetime="2026-08-10">2026-08-10</time>
   </div>
+  </div>
 </a>
 
 <a class="item" href="./dvorak-dubeolsik/">
-  <h2>Dvorak에서 두벌식이 깨지는 이유: 리눅스 입력 스택을 패치한 기록</h2>
+  <img class="thumb" src="./dvorak-dubeolsik/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>Dvorak에서 두벌식이 깨지는 이유: 리눅스 입력 스택을 패치한 기록</h2>
   <p>영문 Dvorak + 한글 두벌식은 Windows·macOS 공식 지원이 없는 조합. libhangul과 fcitx5-hangul 소스 패치로 근본 해결. 실패한 우회 세 번, 실사용에서 잡은 문장부호 누수, DBus 활성화 함정까지 타임라인으로 정리하고 키보드 배열 그림으로 매핑을 보여준다.</p>
   <div class="meta">
     <span class="tag">실측</span>
     <span>Linux, fcitx5, libhangul, Dvorak</span>
     <time datetime="2026-07-28">2026-07-28</time>
   </div>
+  </div>
 </a>
 
 <a class="item" href="./claude-code-install-pitfalls/">
-  <h2>Opus 5가 출시됐지만, 로컬의 “최신” 클로드 코드에는 4.8밖에 보이지 않았다</h2>
+  <img class="thumb" src="./claude-code-install-pitfalls/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>Opus 5가 출시됐지만, 로컬의 “최신” 클로드 코드에는 4.8밖에 보이지 않았다</h2>
   <p>claude update는 “up to date”라는데 모델은 4.8까지만. 범인은 stable 채널(2.1.212)에 묶여 있던 CLI였다. Opus 5를 쓰려면 필요한 버전(2.1.220, latest 채널)부터 채널을 확인하고 바꾸는 법, 중복 설치와 shim 잔재 정리까지. 전부 docker 컨테이너 실측.</p>
   <div class="meta">
     <span class="tag">실측</span><span class="tag">시각화</span>
     <span>Claude Code, npm, mise</span>
     <time datetime="2026-07-25">2026-07-25</time>
   </div>
+  </div>
 </a>
 
 <a class="item" href="./omarchy-manual/">
-  <h2>Omarchy 화면 매뉴얼: 보이는 것들의 이름과 구조</h2>
+  <img class="thumb" src="./omarchy-manual/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>Omarchy 화면 매뉴얼: 보이는 것들의 이름과 구조</h2>
   <p>화면에 보이는 모든 것의 이름과 구조: 상단 바(Waybar)와 모듈, 런처(Walker)와 메뉴 체계, 알림(Mako), OSD, 테마, 워크스페이스와 스크래치패드, omarchy CLI, 설정이 흐르는 세 층. 클릭해 보는 화면 지도와 스크래치패드 시연을 담은 4.0 alpha 기준 정리. 코딩 에이전트로 고치는 법까지.</p>
   <div class="meta">
     <span class="tag">실측</span><span class="tag">시각화</span>
     <span>Omarchy, Hyprland, Linux</span>
     <time datetime="2026-07-23">2026-07-23</time>
   </div>
+  </div>
 </a>
 
 <a class="item" href="./linux-auto-timezone/">
-  <h2>리눅스 노트북이 여행지 시간대를 스스로 맞추게 만들기</h2>
+  <img class="thumb" src="./linux-auto-timezone/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>리눅스 노트북이 여행지 시간대를 스스로 맞추게 만들기</h2>
   <p>macOS는 주변 WiFi로 위치를 잡아 시간대를 바꾼다. 그 방식을 리눅스에서 그대로 만들어 서울의 건물을 20m 오차로 짚었지만 중국에선 데이터가 없어 실패했다. 그래서 IP로 되돌리되 exit node는 ip rule로 우회하고, systemd 서비스로 자동화했다. 주변 AP 제조사로 나라를 가려내는 보완책과 실측 데이터까지.</p>
   <div class="meta">
     <span class="tag">실측</span><span class="tag">시각화</span>
     <span>Linux, tailscale, systemd</span>
     <time datetime="2026-07-20">2026-07-20</time>
   </div>
+  </div>
 </a>
 
 <a class="item" href="./tailscale-china-travel/">
-  <h2>중국 여행 중 tailscale 최적화: 국제망은 exit로, 중국 서비스는 중국 회선으로</h2>
+  <img class="thumb" src="./tailscale-china-travel/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>중국 여행 중 tailscale 최적화: 국제망은 exit로, 중국 서비스는 중국 회선으로</h2>
   <p>중국에선 Claude Code·구글이 로컬망으로 안 열린다. 로밍이 느릴 때 중국 회선을 exit node로 우회해 국제망에 나가고, 중국 서비스는 반대로 중국 회선으로 오간 기록. 느림과 불안정을 갈라 고친 3단계 실측 + fast.com/speedtest.cn 대비.</p>
   <div class="meta">
     <span class="tag">실측</span><span class="tag">시각화</span>
     <span>Tailscale, exit node, 중국</span>
     <time datetime="2026-07-20">2026-07-20</time>
   </div>
+  </div>
 </a>
 
 <a class="item" href="./asahi-macbook-speaker-crackle/">
-  <h2>맥북 스피커가 지지직거린다: Asahi Linux에서 스피커 길들이기</h2>
+  <img class="thumb" src="./asahi-macbook-speaker-crackle/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>맥북 스피커가 지지직거린다: Asahi Linux에서 스피커 길들이기</h2>
   <p>복잡한 음악에서 "칙칙" 끓고 순간 끊긴다. 하드웨어가 아니라 세 겹의 소프트웨어 문제(낡은 DSP 프로파일, 효율코어 스케줄링, 스트림 전환). 원인과 처방, macOS가 멀쩡한 이유.</p>
   <div class="meta">
     <span class="tag">실측</span><span class="tag">Asahi</span>
     <span>PipeWire, 오디오, Hyprland</span>
     <time datetime="2026-07-15">2026-07-15</time>
   </div>
+  </div>
 </a>
 
 <a class="item" href="./tailscale-per-app-exit-node/">
-  <h2>브라우저 한 개만 미국으로: Tailscale exit node를 앱 단위로 쪼개기</h2>
+  <img class="thumb" src="./tailscale-per-app-exit-node/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>브라우저 한 개만 미국으로: Tailscale exit node를 앱 단위로 쪼개기</h2>
   <p>exit node를 켜면 기기 인터넷이 통째로 넘어간다. 유저스페이스 SOCKS5 프록시로 브라우저 한 개만 exit node로 내보내고 나머지는 그대로. 구축, 검증, fail-closed 분석.</p>
   <div class="meta">
     <span class="tag">실측</span><span class="tag">시각화</span>
     <span>Tailscale, SOCKS5, Hyprland</span>
     <time datetime="2026-07-15">2026-07-15</time>
   </div>
+  </div>
 </a>
 
 <a class="item" href="./displaylink-asahi-m1/">
-  <h2>Asahi M1 Max 외장 2대 — 막힌 지점과 접은 이유</h2>
+  <img class="thumb" src="./displaylink-asahi-m1/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>Asahi M1 Max 외장 2대 — 막힌 지점과 접은 이유</h2>
   <p>DP는 드라이버에서 끊기고, DisplayLink는 4K까지 열리지만 CPU가 비싸다. 실사용은 본체 HDMI 하나. stock Asahi 실측.</p>
   <div class="meta">
     <span class="tag">실측</span><span class="tag">Asahi</span>
     <span>Linux · DisplayLink · Hyprland</span>
     <time datetime="2026-07-10">2026-07-10</time>
   </div>
+  </div>
 </a>
 
 <a class="item" href="./bambu-p1s-scripting/">
-  <h2>Bambu Lab P1S — UI 없이 프로토콜로 어디까지 되나</h2>
+  <img class="thumb" src="./bambu-p1s-scripting/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>Bambu Lab P1S — UI 없이 프로토콜로 어디까지 되나</h2>
   <p>3D 프린터를 앱 없이 MQTT·FTPS 프로토콜만으로 제어한 실측 정리. "프린터는 UI 기기가 아니라 네트워크 API를 노출하는 IoT 장치"라는 관점 + d3.js 시각화.</p>
   <div class="meta">
     <span class="tag">실측</span><span class="tag">시각화</span>
     <span>3D 프린팅 · IoT · MQTT</span>
     <time datetime="2026-07-05">2026-07-05</time>
+  </div>
   </div>
 </a>
 
