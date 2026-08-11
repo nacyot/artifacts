@@ -75,8 +75,8 @@
 
 <a class="item" href="./10gbe-transfer-bottlenecks/">
   <img class="thumb" src="./10gbe-transfer-bottlenecks/og.png" alt="" loading="lazy" width="1200" height="630">
-  <div class="body">  <h2>10G 전송을 151MB/s에서 872MB/s로: 병목을 한 겹씩 벗겨낸 기록</h2>
-  <p>10GbE 홈랩 NAS 전송이 링크 용량의 7분의 1에 묶인 원인을 한 겹씩 벗겨낸 기록. rsync 구현·ssh 암호화·라이브러리 버퍼·커널 소켓 버퍼 상한, 그리고 readahead 힌트로 최종 872MB/s.</p>
+  <div class="body">  <h2>NAS는 800MB/s를 낼 수 있는데 rsync로는 230밖에 안 나온다</h2>
+  <p>10GbE 홈랩에서 하드웨어가 낼 수 있는 속도와 표준 도구가 실제로 내는 속도의 격차를 계층별로 분해했다. ssh 암호화, 직렬 처리, 커널 소켓 버퍼 기본값, 디스크 readahead 힌트. 단독 A/B로 각각의 몫을 검증.</p>
   <div class="meta">
     <span class="tag">실측</span>
     <span>10GbE, NAS, TCP 튜닝, Go, posix_fadvise</span>

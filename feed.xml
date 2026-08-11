@@ -10,7 +10,7 @@
 
     <!-- newest first -->
     <item>
-      <title>DGX Spark 2대로 DeepSeek V4 Flash 0731 원본 FP8 돌리기</title>
+      <title>NAS는 800MB/s를 낼 수 있는데 rsync로는 230밖에 안 나온다</title>
       <link>https://nacyot.github.io/artifacts/deepseek-v4-flash-2x-dgx-spark/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/deepseek-v4-flash-2x-dgx-spark/</guid>
       <pubDate>Mon, 11 Aug 2026 00:00:00 +0000</pubDate>
@@ -26,7 +26,7 @@
       <link>https://nacyot.github.io/artifacts/10gbe-transfer-bottlenecks/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/10gbe-transfer-bottlenecks/</guid>
       <pubDate>Mon, 10 Aug 2026 12:00:00 +0000</pubDate>
-      <description><![CDATA[10G 링크는 8.4Gbps를 낼 수 있는데 실제 전송은 151MB/s였다. 원인은 네 겹이었다. macOS rsync가 실은 openrsync라는 것, 저전력 CPU에서 ssh 암호화가 절반을 먹는 것, io.Copy가 조용히 32KB 버퍼로 떨어지는 것, 커널 소켓 버퍼 상한이 208KB로 남아 명시적 설정이 자동 조절까지 꺼버린 것. 마지막에 posix_fadvise(SEQUENTIAL) 한 줄이 콜드 읽기를 21.5% 끌어올렸다. 최종 872MB/s.]]></description>
+      <description><![CDATA[10GbE 홈랩에서 하드웨어가 낼 수 있는 속도와 표준 도구가 실제로 내는 속도의 격차를 계층별로 분해했다. ssh 암호화, 직렬 처리, 커널 소켓 버퍼 기본값, 디스크 readahead 힌트. 단독 A/B로 각각의 몫을 검증.]]></description>
       <category>10GbE</category>
       <category>NAS</category>
       <category>TCP 튜닝</category>
