@@ -1,0 +1,302 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="10GbE 홈랩에서 NAS 전송이 151MB/s에 묶인 원인을 한 겹씩 벗겨낸 기록. rsync 구현, ssh 암호화, 라이브러리 버퍼, 커널 소켓 버퍼 상한, 그리고 readahead 힌트까지. 최종 872MB/s.">
+<link rel="canonical" href="https://nacyot.github.io/artifacts/10gbe-transfer-bottlenecks/">
+<link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="nacyot / artifacts">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:url" content="https://nacyot.github.io/artifacts/10gbe-transfer-bottlenecks/">
+<meta property="og:title" content="10G 랜을 깔았는데 151MB/s밖에 안 나왔다">
+<meta property="og:description" content="10GbE 홈랩에서 NAS 전송이 151MB/s에 묶인 원인을 한 겹씩 벗겨낸 기록. rsync 구현, ssh 암호화, 라이브러리 버퍼, 커널 소켓 버퍼 상한, 그리고 readahead 힌트까지. 최종 872MB/s.">
+<meta property="og:image" content="https://nacyot.github.io/artifacts/10gbe-transfer-bottlenecks/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="10G 랜을 깔았는데 151MB/s밖에 안 나왔다">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="10G 랜을 깔았는데 151MB/s밖에 안 나왔다">
+<meta name="twitter:description" content="10GbE 홈랩에서 NAS 전송이 151MB/s에 묶인 원인을 한 겹씩 벗겨낸 기록. rsync 구현, ssh 암호화, 라이브러리 버퍼, 커널 소켓 버퍼 상한, 그리고 readahead 힌트까지. 최종 872MB/s.">
+<meta name="twitter:image" content="https://nacyot.github.io/artifacts/10gbe-transfer-bottlenecks/og.png">
+<meta name="twitter:image:alt" content="10G 랜을 깔았는데 151MB/s밖에 안 나왔다">
+<title>10G 랜을 깔았는데 151MB/s밖에 안 나왔다</title>
+<style>
+  :root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--barbg:#eceae2;--bar:#cbc9bf;--bar-hi:#4a4a46;--box:#f3f2ec}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Pretendard GOV",Pretendard,"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+    font-size:18px;line-height:1.72;word-break:keep-all;overflow-wrap:anywhere}
+  .doc{max-width:42em;margin:0 auto;padding:4.5rem 1.5rem 7rem}
+  h1{font-size:1.72rem;font-weight:700;line-height:1.36;margin:0 0 .5rem}
+  .sub{color:var(--soft);font-size:1rem;margin:0 0 2rem}
+  h2{font-size:1.18rem;font-weight:700;margin:2.6rem 0 .7rem;padding-top:.7rem;border-top:1px solid var(--rule)}
+  h3{font-size:1.02rem;font-weight:700;margin:1.6rem 0 .5rem}
+  p{margin:0 0 .95rem} strong{font-weight:700}
+  ul,ol{margin:.4rem 0 1.1rem;padding-left:1.1rem} li{margin:.5rem 0}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8em;color:#46443f;background:#efeee7;padding:0 .25em;border-radius:2px}
+  pre{background:#f0efe9;border:1px solid var(--rule);border-radius:4px;padding:.8rem 1rem;overflow-x:auto;font-size:.8rem;line-height:1.5;margin:0 0 1.2rem}
+  pre code{background:none;padding:0;font-size:1em}
+  .tcap{font-size:.84rem;color:var(--soft);margin:1.6rem 0 .55rem}
+  .fcap{font-size:.84rem;color:var(--soft);margin:.5rem 0 1.6rem}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;line-height:1.55;margin:0 0 1.2rem}
+  th,td{text-align:left;vertical-align:top;padding:.52rem .8rem .52rem 0}
+  thead th{border-bottom:1px solid var(--ink);font-weight:700;font-size:.81rem}
+  tbody tr+tr td{border-top:1px solid var(--rule)} td:first-child,th:first-child{font-weight:600}
+  .bar{display:grid;grid-template-columns:10.5rem 1fr auto;gap:.7rem;align-items:center;margin:.42rem 0;font-size:.88rem}
+  .bar .bl{text-align:right} .bar .bt{background:var(--barbg);height:.8rem;border-radius:1px}
+  .bar .bf{height:100%;background:var(--bar);border-radius:1px} .bar .bf.hi{background:var(--bar-hi)}
+  .bar .bv{color:var(--soft);font-size:.8rem;min-width:3.2rem;text-align:right}
+  svg{max-width:100%;height:auto;display:block;margin:.4rem 0 0}
+  details{margin:1rem 0;border-top:1px solid var(--rule);padding-top:.7rem}
+  summary{cursor:pointer;font-weight:700;list-style:none} summary::before{content:"▸ ";color:var(--faint)}
+  details[open] summary::before{content:"▾ "}
+  @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.2rem 5rem}
+    .bar{grid-template-columns:1fr auto}.bar .bl{text-align:left;grid-column:1/-1}}
+
+  a{color:inherit}
+  .crumb{font-size:.88rem;margin:0 0 1.2rem}
+  .crumb a{color:var(--soft);text-decoration:none}
+  .crumb a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+  .lead{background:var(--box);border-radius:4px;padding:1rem 1.2rem;margin:0 0 1.6rem;font-size:.95rem}
+  .pubdate{font-size:.84rem;color:var(--soft);margin:0 0 2rem}
+</style></head><body><div class="doc">
+<p class="crumb"><a href="https://nacyot.github.io/artifacts/">← nacyot / artifacts</a></p>
+
+
+<h1>10G 랜을 깔았는데 151MB/s밖에 안 나왔다</h1>
+<p class="pubdate">2026-08-10</p>
+
+<p class="lead">
+10G 링크는 처음부터 8.4Gbps를 낼 수 있었는데 실제 파일 전송은 151MB/s였다. 원인은 하나가 아니라 네 겹이었다.
+macOS의 <code>rsync</code>가 실은 다른 구현이라는 것, 저전력 CPU에서 ssh 암호화가 절반을 먹는다는 것,
+라이브러리가 조용히 32KB 버퍼로 떨어진다는 것, 그리고 커널 소켓 버퍼 상한이 208KB로 남아 있다는 것.
+마지막에 <code>posix_fadvise</code> 한 줄이 디스크 읽기를 21.5% 더 끌어올렸다. 최종 872MB/s.
+</p>
+
+<p>집에서 로컬 LLM을 돌리다 보면 금방 벽에 부딪힌다. 모델 하나가 400GB를 넘고, 워크스테이션의 SSD는 몇 개 담으면 꽉 찬다. 그렇다고 지웠다 다시 받자니 400GB 다운로드가 반나절이다. 답은 명확했다. <strong>NAS를 모델 창고로 쓰고, 필요할 때 10G 네트워크로 끌어오는 것.</strong></p>
+
+<p>문제는 속도였다. 10G 링크를 깔아놨는데 정작 파일을 옮겨보면 151MB/s밖에 안 나왔다. 링크 용량의 7분의 1이다. 이 글은 그 원인을 하나씩 걷어내고 <strong>872MB/s</strong>까지 도달한 기록이고, 그 과정에서 "당연히 병목이겠지"라고 생각했던 것들이 차례로 아니었다는 이야기다.</p>
+
+<h2>10G 망은 이렇게 생겼다</h2>
+
+<p>집 안 네트워크는 두 층이다. 무선 AP와 일반 기기가 붙는 1G 액세스 망이 하나 있고, 스토리지와 연산 장비만 올라가는 10G 망이 따로 있다. 이 글은 뒤쪽만 다룬다.</p>
+
+<p>10G 망의 뼈대는 스위치 세 대다. <strong>CRS312</strong>가 호스트들을 수용하는 코어이고, 여기서 10G 링크 하나가 <strong>CRS304</strong>로 넘어간다. CRS304는 두 갈래로 갈라지는데, 한쪽은 <strong>QNAP 스위치</strong>를 거쳐 NAS로 가고 다른 한쪽은 1G 링크로 게이트웨이에 붙는다. 이 1G 링크가 10G 망과 나머지 집 안 네트워크가 만나는 유일한 접점이다.</p>
+
+<p>중요한 건 <strong>모델 전송이 이 1G 접점을 지나지 않는다</strong>는 점이다. 워크스테이션과 NAS는 같은 VLAN에 있고 둘 다 10G 망 안에 있으니, 트래픽은 스위치 사이에서만 오간다. 게이트웨이는 이 경로를 아예 보지 못한다.</p>
+
+<svg viewBox="0 0 640 300" role="img" aria-label="10G 네트워크 구성도">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#b7b5ad"/>
+    </marker>
+  </defs>
+  <g font-family="Pretendard,'Noto Sans KR',sans-serif" font-size="12.5" fill="#1c1c1c">
+
+  <!-- 호스트 3개 (좌측 세로) -->
+  <rect x="14" y="26" width="132" height="38" rx="4" fill="#f3f2ec" stroke="#b7b5ad"/>
+  <text x="80" y="43" text-anchor="middle">맥 워크스테이션</text>
+  <text x="80" y="57" text-anchor="middle" font-size="11" fill="#5b5b57">대형 모델 추론</text>
+
+  <rect x="14" y="80" width="132" height="38" rx="4" fill="#f3f2ec" stroke="#b7b5ad"/>
+  <text x="80" y="97" text-anchor="middle">연산 노드 ×2</text>
+  <text x="80" y="111" text-anchor="middle" font-size="11" fill="#5b5b57">영상 생성 · 추론</text>
+
+  <rect x="14" y="134" width="132" height="38" rx="4" fill="#f3f2ec" stroke="#b7b5ad"/>
+  <text x="80" y="151" text-anchor="middle">하이퍼바이저</text>
+  <text x="80" y="165" text-anchor="middle" font-size="11" fill="#5b5b57">가상머신 호스트</text>
+
+  <line x1="146" y1="45" x2="196" y2="88" stroke="#4a4a46" marker-end="url(#ar)"/>
+  <line x1="146" y1="99" x2="196" y2="99" stroke="#4a4a46" marker-end="url(#ar)"/>
+  <line x1="146" y1="153" x2="196" y2="110" stroke="#4a4a46" marker-end="url(#ar)"/>
+  <text x="160" y="76" font-size="11" fill="#5b5b57">10G</text>
+
+  <!-- CRS312 -->
+  <rect x="198" y="72" width="118" height="54" rx="4" fill="#f3f2ec" stroke="#1c1c1c"/>
+  <text x="257" y="96" text-anchor="middle" font-weight="600">CRS312</text>
+  <text x="257" y="112" text-anchor="middle" font-size="11" fill="#5b5b57">10G 코어</text>
+
+  <!-- CRS312 → CRS304 -->
+  <line x1="316" y1="99" x2="366" y2="99" stroke="#4a4a46" marker-end="url(#ar)"/>
+  <text x="341" y="90" text-anchor="middle" font-size="11" fill="#5b5b57">10G</text>
+
+  <!-- CRS304 -->
+  <rect x="368" y="72" width="118" height="54" rx="4" fill="#f3f2ec" stroke="#1c1c1c"/>
+  <text x="427" y="96" text-anchor="middle" font-weight="600">CRS304</text>
+  <text x="427" y="112" text-anchor="middle" font-size="11" fill="#5b5b57">분배</text>
+
+  <!-- CRS304 → QNAP → NAS -->
+  <line x1="486" y1="90" x2="524" y2="62" stroke="#4a4a46" marker-end="url(#ar)"/>
+  <text x="512" y="66" font-size="11" fill="#5b5b57">10G</text>
+  <rect x="526" y="26" width="100" height="34" rx="4" fill="#f3f2ec" stroke="#1c1c1c"/>
+  <text x="576" y="48" text-anchor="middle" font-weight="600">QNAP</text>
+  <line x1="576" y1="60" x2="576" y2="88" stroke="#4a4a46" marker-end="url(#ar)"/>
+  <rect x="516" y="90" width="120" height="52" rx="4" fill="#f3f2ec" stroke="#1c1c1c"/>
+  <text x="576" y="110" text-anchor="middle" font-weight="600">NAS</text>
+  <text x="576" y="127" text-anchor="middle" font-size="11" fill="#5b5b57">HDD 8구 RAID10</text>
+
+  <!-- CRS304 → 게이트웨이 (1G) -->
+  <line x1="427" y1="126" x2="427" y2="176" stroke="#b7b5ad" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+  <text x="437" y="155" font-size="11" fill="#5b5b57">1G</text>
+  <rect x="352" y="178" width="150" height="36" rx="4" fill="#faf9f7" stroke="#e4e2da"/>
+  <text x="427" y="201" text-anchor="middle" font-size="11.5" fill="#5b5b57">게이트웨이 · 1G 액세스 망</text>
+
+  <!-- 전송 경로 -->
+  <rect x="14" y="238" width="612" height="46" rx="4" fill="#faf9f7" stroke="#4a4a46"/>
+  <text x="320" y="257" text-anchor="middle" font-size="12" font-weight="600">모델 전송 경로: 워크스테이션 ⇄ CRS312 ⇄ CRS304 ⇄ QNAP ⇄ NAS</text>
+  <text x="320" y="274" text-anchor="middle" font-size="11" fill="#5b5b57">전 구간 10G · 암호화 없는 병렬 TCP · 게이트웨이를 지나지 않는다</text>
+  </g>
+</svg>
+<p class="fcap">10G 망의 스위치 세 대와 거기 붙은 호스트들. 게이트웨이로 가는 1G 링크(점선)는 인터넷과 나머지 집 안 네트워크로 나가는 통로일 뿐, 모델 전송에는 관여하지 않는다.</p>
+
+<p>NAS는 저전력 4코어 x86 CPU에 램 31GB, HDD 8구 RAID10 배열과 NVMe 캐시를 얹은 8베이 모델이다. 이 CPU가 뒤에서 계속 등장한다. 10G를 감당하기엔 애초에 여유가 없는 물건이라, 소프트웨어가 조금만 낭비해도 바로 속도로 드러났다.</p>
+
+<h2>병목은 매번 예상 밖이었다</h2>
+
+<p>출발점은 맥에서 NAS로 <code>rsync</code>를 돌리는 것이었고 151MB/s가 나왔다. 여기서부터 계층을 하나씩 벗겨냈다.</p>
+
+<p class="tcap">단계별 개선 (MB/s)</p>
+<div class="bar"><div class="bl">rsync over ssh</div><div class="bt"><div class="bf" style="width:17%"></div></div><div class="bv">151</div></div>
+<div class="bar"><div class="bl">ssh 파이프 6병렬</div><div class="bt"><div class="bf" style="width:55%"></div></div><div class="bv">475</div></div>
+<div class="bar"><div class="bl">암호화 제거</div><div class="bt"><div class="bf" style="width:73%"></div></div><div class="bv">636</div></div>
+<div class="bar"><div class="bl">+ 커널 버퍼 튜닝</div><div class="bt"><div class="bf hi" style="width:100%"></div></div><div class="bv">872</div></div>
+
+<p>첫 번째 범인은 <strong>rsync 자체</strong>였다. macOS가 기본 탑재한 <code>rsync</code>는 실은 openrsync라는 별개 구현이고, 오래된 프로토콜에 단일 스레드다. 이걸 걷어내고 순수 ssh 파이프로 보내기만 해도 1.7배가 됐다.</p>
+
+<p>두 번째는 <strong>ssh 암호화</strong>였다. 암호 알고리즘을 하드웨어 가속이 되는 쪽으로 바꿔봤지만 효과가 0이었다. 그런데 암호화를 아예 없애니 단일 스트림이 263에서 477MB/s로 뛰었다. NAS의 저전력 CPU가 복호화에 발목을 잡혔던 것이다. 집 안 전용 VLAN이니 암호화를 버리는 선택은 어렵지 않았다.</p>
+
+<p>세 번째가 가장 뜻밖이었다. 전용 전송 도구를 Go로 짜고 나서도 업로드가 314MB/s에 머물렀다. 원인은 <code>io.Copy</code>가 최적 경로를 잡지 못하면 <strong>32KB 버퍼</strong>로 조용히 떨어진다는 점이었다. 초당 수만 번의 시스템 콜이 저전력 CPU를 갉아먹고 있었다. 수신 측에 8MB 버퍼를 명시하니 636MB/s가 됐다.</p>
+
+<h2>진짜 큰 몫은 커널 설정에 있었다</h2>
+
+<p>도구를 다 만들고도 목표에 닿지 못하다가, NAS의 소켓 버퍼 상한을 확인하고 원인을 알았다. 리눅스 기본값인 <strong>208KB</strong>였다. 애플리케이션이 32MB를 요청해도 이 상한에 걸려 잘렸고, 더 나쁜 건 <strong>명시적으로 설정한 탓에 커널의 자동 조절 기능(최대 6MB)까지 꺼졌다</strong>는 점이다. 결과적으로 아무것도 안 한 것보다 나쁜 상태였다.</p>
+
+<p class="tcap">적용한 커널 튜닝 (부팅 시 자동 적용)</p>
+<table>
+<thead><tr><th>항목</th><th>기본</th><th>조정</th><th>효과</th></tr></thead>
+<tbody>
+<tr><td>소켓 버퍼 상한</td><td>208KB</td><td>64MB</td><td><strong>업로드 636 → 872</strong></td></tr>
+<tr><td>TCP 자동조절 범위 상한</td><td>6MB / 4MB</td><td>64MB</td><td>동반</td></tr>
+<tr><td>수신 백로그 큐</td><td>1000</td><td>30000</td><td>10G 버스트 흡수</td></tr>
+<tr><td>NIC 링 버퍼</td><td>2048 / 4096</td><td>8184 (최대)</td><td>드롭 여유</td></tr>
+<tr><td>블록 디바이스 readahead</td><td>2MB</td><td>8MB</td><td>콜드 읽기 소폭</td></tr>
+</tbody></table>
+
+<p>이 설정은 전송 도구만이 아니라 NAS의 모든 통신에 적용된다. 파일 하나를 지우고 재부팅하면 원상복구되고, 디스크나 데이터를 건드리는 항목은 없다.</p>
+
+<h2>마지막 한 걸음: readahead 힌트</h2>
+
+<p>여기까지 오고 나서 <strong>콜드 읽기</strong>가 690MB/s에서 멈췄다. 캐시에 없는 데이터를 NAS에서 받아오는 경우다. 디스크를 직접 재보니 4병렬 순차읽기가 636MB/s였으니 "디스크 상한에 도달했다"고 결론지었는데, 그 판단이 틀렸다.</p>
+
+<p>파일을 보내기 전 커널에 <code>posix_fadvise(SEQUENTIAL)</code>로 "이 파일은 순차로 읽을 것"이라고 알려주면 readahead 창이 기본의 2배로 잡힌다. 앞서 디스크를 잴 때도 이 힌트가 없었으니, 애초에 상한 자체를 과소 추정한 셈이었다.</p>
+
+<p>효과를 제대로 확인하려고 힌트를 끄는 스위치를 넣고, <strong>켠 서버와 끈 서버를 동시에 띄운 뒤 매 회 캐시를 비우며 교대로 4쌍</strong>을 측정했다.</p>
+
+<p class="tcap">콜드 읽기 10.3GB, 동일 파일, 매회 캐시 드롭 (MB/s)</p>
+<svg viewBox="0 0 640 152" role="img" aria-label="fadvise 켬과 끔의 측정값 분포">
+  <g font-family="Pretendard,'Noto Sans KR',sans-serif" font-size="12" fill="#1c1c1c">
+  <!-- 축 -->
+  <line x1="110" y1="118" x2="614" y2="118" stroke="#b7b5ad"/>
+  <g font-size="10.5" fill="#5b5b57" text-anchor="middle">
+    <text x="110" y="136">600</text><text x="236" y="136">650</text><text x="362" y="136">700</text>
+    <text x="488" y="136">750</text><text x="614" y="136">800</text>
+  </g>
+  <text x="614" y="150" text-anchor="end" font-size="10.5" fill="#5b5b57">MB/s (600부터, 900까지 축약)</text>
+  <!-- 끔: 677,682,699,702 → x = 110 + (v-600)*2.52 -->
+  <text x="98" y="90" text-anchor="end" fill="#5b5b57">힌트 끔</text>
+  <line x1="304" y1="84" x2="367" y2="84" stroke="#cbc9bf" stroke-width="7"/>
+  <circle cx="304" cy="84" r="4.5" fill="#5b5b57"/><circle cx="317" cy="84" r="4.5" fill="#5b5b57"/>
+  <circle cx="359" cy="84" r="4.5" fill="#5b5b57"/><circle cx="367" cy="84" r="4.5" fill="#5b5b57"/>
+  <text x="385" y="88" font-size="11" fill="#5b5b57">평균 690</text>
+  <!-- 켬: 788,846,855,864 -->
+  <text x="98" y="48" text-anchor="end" font-weight="600">힌트 켬</text>
+  <line x1="584" y1="42" x2="614" y2="42" stroke="#4a4a46" stroke-width="7" opacity=".25"/>
+  <circle cx="584" cy="42" r="4.5" fill="#1c1c1c"/><circle cx="600" cy="42" r="4.5" fill="#1c1c1c"/>
+  <circle cx="608" cy="42" r="4.5" fill="#1c1c1c"/><circle cx="614" cy="42" r="4.5" fill="#1c1c1c"/>
+  <text x="566" y="46" text-anchor="end" font-size="11" font-weight="600">평균 838</text>
+  <!-- 간극 -->
+  <line x1="367" y1="30" x2="367" y2="100" stroke="#e4e2da" stroke-dasharray="3 3"/>
+  <line x1="584" y1="30" x2="584" y2="100" stroke="#e4e2da" stroke-dasharray="3 3"/>
+  <text x="475" y="112" text-anchor="middle" font-size="10.5" fill="#5b5b57">두 집단이 겹치는 구간 없음</text>
+  </g>
+</svg>
+<p class="fcap">네 쌍을 교대로 재서 얻은 값. 켠 쪽의 최저치(788)가 끈 쪽의 최고치(702)보다 높아, 두 분포가 전혀 겹치지 않는다.</p>
+
+<p><strong>21.5% 개선</strong>이고, 노이즈가 아니라 실제 개선이다. 한 줄짜리 시스템 콜이 스피닝 디스크 배열에서 이만큼을 바꿨다.</p>
+
+<p>덤으로 단위 함정도 하나 잡았다. 진행률 출력이 <code>bytes ÷ 초 ÷ 1048576</code>을 계산해 놓고 라벨은 "MB/s"라고 찍고 있었다. 실제로는 MiB/s여서 5% 가까이 낮게 보고 있었던 것이다. 지금은 정확한 바이트 수와 MB/s·MiB/s·Gbps를 함께 찍는다.</p>
+
+<h2>지금 어디까지 왔나</h2>
+
+<p>각 계층의 상한을 따로 재두면 "여기가 끝인지"를 판단할 수 있다. 최종 측정치를 그 상한들과 나란히 놓으면 이렇다.</p>
+
+<p class="tcap">계층별 상한과 실제 도달치 (MB/s)</p>
+<div class="bar"><div class="bl">10G 링크 이론</div><div class="bt"><div class="bf" style="width:100%"></div></div><div class="bv">1183</div></div>
+<div class="bar"><div class="bl">대역폭 측정 도구</div><div class="bt"><div class="bf" style="width:89%"></div></div><div class="bv">1054</div></div>
+<div class="bar"><div class="bl">다운로드·캐시 적중</div><div class="bt"><div class="bf hi" style="width:94%"></div></div><div class="bv">1116</div></div>
+<div class="bar"><div class="bl">순수 TCP 실측</div><div class="bt"><div class="bf" style="width:80%"></div></div><div class="bv">944</div></div>
+<div class="bar"><div class="bl">업로드</div><div class="bt"><div class="bf hi" style="width:74%"></div></div><div class="bv">872</div></div>
+<div class="bar"><div class="bl">다운로드·콜드</div><div class="bt"><div class="bf hi" style="width:71%"></div></div><div class="bv">838</div></div>
+<div class="bar"><div class="bl">디스크 쓰기</div><div class="bt"><div class="bf" style="width:66%"></div></div><div class="bv">783</div></div>
+<div class="bar"><div class="bl">디스크 읽기</div><div class="bt"><div class="bf" style="width:54%"></div></div><div class="bv">636</div></div>
+
+<p class="fcap">진한 막대가 실제 전송 속도, 연한 막대가 각 계층의 상한이다. 맨 위 이론값은 MTU 1500에서 TCP가 실어 나를 수 있는 계산상 최대치이고, 그 아래 1054는 대역폭 측정 도구로 잰 값이다. 캐시에 있는 데이터를 읽을 때는 측정 도구보다도 빠른데, 파일을 커널 밖으로 복사하지 않고 바로 보내기 때문이다.</p>
+
+<p>콜드 읽기 838이 "디스크 읽기 636"보다 빠른 게 이상해 보이는데, 이게 앞 절의 이야기다. 636은 힌트 없이 잰 값이라 상한을 과소 평가한 것이었다. 업로드 872가 "디스크 쓰기 783"을 넘는 것도 비슷한 사정인데, 디스크를 잴 때 동기화 옵션 없이 재서 캐시가 흡수한 몫이 섞였다.</p>
+
+<p>결국 <strong>지금 남은 병목은 디스크</strong>다. 네트워크 쪽은 캐시 적중 경로에서 링크 한계까지 나오므로 더 짤 것이 없다. 400GB짜리 모델 하나를 NAS에 올리는 데 8~9분이면 되고, 처음의 151MB/s로는 45분이 걸렸을 일이다.</p>
+
+<h2>완성된 도구</h2>
+
+<p>단일 바이너리에 서버와 클라이언트가 함께 들어 있고, 세 플랫폼으로 크로스 컴파일한다. 서버는 NAS에서 systemd 서비스로 상주하고, 저장 구조는 HuggingFace와 같은 <code>&lt;네임스페이스&gt;/&lt;모델&gt;</code>이라 이미 그 구조로 정리해 둔 모델들을 서버 기동 즉시 인식했다.</p>
+
+<pre><code>mstore ls                                    # 보관된 모델 목록
+mstore push ~/models/GLM-5.2-mxfp4  mlx-community/GLM-5.2-mxfp4
+mstore pull mlx-community/GLM-5.2-mxfp4  ~/models/GLM-5.2-mxfp4
+mstore info &lt;모델&gt;    mstore rm &lt;모델&gt;      # -j N(기본 4), --force</code></pre>
+
+<p>클라이언트가 파일을 크기 내림차순으로 가장 한가한 스트림에 배정해 완료 시각을 맞추고, 전송 전에 서버에 크기를 물어 <strong>같은 파일은 건너뛴다</strong>. 그래서 중단 후 다시 실행하면 남은 것만 간다. 수신은 임시 확장자로 받아 완료 후 이름을 바꾸므로 중단된 파일이 정상 파일로 오인되지 않고, 끝나면 양쪽 크기를 대조해 검증한다.</p>
+
+<h3>검증에서 드러난 버그 둘</h3>
+
+<p>랜덤 데이터로 목록 조회, 잘못된 입력 거부, 업로드·다운로드, 무결성, 중단 재개, 옵션, 삭제를 훑는 테스트를 짰다. 크기만 대조하면 부족하니 하위 디렉터리를 포함한 SHA256까지 비교했고, 다른 아키텍처의 노드에서도 왕복 체크섬 일치를 확인했다. 그 과정에서 두 개가 걸렸다.</p>
+
+<p><strong>위치 인자 뒤의 플래그가 조용히 무시됐다.</strong> Go의 <code>flag</code> 패키지는 첫 위치 인자에서 파싱을 멈춘다. <code>push 소스 대상 --force</code>처럼 자연스럽게 쓰면 <code>--force</code>가 먹지 않았고, 스트림 수 옵션도 <strong>항상 기본값으로 동작</strong>하고 있었다. 위치 인자와 번갈아 파싱하도록 고쳤다.</p>
+
+<p><strong>Makefile이 재빌드를 건너뛰었다.</strong> 빌드 타깃에 소스 전제를 안 걸어둬서 <code>make</code>가 기존 산출물을 최신으로 판단했다. 위의 플래그 버그를 고치고도 옛 바이너리가 배포되는 바람에 테스트가 계속 실패했다. 고쳤는데 안 고쳐진 것처럼 보이는 종류라 특히 성가시다.</p>
+
+<h2>해보고 아니었던 것들</h2>
+
+<p>남은 여지를 찾으려고 후보를 몇 개 더 시험했는데, readahead 힌트를 빼면 전부 측정으로 기각됐다. 특히 첫 번째는 "스피닝 디스크에서 동시 읽기를 줄이면 헤드 경합이 줄어든다"는 그럴듯한 가설이었는데, 스트림 수를 1개에서 6개까지 바꿔봐도 값이 오차 범위 안에서 흩어질 뿐이었다.</p>
+
+<p class="tcap">동시 읽기 스트림 수별 콜드 읽기 (MB/s)</p>
+<div class="bar"><div class="bl">1개</div><div class="bt"><div class="bf" style="width:96%"></div></div><div class="bv">592</div></div>
+<div class="bar"><div class="bl">2개</div><div class="bt"><div class="bf" style="width:88%"></div></div><div class="bv">545</div></div>
+<div class="bar"><div class="bl">4개</div><div class="bt"><div class="bf" style="width:100%"></div></div><div class="bv">617</div></div>
+<div class="bar"><div class="bl">6개</div><div class="bt"><div class="bf" style="width:93%"></div></div><div class="bv">576</div></div>
+<p class="fcap">단조 증가도 감소도 아니다. 헤드 경합 가설은 이 배열에서 성립하지 않았고, 기본값을 4개로 유지했다.</p>
+
+<table>
+<thead><tr><th>후보</th><th>측정 결과</th><th>판정</th></tr></thead>
+<tbody>
+<tr><td>네트워크 인터럽트를 여러 코어로 분산</td><td>692MB/s 전송 중 초당 130회 수준</td><td>불필요. 포화와 거리가 멀다</td></tr>
+<tr><td>점보 프레임 (MTU 9000)</td><td>이득은 캐시 적중 경로에만</td><td>보류. 다섯 지점을 동시에 맞춰야 하고 한 곳만 빠지면 통신이 끊긴다</td></tr>
+<tr><td>RAID 스트라이프 캐시, 파일시스템 옵션</td><td>—</td><td>기각. 해당 RAID 레벨에 무관하거나 무결성 손실 대비 이득 없음</td></tr>
+</tbody></table>
+
+<h2>정리</h2>
+
+<p>10G 장비를 사서 꽂는다고 10G가 나오지 않는다. 이번 경우 링크는 처음부터 8.4Gbps를 낼 수 있었는데, 소프트웨어 계층이 그중 7분의 1만 쓰고 있었다. 걷어낸 순서대로 다시 적으면 이렇다.</p>
+
+<ol>
+<li><strong>전송 도구</strong>: 익숙한 이름이 그 플랫폼에서는 전혀 다른 구현일 수 있다</li>
+<li><strong>암호화</strong>: 저전력 CPU에서는 이것만으로 절반이 날아간다</li>
+<li><strong>버퍼 크기</strong>: 라이브러리가 조용히 작은 버퍼로 떨어지는 경로가 있는지 봐야 한다</li>
+<li><strong>커널 기본값</strong>: 10G를 상정하지 않은 값이 남아 있다. 명시적 설정이 자동 조절을 꺼버리는 함정도 여기 있었다</li>
+<li><strong>디스크 힌트</strong>: 순차로 읽는다고 알려주는 한 줄이 20%를 바꿨다</li>
+</ol>
+
+<p>그리고 하나 더. 측정 없이 "여기가 한계겠지"라고 단정한 순간이 두 번 있었고 둘 다 틀렸다. 디스크 상한이라 믿었던 636MB/s는 힌트 하나로 838이 됐고, 처음에 대충 비교해 "25% 개선"이라 적었던 수치는 제대로 된 교대 측정에서 21.5%로 정정됐다. 숫자는 재봐야 안다.</p>
+
+
+</div></body></html>

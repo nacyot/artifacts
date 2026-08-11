@@ -56,6 +56,26 @@
 </header>
 <p class="sub">공개해도 되는 작업 산출물 모음 — 실측 정리 · 리서치 · 시각화. 개인 식별 정보와 자격증명은 제거한 것만 올린다. 최신순.</p>
 
+<a class="item" href="./deepseek-v4-flash-2x-dgx-spark/">
+  <h2>DGX Spark 2대로 DeepSeek V4 Flash 0731 원본 FP8 돌리기</h2>
+  <p>DGX Spark(GB10) 2노드에 166.9GB 원본 FP8을 vLLM TP=2로. 디코드는 컨텍스트(256→512k)도 클럭(2000→2800MHz)도 거의 타지 않고, 프리필만 2400MHz에서 포화한다. 전성비는 최저 클럭이 두 배 앞선다. 95개 케이스 벤치와 d3 인터랙티브.</p>
+  <div class="meta">
+    <span class="tag">실측</span>
+    <span>DGX Spark, GB10, DeepSeek V4 Flash, vLLM, RoCE</span>
+    <time datetime="2026-08-11">2026-08-11</time>
+  </div>
+</a>
+
+<a class="item" href="./10gbe-transfer-bottlenecks/">
+  <h2>10G 랜을 깔았는데 151MB/s밖에 안 나왔다</h2>
+  <p>10GbE 홈랩 NAS 전송이 링크 용량의 7분의 1에 묶인 원인을 한 겹씩 벗겨낸 기록. rsync 구현·ssh 암호화·라이브러리 버퍼·커널 소켓 버퍼 상한, 그리고 readahead 힌트로 최종 872MB/s.</p>
+  <div class="meta">
+    <span class="tag">실측</span>
+    <span>10GbE, NAS, TCP 튜닝, Go, posix_fadvise</span>
+    <time datetime="2026-08-10">2026-08-10</time>
+  </div>
+</a>
+
 <a class="item" href="./gb10-clock-cap/">
   <h2>GB10 전력 상한 거는 법</h2>
   <p>GB10 클럭 상한(300–2000MHz) 실측: MiniMax-H3 부하 전력 약 −47%, 생성 시간 +9~17%. systemd 영구 적용과 PD 고착 버그 구분법.</p>

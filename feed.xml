@@ -10,6 +10,29 @@
 
     <!-- newest first -->
     <item>
+      <title>DGX Spark 2대로 DeepSeek V4 Flash 0731 원본 FP8 돌리기</title>
+      <link>https://nacyot.github.io/artifacts/deepseek-v4-flash-2x-dgx-spark/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/deepseek-v4-flash-2x-dgx-spark/</guid>
+      <pubDate>Mon, 11 Aug 2026 00:00:00 +0000</pubDate>
+      <description><![CDATA[DGX Spark(GB10) 2노드에 166.9GB 원본 FP8을 vLLM TP=2로. 디코드는 컨텍스트(256→512k)도 클럭(2000→2800MHz)도 거의 타지 않고, 프리필만 2400MHz에서 포화한다. 전성비는 최저 클럭이 두 배 앞선다. 95개 케이스 벤치와 d3 인터랙티브.]]></description>
+      <category>DGX Spark</category>
+      <category>GB10</category>
+      <category>DeepSeek V4 Flash</category>
+      <category>vLLM</category>
+      <category>RoCE</category>
+    </item>
+    <item>
+      <title>10G 랜을 깔았는데 151MB/s밖에 안 나왔다</title>
+      <link>https://nacyot.github.io/artifacts/10gbe-transfer-bottlenecks/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/10gbe-transfer-bottlenecks/</guid>
+      <pubDate>Mon, 10 Aug 2026 12:00:00 +0000</pubDate>
+      <description><![CDATA[10G 링크는 8.4Gbps를 낼 수 있는데 실제 전송은 151MB/s였다. 원인은 네 겹이었다. macOS rsync가 실은 openrsync라는 것, 저전력 CPU에서 ssh 암호화가 절반을 먹는 것, io.Copy가 조용히 32KB 버퍼로 떨어지는 것, 커널 소켓 버퍼 상한이 208KB로 남아 명시적 설정이 자동 조절까지 꺼버린 것. 마지막에 posix_fadvise(SEQUENTIAL) 한 줄이 콜드 읽기를 21.5% 끌어올렸다. 최종 872MB/s.]]></description>
+      <category>10GbE</category>
+      <category>NAS</category>
+      <category>TCP 튜닝</category>
+      <category>Go</category>
+    </item>
+    <item>
       <title>GB10 전력 상한 거는 법</title>
       <link>https://nacyot.github.io/artifacts/gb10-clock-cap/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/gb10-clock-cap/</guid>
