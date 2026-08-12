@@ -61,6 +61,32 @@
 </header>
 <p class="sub">공개해도 되는 작업 산출물 모음 — 실측 정리 · 리서치 · 시각화. 개인 식별 정보와 자격증명은 제거한 것만 올린다. 최신순.</p>
 
+<a class="item" href="./dgx-spark-2node-decode-tuning/">
+  <img class="thumb" src="./dgx-spark-2node-decode-tuning/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>같은 장비에서 동시 처리량 35%를 더 얻었다 — 그리고 얻지 못한 것들</h2>
+  <p>DGX Spark 2노드 DeepSeek V4 Flash 0731을 추론 켠 조건에서 재측정. max_num_seqs 6→8이 +35%, 기동 워밍업이 첫 토큰 3.5초→0.38초. 커뮤니티의 80 tok/s는 추론을 끈 숫자였고, 열 상한을 정하는 것은 GPU가 아니라 동기화 대기로 도는 CPU 성능코어였다. 15회 재기동 반복 측정.</p>
+  <div class="meta">
+    <span class="tag">실측</span>
+
+    <span>DGX Spark, GB10, DeepSeek V4 Flash, vLLM, RoCE</span>
+    <time datetime="2026-08-11">2026-08-11</time>
+  </div>
+  </div>
+</a>
+<a class="item" href="./vllm-spin-wait-gb10/">
+  <img class="thumb" src="./vllm-spin-wait-gb10/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>LLM 추론에서 가장 뜨거운 것은 GPU가 아니었다</h2>
+  <p>GB10 2노드 vLLM 서빙에서 SoC 96°C의 열원을 추적하니 GPU가 아니라 대기 루프를 도는 CPU 성능코어였다. py-spy로 vLLM 기본값 한 줄까지 내려가 수정 — CPU 333%→89%, SoC 최고 97→73°C, 성능 손실 없음. 팬 A/B와 클럭 실험 포함.</p>
+  <div class="meta">
+    <span class="tag">실측</span>
+
+
+    <span>DGX Spark, GB10, DeepSeek V4 Flash, vLLM, RoCE</span>
+    <time datetime="2026-08-11">2026-08-11</time>
+  </div>
+  </div>
+</a>
+
 <a class="item" href="./deepseek-v4-flash-2x-dgx-spark/">
   <img class="thumb" src="./deepseek-v4-flash-2x-dgx-spark/og.png" alt="" loading="lazy" width="1200" height="630">
   <div class="body">  <h2>DGX Spark 2대로 DeepSeek V4 Flash 0731 원본 FP8 돌리기</h2>

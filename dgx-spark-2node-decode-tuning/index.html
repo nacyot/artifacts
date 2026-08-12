@@ -1,0 +1,427 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>같은 장비에서 동시 처리량 35%를 더 얻었다 — DGX Spark 2노드 디코드 튜닝</title><meta name="description" content="DGX Spark 2노드 DeepSeek V4 Flash 0731을 추론 켠 조건에서 재측정. max_num_seqs 6→8이 동시 8건 +35%, 기동 워밍업이 첫 토큰 3.51초→0.38초. 재기동마다 15% 흔들리는 재현성 문제와, 열 상한을 정하는 것이 GPU가 아니라 CPU 성능코어라는 실측."><meta property="og:title" content="같은 장비에서 동시 처리량 35%를 더 얻었다"><meta property="og:description" content="DGX Spark 2노드 디코드 튜닝 — 15회 재기동 반복 측정, 워밍업으로 첫 토큰 9배, 열 상한은 GPU가 아니라 CPU 성능코어."><meta property="og:type" content="article"><meta property="og:url" content="https://nacyot.github.io/artifacts/dgx-spark-2node-decode-tuning/"><meta property="og:image" content="https://nacyot.github.io/artifacts/dgx-spark-2node-decode-tuning/og.png"><meta name="twitter:card" content="summary_large_image"><style>
+:root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--box:#f3f2ec;
+      --hi:#46537a;--bar:#cbc9bf;--barhi:#46537a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+ font-family:Pretendard,"Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;
+ font-size:18px;line-height:1.72;word-break:keep-all;overflow-wrap:anywhere}
+.doc{max-width:44em;margin:0 auto;padding:4rem 1.4rem 7rem}
+.kicker{font-size:.82rem;font-weight:700;letter-spacing:.06em;color:var(--hi);margin:0 0 1rem}
+h1{font-size:1.75rem;font-weight:800;line-height:1.34;letter-spacing:-.01em;margin:0 0 1.3rem}
+h2{font-size:1.16rem;font-weight:700;margin:2.8rem 0 .7rem;padding-top:.75rem;border-top:1px solid var(--rule)}
+h3{font-size:1.02rem;font-weight:700;margin:1.7rem 0 .5rem}
+p{margin:0 0 .95rem}
+.lede{background:var(--box);border-radius:5px;padding:1rem 1.15rem .3rem;margin:0 0 1.6rem}
+.lede p{font-size:.95rem}
+ul{margin:.4rem 0 1.1rem;padding-left:1.15rem} li{margin:.45rem 0}
+table{width:100%;border-collapse:collapse;font-size:.85rem;line-height:1.5;margin:0 0 1.1rem}
+th,td{text-align:left;padding:.48rem .6rem .48rem 0;vertical-align:top}
+thead th{border-bottom:1px solid var(--ink);font-size:.79rem;font-weight:700}
+tbody tr+tr td{border-top:1px solid var(--rule)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.hi td{font-weight:700}
+td small{color:var(--soft);font-size:.85em}
+.fcap{font-size:.83rem;color:var(--soft);margin:.2rem 0 1.6rem}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.axis line,.axis path{stroke:var(--rule)}
+.axis text{fill:var(--faint);font-size:10px}
+.axlab{fill:var(--soft);font-size:10.5px}
+.tip{position:fixed;pointer-events:none;background:#1c1c1c;color:#fff;font-size:12px;line-height:1.55;
+ padding:.45rem .7rem;border-radius:3px;opacity:0;z-index:9;max-width:21rem}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8em;color:#46443f;background:#efeee7;
+ padding:0 .25em;border-radius:2px}
+pre{background:#f3f2ec;border-radius:4px;padding:.85rem 1rem;overflow-x:auto;font-size:.8rem;line-height:1.6;margin:0 0 1.1rem}
+pre code{background:none;padding:0;font-size:1em}
+a{color:var(--hi)}
+.tw{border:1px solid var(--rule);border-radius:10px;padding:.85rem 1rem;margin:0 0 .9rem;background:#fff;font-size:.87rem}
+.tw .h{display:flex;gap:.5rem;align-items:baseline;margin-bottom:.35rem}
+.tw .n{font-weight:700}.tw .u,.tw .d{color:var(--soft);font-size:.85em}
+.tw p{margin:0 0 .4rem;line-height:1.6}
+.tw a{font-size:.85em}
+details{margin:1rem 0;border-top:1px solid var(--rule);padding-top:.7rem}
+summary{cursor:pointer;font-weight:700;list-style:none}
+summary::before{content:"▸ ";color:var(--faint)}
+details[open] summary::before{content:"▾ "}
+@media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.1rem 5rem}}
+</style></head><body><div class="doc">
+<div class="kicker">DGX Spark ×2 · 후속 실측</div>
+<h1>같은 장비에서 동시 처리량 35%를 더 얻었다<br>— 그리고 얻지 못한 것들</h1>
+
+<p><a href="../deepseek-v4-flash-2x-dgx-spark/">1차 기록</a>에서 GB10 2노드에 DeepSeek V4 Flash 0731 원본 FP8을 올리고 코딩 에이전트로 쓰는 상태까지 만들었다. 남은 질문은 하나였다. <strong>추론(thinking)을 켠 실사용 조건에서 더 빠르게 만들 수 있나.</strong></p>
+<p>설정과 코드를 바꿔 가며 서버를 40번 넘게 다시 띄웠다. 얻은 것은 두 줄이고, 답을 찾은 질문이 하나 있으며, 기각한 가설이 열 개쯤 된다. 그리고 측정 방법을 고치는 데 실험 시간의 절반이 들었다.</p>
+
+<div class="lede">
+<p><strong>얻은 것.</strong> <code>max_num_seqs</code>를 레시피 기본값 6에서 8로 올리면 동시 8건 처리량이 <strong>121.7 → 163.8 tok/s (+35%)</strong>다. 대화형 응답에는 손해가 없다. 기동 직후 워밍업을 흘리면 첫 토큰까지가 <strong>3.51초에서 0.38초로</strong> 줄어든다.</p>
+<p><strong>답을 찾은 질문.</strong> 커뮤니티의 80 tok/s대 수치와 우리 56의 격차는 <strong>추론을 켰는지 여부</strong>였다. 추론을 끄면 우리도 73.0이 나온다. 원인은 추측디코딩 수락률이다.</p>
+<p><strong>얻지 못한 것.</strong> 추론을 켠 단일 스트림 속도는 어떤 설정으로도 개선되지 않았다. NCCL 프로토콜, 컴파일 융합 패스, draft 샘플링 방식, 하이브리드 양자화 — 전부 시험했고 전부 기각이다.</p>
+<p><strong>부산물.</strong> 같은 설정으로 서버를 다시 띄우기만 해도 성능이 최대 15% 달라진다. 이 스택에서 단일 실행으로 발표된 tok/s는 그만큼 믿을 수 없다. 그리고 발열을 쫓다가 vLLM의 대기 루프 문제를 찾았다 — <a href="../vllm-spin-wait-gb10/">별도 기록</a>.</p>
+</div>
+
+<h2>먼저, 측정을 믿을 수 있게 만들기</h2>
+
+<p>본론에 들어가기 전에 세 가지를 고쳐야 했다. 이 과정 자체가 결과의 절반이다.</p>
+
+<h3>서버가 설정 파일과 다르게 떠 있었다</h3>
+<p>첫 측정을 시작하자마자 컨테이너 로그에서 <code>'thinking': False</code>를 발견했다. 설정 파일에는 <code>DEFAULT_THINKING=max</code>가 들어 있었다. 이전 실험 스크립트가 종료할 때 파일만 되돌리고 서버를 재기동하지 않아서 파일과 프로세스가 어긋난 상태였다. 그대로 벤치를 돌렸으면 추론을 끈 수치를 켠 수치로 알고 발표했을 것이다.</p>
+<p>이후 모든 측정은 재기동 뒤 컨테이너 로그의 실제 기동 인자를 파싱해 <code>thinking</code>·<code>max_num_seqs</code>·<code>num_speculative_tokens</code>가 의도와 같은지 확인하고, 어긋나면 그 측정을 버린다.</p>
+
+<h3>첫 요청이 커널 컴파일 비용을 뒤집어썼다</h3>
+<p>런타임이 로그에 이렇게 남긴다.</p>
+<pre><code>CuTeDSL JIT compilation during inference: W4A16FusedMoeKernel.
+This causes a latency spike; consider extending warmup to cover this shape/config.</code></pre>
+<p>추론 도중에 MoE 커널을 컴파일한다는 뜻이다. 원인을 이미지 안에서 추적하니 <strong>b12x MoE 커널이 워밍업 등록 대상이 아니었다.</strong> 워밍업 프로바이더를 등록하는 곳은 MLA 프리필 백엔드 하나뿐이고 그마저 FA4 경로일 때만인데, 이 모델은 sparse MLA 경로라 아무것도 등록되지 않는다.</p>
+<p>프레임워크 안에 손잡이가 없으므로 밖에서 메웠다. 기동 직후 실제로 쓰는 동시성과 프롬프트 길이 조합을 한 번씩 흘려 컴파일을 서비스 시간에서 기동 시간으로 옮긴다.</p>
+<table><thead><tr><th>첫 토큰까지 (동시성 1)</th><th class="n">TTFT</th></tr></thead><tbody>
+<tr><td>워밍업 없음</td><td class="n">3.51초</td></tr>
+<tr class="hi"><td>기동 직후 워밍업</td><td class="n">0.38초</td></tr>
+</tbody></table>
+<p class="fcap">같은 설정, 같은 프롬프트. 차이는 기동 뒤 더미 요청을 흘렸는지뿐이다. 처리량은 바뀌지 않는다 — 일회성 비용이라 긴 벤치에서는 희석되고, 체감이 달라지는 것은 세션의 첫 응답이다.</p>
+
+<h3>반복의 단위는 요청이 아니라 재기동이었다</h3>
+<p>초기 스크리닝에서 효과가 없는 설정값 세 개를 연달아 측정한 적이 있다. 결과적으로 같은 구성을 네 번 측정한 셈이 됐는데, 그 네 값이 동시성 1에서 44.4·49.3·53.8·58.1 tok/s로 흩어졌다. ±13%다.</p>
+<p>중요한 건 이 변동이 <strong>부팅 안에서가 아니라 부팅 사이에서</strong> 생긴다는 점이다. 한 번 띄운 뒤 여러 번 재면 편차가 2~5%로 작다. 그래서 최종 실험은 각 구성을 <strong>세 번 따로 띄워서</strong> 측정하고, 라운드마다 구성 순서를 회전시켜 시간에 따른 표류가 특정 구성에 몰리지 않게 했다.</p>
+<div class="chart" id="c-var"></div>
+<p class="fcap">그림 1. 같은 설정으로 서버를 다시 띄웠을 때의 최대 편차. 동시성 1에서 최대 15.5%까지 벌어진다. 동시성 8에서는 3~7%로 줄어든다 — 포화 상태에서는 메모리 대역폭이 병목이라 부팅마다 달라지는 요소가 씻겨 나간다.</p>
+<p>판정 기준도 여기서 정해진다. 두 구성의 재기동 간 [최소~최대] 범위가 겹치면 <strong>구분하지 못한 것</strong>으로 적는다. 표본이 세 개뿐이라 정규성을 가정하는 검정보다 이쪽이 정직하다.</p>
+
+<h2>커뮤니티의 80 tok/s는 추론을 끈 숫자다</h2>
+
+<p>1차 기록을 올린 뒤 가장 많이 받은 질문이 이것이었다. 커뮤니티에 도는 수치는 동시성 1에서 82.4나 95.9인데 우리는 왜 56인가.</p>
+<p>답은 <strong>추론(thinking)</strong>이다. 이 모델은 추론 모델이고, 추론을 켜면 디코드가 느려진다. 그런데 공개된 수치 대부분은 추론 상태를 밝히지 않는다.</p>
+<p>요청 단위로 추론을 끌 수 있다는 걸 확인하고(<code>chat_template_kwargs</code>), <strong>서버를 다시 띄우지 않고 같은 부팅 안에서</strong> max ↔ off를 교대로 세 세트 측정했다. 재기동 변동이 개입하지 않는 비교다.</p>
+
+<div class="chart" id="c-think"></div>
+<p class="fcap">그림 2. 추론 단계별 스트림당 디코드 속도. 같은 부팅·같은 커널에서 요청 파라미터만 바꿔 잰 값이다.</p>
+
+<table><thead><tr><th>추론</th><th class="n">동시성 1</th><th class="n">동시성 8</th><th class="n">추론 토큰 비중</th></tr></thead><tbody>
+<tr class="hi"><td>끔</td><td class="n">73.0 <small>+30%</small></td><td class="n">32.2 <small>+46%</small></td><td class="n">0%</td></tr>
+<tr><td><code>high</code></td><td class="n">58.0 <small>구분 못 함</small></td><td class="n">25.6 <small>+16%</small></td><td class="n">60%</td></tr>
+<tr><td><code>max</code> · 우리 실사용</td><td class="n">56.3</td><td class="n">22.1</td><td class="n">86~100%</td></tr>
+</tbody></table>
+<p class="fcap">스트림당 tok/s. 각 3세트(<code>high</code>는 1세트)의 중앙값. 범위가 겹치지 않는 것만 백분율을 적었다.</p>
+
+<h3>원인은 추측디코딩이다</h3>
+<p>서버가 남기는 위치별 draft 수락률을 추론 모드별로 갈라 보면 이렇다.</p>
+<table><thead><tr><th>추론</th><th class="n">1번째</th><th class="n">2번째</th><th class="n">3번째</th><th class="n">4번째</th><th class="n">5번째</th><th class="n">실효 수락 길이</th></tr></thead><tbody>
+<tr class="hi"><td>끔</td><td class="n">0.963</td><td class="n">0.866</td><td class="n">0.781</td><td class="n">0.511</td><td class="n">0.473</td><td class="n">4.67</td></tr>
+<tr><td><code>high</code></td><td class="n">0.884</td><td class="n">0.766</td><td class="n">0.605</td><td class="n">0.455</td><td class="n">0.393</td><td class="n">4.14</td></tr>
+<tr><td><code>max</code></td><td class="n">0.870</td><td class="n">0.736</td><td class="n">0.543</td><td class="n">0.398</td><td class="n">0.315</td><td class="n">3.87</td></tr>
+</tbody></table>
+<p><strong>추론 문장은 draft 모델이 맞히기 어렵다.</strong> 추론을 끄면 첫 자리 적중이 0.870에서 0.963으로 오르고, 검증 한 스텝에서 건지는 토큰이 3.87개에서 4.67개로 늘어난다. 우리 추론-끔 수치 73.0은 커뮤니티의 82.4와 12% 차이인데, 그쪽은 "peak" 표기다. <strong>격차의 정체는 대부분 추론이었다.</strong></p>
+<p>유보를 하나 달아야 한다. 이 벤치의 프롬프트는 번호 붙인 단어 목록을 요구한다. 추론을 끄면 출력이 매우 규칙적이어서 draft가 유난히 잘 맞는다. 실제 코딩 작업에서는 격차가 이보다 작을 수 있다.</p>
+<p>실용적으로는 <code>reasoning_effort</code>를 <code>max</code>에서 <code>high</code>로만 낮춰도 동시성 구간에서 16%를 얻는다. 동시성 1에서는 차이가 없다. 다만 이건 추론 깊이를 줄이는 품질 거래라 기본 권고에는 넣지 않는다.</p>
+
+<h2>확정된 것: max_num_seqs 6 → 8</h2>
+
+<div class="chart" id="c-agg8"></div>
+<p class="fcap">그림 3. 동시 요청 8건일 때의 집계 처리량. 점이 재기동 3회의 중앙값, 가로 막대가 범위다. 진한 것이 권고 구성.</p>
+
+<table><thead><tr>
+<th>구성</th><th class="n">동시 1건</th><th class="n">4건</th><th class="n">8건</th><th class="n">기동</th>
+</tr></thead><tbody>
+<tr><td>seqs 6 · k 5 <small>레시피 기본값</small></td><td class="n">58.1<br><small>58~59</small></td><td class="n">117.1<br><small>115~118</small></td><td class="n">121.7<br><small>120~126</small></td><td class="n">3</td></tr>
+<tr class="hi"><td>seqs 8 · k 5 <small>권고</small></td><td class="n">58.2<br><small>52~59</small></td><td class="n">114.3<br><small>114~116</small></td><td class="n">163.8<br><small>158~169</small></td><td class="n">3</td></tr>
+<tr><td>seqs 12 · k 5</td><td class="n">54.6<br><small>52~59</small></td><td class="n">116.1<br><small>115~117</small></td><td class="n">165.8<br><small>156~167</small></td><td class="n">3</td></tr>
+<tr><td>seqs 8 · k 3</td><td class="n">51.4<br><small>51~52</small></td><td class="n">112.9<br><small>108~114</small></td><td class="n">160.9<br><small>157~165</small></td><td class="n">3</td></tr>
+<tr><td>seqs 8 · k 7</td><td class="n">52.6<br><small>51~58</small></td><td class="n">106.4<br><small>106~108</small></td><td class="n">139.3<br><small>138~142</small></td><td class="n">3</td></tr>
+</tbody></table>
+<p class="fcap">집계 처리량 tok/s. 위 칸은 재기동 3회 중앙값, 아래 작은 글씨는 최소~최대. 추론은 <code>reasoning_effort=max</code> 고정.</p>
+
+<p>동시 8건에서 <code>max_num_seqs</code> 6과 8의 범위는 <strong>전혀 겹치지 않는다</strong> (120~126 대 158~169). 당연한 결과이기도 하다. 6이면 8건 중 2건이 큐에서 기다린다. 요점은 <strong>레시피 기본값이 동시 6건까지만 감당한다</strong>는 것이고, 코딩 에이전트를 여러 개 띄우면 그 지점에서 막힌다.</p>
+<p>중요한 건 <strong>공짜라는 점</strong>이다. 동시성 1과 4에서는 6·8·12가 서로 구분되지 않는다. 다만 8에서 12로 더 올리는 것은 의미가 없고(범위 겹침), 동시 8건에서 <em>스트림당</em> 속도는 seqs 6이 25.3 tok/s로 가장 높다 — 집계와 개별 응답 속도는 맞바꿈 관계다. 여러 에이전트를 돌리면 8, 한 사람이 붙어 쓰면 6이 낫다.</p>
+
+<h3>추측디코딩 깊이는 기본값이 최적</h3>
+<p>DSpark 추측디코딩의 깊이(<code>MTP_NUM_TOKENS</code>, k)는 레시피 기본이 5다. 위아래로 흔들어 봤다.</p>
+<ul>
+<li><strong>k=7은 명확히 손해다.</strong> 동시 8건에서 −15~18%, 4건에서 −7%. 두 번의 독립 측정에서 같은 방향으로 재현됐다.</li>
+<li><strong>k=3은 이득이 없다.</strong> 동시 8건에서 5와 구분되지 않고, 실효 수락 길이도 3.11로 k=5의 3.89보다 짧다.</li>
+</ul>
+<p>위치별 수락률이 이유를 보여준다. 깊이를 늘리면 뒤쪽 자리의 기여가 0.2 수준으로 떨어지는데, 그 자리를 위해 draft 연산과 메모리 트래픽은 그대로 늘어난다. 이 모델은 층마다 전문가 256개 중 6개만 쓰는 희소 MoE라, <strong>한 스텝에 여러 토큰을 검증하면 읽어야 할 전문가의 합집합이 커진다.</strong> 깊이를 더하면 이 합집합이 계속 자라는데 수락 기여는 급감한다.</p>
+
+<h2>확정하지 못한 것: 단일 스트림 속도</h2>
+
+<div class="chart" id="c-agg1"></div>
+<p class="fcap">그림 4. 요청 1건일 때. 다섯 구성이 모두 51~59 tok/s에 몰려 있고 범위가 서로 겹친다.</p>
+
+<p>동시성 1에서 유의한 차이가 난 쌍은 열다섯 번의 기동을 통틀어 하나뿐이었다. <strong>재기동 간 변동이 설정 차이보다 크기 때문이다.</strong> 이건 "튜닝 여지가 없다"는 뜻이면서 동시에 "<strong>이 스택의 단일 스트림 수치는 단일 실행으로 비교할 수 없다</strong>"는 뜻이다. 커뮤니티에 돌아다니는 값들 — 82.4, 95.9 — 도 같은 조건에서 측정된 것이다.</p>
+
+<h2>하드웨어 상한에서 우리는 어디쯤인가</h2>
+<p>메모리는 LPDDR5X 8533 MT/s × 256bit = <strong>273 GB/s</strong>다. 가중치 155.4 GiB의 구성을 safetensors 헤더에서 직접 세면 이렇다.</p>
+<table><thead><tr><th>구성요소</th><th class="n">GiB</th><th class="n">비중</th></tr></thead><tbody>
+<tr><td>라우팅 전문가 (43층 × 256개 × 12.8 MiB)</td><td class="n">137.1</td><td class="n">88.2%</td></tr>
+<tr><td>MTP draft (추측디코딩용)</td><td class="n">10.1</td><td class="n">6.5%</td></tr>
+<tr><td>어텐션 MLA</td><td class="n">5.1</td><td class="n">3.3%</td></tr>
+<tr><td>임베딩·출력</td><td class="n">2.0</td><td class="n">1.3%</td></tr>
+<tr><td>공유 전문가·dense FFN</td><td class="n">1.0</td><td class="n">0.6%</td></tr>
+</tbody></table>
+<p>스텝 시간 ~68ms(57 tok/s ÷ 실효 수락 3.9)를 분해하면 가중치 읽기가 27~39ms, draft ~2ms, 노드 간 all-reduce 5~9ms, 그리고 <strong>어디에 쓰이는지 잡히지 않는 시간이 20~30ms</strong>다. 대역폭이 포화조차 안 돼 있을 가능성이 높다는 뜻이고, 실제로 통신·설정 쪽 손잡이를 아무리 돌려도 안 움직인 이유가 여기 있다 — NCCL을 전부 없애도 110 tok/s에는 못 간다.</p>
+<p>수락 3.9 고정이면 스텝 45ms에 87, 35ms에 111 tok/s다. 수락을 추론-끔 수준(4.67)까지 올리면 같은 스텝에서 104~130이 된다. <strong>110~130이 이 하드웨어의 상한이고, 스텝 단축과 수락 개선을 둘 다 이겨야 닿는다.</strong></p>
+
+<h2>효과가 없었던 것들</h2>
+<p>기각도 결과다. 각각 최소 한 번의 재기동 측정으로 판정했다.</p>
+<ul>
+<li><strong>CUDA 그래프 캡처 크기 정렬.</strong> 디코드 배치 M을 캡처 목록에 맞추면 JIT이 사라질 것으로 봤다. M을 24·48·64로 정렬해도 발생 횟수가 그대로였다. 유발 요인은 디코드가 아니라 프리필 형상 쪽이다.</li>
+<li><strong>b12x MoE 타일 선택기.</strong> <code>FORCE_BLOCKS_MAX_M</code> 16→48·64, <code>FORCE_BLOCKS_PER_SM</code> — 전부 노이즈 범위.</li>
+<li><strong>NCCL_PROTO=LL128.</strong> 소형 all-reduce 지연을 노렸지만 c1 53.5 / c8 150.7로 무변화.</li>
+<li><strong>컴파일 융합 패스.</strong> <code>fuse_allreduce_rms</code>(이 빌드에 존재, 기본 꺼짐)를 켜도 c1 51.1 / c8 146.1 — 패턴 미매칭이거나 무이득.</li>
+<li><strong>draft 샘플링 greedy.</strong> c1 48.8로 오히려 아래. 고엔트로피 추론 텍스트에서는 분포 겹침을 살리는 probabilistic이 맞다.</li>
+<li><strong>하이브리드 NVFP4 GEMM</strong> (<code>ENABLE_VLLM_GB10_PATCH=1</code>). 전문가 가중치가 어차피 로드 때 MXFP4로 변환돼 있어 이득 없음 (c1 53.2 / c8 154.9).</li>
+<li><strong>다른 런타임 이미지.</strong> Stage-C 오버레이는 빌드까지 성공했지만 현재 compose와 경로 규약이 달라 <strong>기동 자체가 안 된다</strong>. 베이스도 vLLM 0.21.1rc1로 네 버전 뒤다. 이 둘의 동일조건 비교가 공개된 적 없는 이유가 아마 이것일 것이다.</li>
+<li><strong>추측디코딩 슬롯 버그 의심.</strong> 레시피 문서의 Patch 1(수락률 붕괴 수정)이 우리 이미지에 필요한가 했지만, seqs를 4→6→8로 올려도 수락률이 유지·상승 — 이 이미지 계보에는 그 버그가 없다.</li>
+</ul>
+
+<h2>발열: 가장 뜨거운 것은 GPU가 아니었다</h2>
+<div class="lede">
+<p>온도를 쫓다가 이 기록에서 가장 큰 발견이 나왔다. 부하 중 SoC가 96°C까지 가는데 열원이 GPU가 아니라 <strong>대기 루프를 도는 CPU 성능코어</strong>였고, 원인은 vLLM의 기본값 한 줄이었다. 수정 후 CPU 낭비는 12분의 1, SoC 최고는 96→68°C가 됐다 — 성능 손실 없이.</p>
+<p>추적 과정(팬 A/B, 코어별 계측, py-spy, 클럭 실험)은 분량이 있어 <a href="../vllm-spin-wait-gb10/"><strong>별도 기록</strong></a>으로 뺐다.</p>
+</div>
+
+<h2>남은 길: drafter를 추론 문장에 적응시키기</h2>
+<p>설정 스크리닝이 전멸한 지금, 남은 큰 레버는 하나다. 추론 문장에서 3.87로 떨어지는 실효 수락 길이를 끌어올리는 것 — 즉 <strong>drafter를 thinking 텍스트로 미세조정</strong>하는 것이다. 4.4~4.7에 도달하면 디코드 +15~25%다.</p>
+<p>조사해 보니 길이 있다. DeepSeek이 공개한 <a href="https://github.com/deepseek-ai/DeepSpec">DeepSpec</a>은 DSpark 계열 추측디코딩의 학습·평가 코드베이스이고, 공개 drafter들은 non-thinking 출력으로 학습됐으며 문서가 도메인·thinking 모드에서는 재미세조정을 권한다. 우리 관측 — 추론을 끄면 수락이 4.67로 뛴다 — 과 정확히 맞는 그림이다.</p>
+<p>drafter는 전체 모델이 아니라 1층짜리 MTP 모듈(10.1 GiB)이라, 데이터 생성(타깃 모델이 thinking으로 재생성한 트레이스를 teacher-forcing 프리필로 덤프)과 학습 모두 이 2노드와 보조 장비로 감당된다. 착수 전에 싼 진단이 하나 있다 — draft가 쓰는 축소 어휘의 miss rate가 추론 텍스트에서 얼마나 되는지. 그게 천장이면 학습으로도 못 넘는다.</p>
+
+<h2>정리하면</h2>
+<h3>적용한 최종 구성</h3>
+<pre><code># .env.dspark — 레시피 기본값에서 한 줄만 바꾼다
+MAX_NUM_SEQS=8          # 6 → 8. 동시 8건에서 +35%, 대화형 손해 없음
+MTP_NUM_TOKENS=5        # 그대로 두는 게 맞다 (7은 −15~18%, 3은 이득 없음)
+DEFAULT_THINKING=max    # 실사용 조건
+
+# 기동 직후 워밍업 — 실제로 쓰는 동시성 × 프롬프트 길이 조합을 한 번씩
+#   첫 토큰까지 3.51초 → 0.38초 (기동 스크립트에 통합)
+
+# 발열 처방 (vLLM 스핀 수정 + CPU 클럭 상한)은 별도 기록 참고
+#   → 부하 중 SoC 96°C → 68°C, 성능 손실 없음</code></pre>
+
+<h3>이 스택에서 확정된 사실들</h3>
+<ul>
+<li>추론을 켠 단일 스트림의 정직한 값은 <strong>52~63 tok/s</strong>, 끄면 ~73. 80대 공개 수치는 추론-끔 피크다.</li>
+<li>단일 실행 측정은 부팅 간 ±15% 안에서 의미가 없다. 비교는 재기동 반복으로만.</li>
+<li>설정 수준의 공짜 이득은 <code>max_num_seqs</code> 하나뿐이었다. 나머지 상한은 수락률(추론 텍스트)과 스텝 오버헤드에 있다.</li>
+</ul>
+
+<h2>참고한 자료</h2>
+
+<div class="tw"><div class="h"><span class="n">LocalInference</span><span class="u">@LocalInference</span><span class="d">· 8월 9일</span></div>
+<p>DeepSeek V4 Flash-0731, 2× DGX Spark, 추측디코딩 켬, 동시성별 3회 평균(총 27회). 추론 off / high / max의 동시성 1 지속 처리량은 각각 64.1 / 53.9 / 56.5 tok/s.</p>
+<a href="https://x.com/LocalInference/status/2086292798677172282">x.com/LocalInference/status/2086292798677172282</a></div>
+
+<div class="tw"><div class="h"><span class="n">MiaAI Lab</span><span class="u">@MiaAI_lab</span><span class="d">· 8월 11일</span></div>
+<p>2× DGX Spark용 DeepSeek V4 Flash 대규모 업데이트. 확인해 보니 권장 설정값과 이미지 태그는 그대로였고, 핵심은 긴 컨텍스트 디코드의 커널 디스패치 회귀 수정(Issue #22)이었다.</p>
+<a href="https://x.com/MiaAI_lab/status/2087116895090508022">x.com/MiaAI_lab/status/2087116895090508022</a></div>
+
+<div class="tw"><div class="h"><span class="n">0xSero</span><span class="u">@0xSero</span><span class="d">· 7월 31일</span></div>
+<p>2 Spark, 1M 컨텍스트에서 디코드 95.9 tok/s. 이 수치는 일반 CUDA 그래프(<code>VLLM_USE_BREAKABLE_CUDAGRAPH=0</code>) 덕이 크다 — breakable 대비 +28.6%. 우리 스택도 같은 설정이다.</p>
+<a href="https://x.com/0xSero/status/2083312467049124142">x.com/0xSero/status/2083312467049124142</a></div>
+
+<div class="tw"><div class="h"><span class="n">krunkosaurus</span><span class="u">@krunkosaurus</span><span class="d">· 8월 11일</span></div>
+<p>2× Spark, 1M 컨텍스트에서 40~74 tok/s. "추론 모드는 속도를 거의 안 깎는다"고 했지만, 같은 부팅 안에서 교대 측정한 우리 결과는 30~46% 차이였다.</p>
+<a href="https://x.com/krunkosaurus/status/2087071373143486712">x.com/krunkosaurus/status/2087071373143486712</a></div>
+
+<details><summary>측정 조건</summary>
+<p>2노드 GB10(128GB LPDDR5X 각), ConnectX-7 200GbE 직결, vLLM TP=2 <code>mp</code> 백엔드(0.25.2 계열 커뮤니티 빌드), KV 캐시 <code>nvfp4_ds_mla</code>, MoE 백엔드 <code>flashinfer_b12x</code>(전문가 MXFP4 적재), GPU 클럭 상한 2000MHz, <code>VLLM_USE_BREAKABLE_CUDAGRAPH=0</code>. 모델은 원본 FP8 체크포인트(revision 고정, 해시 검증).</p>
+<p>벤치는 짧은 프롬프트(약 350토큰)에 긴 생성으로 디코드에 맞췄다. 에이전트 사용에서는 컨텍스트가 누적되며 프리픽스 캐시로 흡수되므로 프리필은 측정 대상에서 뺐다. 추론을 <code>max</code>로 고정했기 때문에 생성 토큰은 사실상 전부 추론 토큰이다.</p>
+<p>본실험은 구성 5개 × 재기동 3회(총 15회 기동), 부팅마다 워밍업 후 2라운드 중앙값, 라운드마다 구성 순서 회전. 추론 on/off와 후반 스크리닝은 각각 별도 부팅에서 측정.</p>
+<p>전력은 GPU 레일 값만 노출된다(모듈 전력·hwmon 없음). 벽면 소비전력은 측정하지 못했다.</p>
+</details>
+</div><script src="../vendor/d3.v7.min.js"></script><script>
+const D={"rep": [{"key": "s6k5", "label": "seqs 6 · k 5", "note": "레시피 기본값", "boots": 3, "agg1": {"med": 58.14047706353881, "lo": 57.64220024312836, "hi": 59.09385813929947}, "str1": {"med": 58.833864242990494, "lo": 58.32286355837978, "hi": 59.75875207119111}, "agg4": {"med": 117.06549359216496, "lo": 114.7844780658078, "hi": 117.78619939525703}, "str4": {"med": 30.68487492811407, "lo": 29.9978196960921, "hi": 31.013113643683205}, "agg8": {"med": 121.73002231156678, "lo": 120.35460289681396, "hi": 126.1997767700303}, "str8": {"med": 25.255093059985, "lo": 24.983035738417428, "hi": 25.393074205506814}}, {"key": "s8k5", "label": "seqs 8 · k 5", "note": "권고", "boots": 3, "agg1": {"med": 58.24396826766468, "lo": 52.15964639134228, "hi": 58.69278097257576}, "str1": {"med": 58.95576052667218, "lo": 52.71274687140895, "hi": 59.34607860566038}, "agg4": {"med": 114.33579501417638, "lo": 114.05042802166815, "hi": 116.09034131934058}, "str4": {"med": 30.997262614000064, "lo": 29.736300065834747, "hi": 31.244822827252392}, "agg8": {"med": 163.82959878442244, "lo": 158.2331814608966, "hi": 168.97790388430178}, "str8": {"med": 21.666258071456486, "lo": 21.096653570416223, "hi": 22.472540080036225}}, {"key": "s12k5", "label": "seqs 12 · k 5", "note": "", "boots": 3, "agg1": {"med": 54.591606797631954, "lo": 52.21685707524878, "hi": 58.88862107161248}, "str1": {"med": 55.16426422541757, "lo": 52.7394722795513, "hi": 59.56024480328608}, "agg4": {"med": 116.12511605385131, "lo": 115.18611104728785, "hi": 116.59334768383961}, "str4": {"med": 29.93187826656335, "lo": 29.767066716546367, "hi": 30.7143779315674}, "agg8": {"med": 165.79350478677446, "lo": 155.61255508592507, "hi": 166.97752466935395}, "str8": {"med": 21.79345452619045, "lo": 21.008113078303033, "hi": 21.850884947893544}}, {"key": "s8k3", "label": "seqs 8 · k 3", "note": "", "boots": 3, "agg1": {"med": 51.409996598440515, "lo": 51.33285898027586, "hi": 52.484459051307525}, "str1": {"med": 51.902006476180006, "lo": 51.7914570092813, "hi": 53.03327912260204}, "agg4": {"med": 112.92560908746708, "lo": 108.3983050611325, "hi": 113.79929675836522}, "str4": {"med": 29.313013166854493, "lo": 28.38181620360757, "hi": 29.85690165074748}, "agg8": {"med": 160.8535721841538, "lo": 157.00665450669266, "hi": 164.6725443607282}, "str8": {"med": 21.093079571709723, "lo": 20.535955423355126, "hi": 21.901006248630523}}, {"key": "s8k7", "label": "seqs 8 · k 7", "note": "", "boots": 3, "agg1": {"med": 52.55854577005206, "lo": 50.629328429387236, "hi": 58.476709056254705}, "str1": {"med": 53.08429962015002, "lo": 51.167801000598224, "hi": 59.19170192802723}, "agg4": {"med": 106.43644690767705, "lo": 105.94482720291029, "hi": 107.84041518037597}, "str4": {"med": 28.030498564213012, "lo": 27.582375193146774, "hi": 28.76834310794039}, "agg8": {"med": 139.3134689917013, "lo": 137.95354549999658, "hi": 142.42483892909436}, "str8": {"med": 18.811483047625558, "lo": 18.65967997803448, "hi": 18.86631824304209}}], "thermal": [{"label": "TSOC · SoC 종합", "A": {"avg": 87.53703703703704, "max": 96.0}, "B": {"avg": 75.16981132075472, "max": 80.0}, "delta": 12.36722571628232}, {"label": "TS0P · 클러스터0 성능코어", "A": {"avg": 84.29629629629629, "max": 89.0}, "B": {"avg": 74.83018867924528, "max": 80.0}, "delta": 9.466107617051009}, {"label": "TS1P · 클러스터1 성능코어", "A": {"avg": 86.48148148148148, "max": 96.0}, "B": {"avg": 64.60377358490567, "max": 76.0}, "delta": 21.877707896575814}, {"label": "TUNC · 언코어·메모리", "A": {"avg": 77.22222222222223, "max": 81.0}, "B": {"avg": 67.66037735849056, "max": 72.0}, "delta": 9.561844863731665}, {"label": "TGPU · GPU", "A": {"avg": 72.66666666666667, "max": 76.0}, "B": {"avg": 65.11320754716981, "max": 69.0}, "delta": 7.553459119496864}, {"label": "NVMe", "A": {"avg": 57.01851851851852, "max": 60.0}, "B": {"avg": 46.62264150943396, "max": 49.0}, "delta": 10.395877009084558}, {"label": "ConnectX-7", "A": {"avg": 72.12962962962963, "max": 76.0}, "B": {"avg": 63.22641509433962, "max": 67.0}, "delta": 8.903214535290012}], "power": {"A": 24.438148148148148, "B": 24.299056603773586}, "thinking": [{"mode": "off", "label": "끔", "n": 3, "agg1": {"med": 69.38455670561645, "lo": 59.936658198566334, "hi": 72.48403851321339}, "str1": {"med": 73.01466743015372, "lo": 71.35752870209463, "hi": 74.63440663679418}, "agg8": {"med": 238.22075565023198, "lo": 237.3810000209029, "hi": 240.7374325003679}, "str8": {"med": 32.22160042437646, "lo": 31.821475751128084, "hi": 32.421903440854734}, "reason": 0.0}, {"mode": "high", "label": "high", "n": 1, "agg1": {"med": 57.017650111250035, "lo": 57.017650111250035, "hi": 57.017650111250035}, "str1": {"med": 57.97459651421328, "lo": 57.97459651421328, "hi": 57.97459651421328}, "agg8": {"med": 151.61533627726945, "lo": 151.61533627726945, "hi": 151.61533627726945}, "str8": {"med": 25.616095237976246, "lo": 25.616095237976246, "hi": 25.616095237976246}, "reason": 60.46025104602511}, {"mode": "max", "label": "max", "n": 3, "agg1": {"med": 55.92014067793848, "lo": 53.652897664059054, "hi": 61.7188687559177}, "str1": {"med": 56.34531773490545, "lo": 54.01811736485093, "hi": 62.326541203204755}, "agg8": {"med": 164.63100885557495, "lo": 163.49030729165685, "hi": 166.91944904125717}, "str8": {"med": 22.05901123766412, "lo": 21.69400193481172, "hi": 22.10169687060908}, "reason": 100.0}], "accept": [{"mode": "max", "pos": [0.87, 0.736, 0.543, 0.398, 0.315], "len": 3.87}, {"mode": "high", "pos": [0.884, 0.766, 0.605, 0.455, 0.393], "len": 4.14}, {"mode": "off", "pos": [0.963, 0.866, 0.781, 0.511, 0.473], "len": 4.67}], "knobs": [{"key": "base", "label": "기준 (현행)", "note": "", "n": 2, "agg1": {"med": 56.491028798341816, "lo": 55.423963737464426, "hi": 57.55809385921921}, "agg8": {"med": 168.30802586587157, "lo": 163.33486495240155, "hi": 173.28118677934157}, "socA": 87.55000000000001, "socB": 75.19999999999999}, {"key": "clk", "label": "P코어 2.8GHz", "note": "권고", "n": 3, "agg1": {"med": 56.69206810086879, "lo": 56.4509663324311, "hi": 59.589393835672595}, "agg8": {"med": 154.71881255699037, "lo": 152.48607259037033, "hi": 154.7355276898029}, "socA": 79.7, "socB": 64.9, "refA": 89.1, "refB": 74.7}, {"key": "eff", "label": "효율코어 고정", "note": "", "n": 2, "agg1": {"med": 58.349440816332375, "lo": 57.75185314357542, "hi": 58.947028489089334}, "agg8": {"med": 156.41292931380596, "lo": 154.7257534530351, "hi": 158.1001051745768}, "socA": 76.30000000000001, "socB": 64.1}, {"key": "spin", "label": "네이티브 spinloop", "note": "", "n": 2, "agg1": {"med": 56.79493379405131, "lo": 55.921464589691524, "hi": 57.668402998411096}, "agg8": {"med": 165.8332760426891, "lo": 164.65874703961273, "hi": 167.00780504576548}, "socA": 88.95, "socB": 73.8}, {"key": "nccl", "label": "NCCL blocking wait", "note": "", "n": 2, "agg1": {"med": 56.764387827048246, "lo": 54.7092611517778, "hi": 58.81951450231869}, "agg8": {"med": 167.415221162755, "lo": 165.54463899267444, "hi": 169.28580333283554}, "socA": 90.05, "socB": 74.65}], "clkfull": [{"label": "TSOC · SoC 종합", "A": {"fast": {"avg": 89.13253012048193, "max": 97.0}, "slow": {"avg": 79.69411764705882, "max": 86.0}, "d": 9.438412473423114}, "B": {"fast": {"avg": 74.71084337349397, "max": 78.0}, "slow": {"avg": 64.92941176470588, "max": 73.0}, "d": 9.781431608788097}}, {"label": "TS0P · 클러스터0 성능코어", "A": {"fast": {"avg": 85.08433734939759, "max": 91.0}, "slow": {"avg": 70.78823529411764, "max": 74.0}, "d": 14.296102055279945}, "B": {"fast": {"avg": 73.79518072289157, "max": 78.0}, "slow": {"avg": 59.588235294117645, "max": 62.0}, "d": 14.206945428773928}}, {"label": "TS1P · 클러스터1 성능코어", "A": {"fast": {"avg": 87.855421686747, "max": 97.0}, "slow": {"avg": 76.14117647058823, "max": 86.0}, "d": 11.714245216158758}, "B": {"fast": {"avg": 66.19277108433735, "max": 78.0}, "slow": {"avg": 60.07058823529412, "max": 73.0}, "d": 6.122182849043234}}, {"label": "TUNC · 언코어·메모리", "A": {"fast": {"avg": 78.24096385542168, "max": 85.0}, "slow": {"avg": 74.54117647058824, "max": 78.0}, "d": 3.699787384833442}, "B": {"fast": {"avg": 67.36144578313252, "max": 71.0}, "slow": {"avg": 63.917647058823526, "max": 66.0}, "d": 3.443798724308998}}, {"label": "TGPU · GPU", "A": {"fast": {"avg": 74.16867469879519, "max": 80.0}, "slow": {"avg": 72.43529411764706, "max": 75.0}, "d": 1.7333805811481255}, "B": {"fast": {"avg": 65.49397590361446, "max": 69.0}, "slow": {"avg": 63.811764705882354, "max": 66.0}, "d": 1.6822111977321015}}, {"label": "NVMe", "A": {"fast": {"avg": 59.42168674698795, "max": 64.0}, "slow": {"avg": 59.89411764705882, "max": 62.0}, "d": -0.47243090007086863}, "B": {"fast": {"avg": 47.25301204819277, "max": 49.0}, "slow": {"avg": 47.470588235294116, "max": 49.0}, "d": -0.21757618710134352}}, {"label": "ConnectX-7", "A": {"fast": {"avg": 73.71084337349397, "max": 79.0}, "slow": {"avg": 73.14117647058823, "max": 76.0}, "d": 0.5696669029057375}, "B": {"fast": {"avg": 63.397590361445786, "max": 66.0}, "slow": {"avg": 62.49411764705882, "max": 64.0}, "d": 0.9034727143869645}}], "nboot": 15};
+const INK="#1c1c1c",BAR="#cbc9bf",HI="#46537a",SOFT="#5b5b57",FAINT="#b7b5ad";
+const tip=d3.select("body").append("div").attr("class","tip");
+function show(ev,h){tip.html(h).style("opacity",1)
+ .style("left",Math.min(innerWidth-300,ev.clientX+14)+"px").style("top",Math.max(8,ev.clientY-8)+"px");}
+function hide(){tip.style("opacity",0);}
+
+// ── 그림1: 구성별 집계 처리량 + 재기동 범위 ───────────────────
+function rangeChart(sel,conc,dom,note){
+  const rows=D.rep.filter(r=>r["agg"+conc]).map(r=>({...r,v:r["agg"+conc]}));
+  const M={t:26,r:64,b:38,l:120},W=760,rowH=34,H=M.t+M.b+rows.length*rowH;
+  const svg=d3.select(sel).append("svg").attr("viewBox",`0 0 ${W} ${H}`);
+  const x=d3.scaleLinear().domain(dom).range([M.l,W-M.r]);
+  const y=d3.scaleBand().domain(rows.map(r=>r.label)).range([M.t,H-M.b]).padding(.42);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`).call(d3.axisBottom(x).ticks(6));
+  svg.append("text").attr("class","axlab").attr("x",(M.l+W-M.r)/2).attr("y",H-8)
+     .attr("text-anchor","middle").text("집계 처리량 tok/s");
+  svg.append("g").attr("class","axis").attr("transform",`translate(${M.l},0)`)
+     .call(d3.axisLeft(y).tickSize(0)).selectAll("text").style("font-size","11px")
+     .style("fill",d=>{const r=rows.find(q=>q.label===d);return r&&r.note==="권고"?INK:"#8a8880";});
+  if(note) svg.append("text").attr("class","axlab").attr("x",W-M.r).attr("y",M.t-10)
+     .attr("text-anchor","end").text(note);
+  const g=svg.selectAll("g.r").data(rows).join("g").attr("class","r")
+    .on("mousemove",(e,r)=>show(e,`<b>${r.label}</b>${r.note?" — "+r.note:""}<br>`
+      +`재기동 ${r.boots}회 중앙값 <b>${r.v.med.toFixed(1)}</b> tok/s<br>범위 ${r.v.lo.toFixed(1)} ~ ${r.v.hi.toFixed(1)}`))
+    .on("mouseleave",hide);
+  // 범위 선
+  g.append("line").attr("x1",r=>x(r.v.lo)).attr("x2",r=>x(r.v.hi))
+   .attr("y1",r=>y(r.label)+y.bandwidth()/2).attr("y2",r=>y(r.label)+y.bandwidth()/2)
+   .attr("stroke",r=>r.note==="권고"?HI:"#a9a79e").attr("stroke-width",r=>r.note==="권고"?9:7)
+   .attr("opacity",.28).attr("stroke-linecap","round");
+  // 중앙값 점
+  g.append("circle").attr("cx",r=>x(r.v.med)).attr("cy",r=>y(r.label)+y.bandwidth()/2)
+   .attr("r",r=>r.note==="권고"?6:4.5).attr("fill",r=>r.note==="권고"?HI:"#7a786f");
+  g.append("text").attr("x",r=>x(r.v.hi)+9).attr("y",r=>y(r.label)+y.bandwidth()/2+4)
+   .attr("font-size",11).attr("fill",r=>r.note==="권고"?INK:SOFT).text(r=>r.v.med.toFixed(0));
+}
+
+// ── 그림2: 재기동 간 변동폭 (설정 차이보다 큰가) ──────────────
+function varChart(sel){
+  const rows=[];
+  D.rep.forEach(r=>[1,4,8].forEach(c=>{const v=r["agg"+c];
+    if(v) rows.push({label:r.label,conc:c,spread:(v.hi/v.lo-1)*100});}));
+  const M={t:26,r:26,b:40,l:120},W=760,H=250;
+  const svg=d3.select(sel).append("svg").attr("viewBox",`0 0 ${W} ${H}`);
+  const concs=[1,4,8];
+  const x=d3.scaleLinear().domain([0,d3.max(rows,r=>r.spread)*1.15]).range([M.l,W-M.r]);
+  const y=d3.scaleBand().domain(D.rep.map(r=>r.label)).range([M.t,H-M.b]).padding(.25);
+  const ys=d3.scaleBand().domain(concs).range([0,y.bandwidth()]).padding(.18);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`)
+     .call(d3.axisBottom(x).ticks(6).tickFormat(d=>d+"%"));
+  svg.append("text").attr("class","axlab").attr("x",(M.l+W-M.r)/2).attr("y",H-8)
+     .attr("text-anchor","middle").text("같은 설정을 다시 띄웠을 때의 최대 편차");
+  svg.append("g").attr("class","axis").attr("transform",`translate(${M.l},0)`)
+     .call(d3.axisLeft(y).tickSize(0)).selectAll("text").style("font-size","11px").style("fill","#8a8880");
+  const shade={1:"#46537a",4:"#9aa2bd",8:"#cbc9bf"};
+  svg.selectAll("rect").data(rows).join("rect")
+    .attr("x",x(0)).attr("y",r=>y(r.label)+ys(r.conc)).attr("height",ys.bandwidth())
+    .attr("width",r=>Math.max(1,x(r.spread)-x(0))).attr("fill",r=>shade[r.conc]).attr("rx",1)
+    .on("mousemove",(e,r)=>show(e,`<b>${r.label}</b> · 동시성 ${r.conc}<br>재기동 간 편차 <b>${r.spread.toFixed(1)}%</b>`))
+    .on("mouseleave",hide);
+  concs.forEach((c,i)=>{
+    svg.append("rect").attr("x",M.l+8+i*74).attr("y",M.t-18).attr("width",11).attr("height",9).attr("fill",shade[c]);
+    svg.append("text").attr("class","axlab").attr("x",M.l+23+i*74).attr("y",M.t-10).text("동시성 "+c);
+  });
+}
+
+// ── 그림3: 센서별 온도 격차 ───────────────────────────────────
+function thermalChart(sel){
+  const rows=D.thermal;
+  const M={t:26,r:60,b:38,l:186},W=760,rowH=28,H=M.t+M.b+rows.length*rowH;
+  const svg=d3.select(sel).append("svg").attr("viewBox",`0 0 ${W} ${H}`);
+  const x=d3.scaleLinear().domain([40,d3.max(rows,r=>r.A.avg)+8]).range([M.l,W-M.r]);
+  const y=d3.scaleBand().domain(rows.map(r=>r.label)).range([M.t,H-M.b]).padding(.34);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`)
+     .call(d3.axisBottom(x).ticks(6).tickFormat(d=>d+"°"));
+  svg.append("text").attr("class","axlab").attr("x",(M.l+W-M.r)/2).attr("y",H-8)
+     .attr("text-anchor","middle").text("부하 중 평균 온도 (°C) — 선의 길이가 두 노드의 격차");
+  svg.append("g").attr("class","axis").attr("transform",`translate(${M.l},0)`)
+     .call(d3.axisLeft(y).tickSize(0)).selectAll("text").style("font-size","10.5px").style("fill","#8a8880");
+  const g=svg.selectAll("g.t").data(rows).join("g").attr("class","t")
+    .on("mousemove",(e,r)=>show(e,`<b>${r.label}</b><br>A 팬 없음: 평균 ${r.A.avg.toFixed(1)}° / 최고 ${r.A.max.toFixed(0)}°`
+      +`<br>B 녹투아: 평균 ${r.B.avg.toFixed(1)}° / 최고 ${r.B.max.toFixed(0)}°<br><b>격차 ${r.delta.toFixed(1)}°</b>`))
+    .on("mouseleave",hide);
+  g.append("line").attr("x1",r=>x(r.B.avg)).attr("x2",r=>x(r.A.avg))
+   .attr("y1",r=>y(r.label)+y.bandwidth()/2).attr("y2",r=>y(r.label)+y.bandwidth()/2)
+   .attr("stroke","#cbc9bf").attr("stroke-width",6).attr("stroke-linecap","round");
+  g.append("circle").attr("cx",r=>x(r.B.avg)).attr("cy",r=>y(r.label)+y.bandwidth()/2).attr("r",5)
+   .attr("fill","none").attr("stroke",HI).attr("stroke-width",1.8);
+  g.append("circle").attr("cx",r=>x(r.A.avg)).attr("cy",r=>y(r.label)+y.bandwidth()/2).attr("r",5).attr("fill",HI);
+  g.append("text").attr("x",r=>x(r.A.avg)+10).attr("y",r=>y(r.label)+y.bandwidth()/2+4)
+   .attr("font-size",10.5).attr("fill",SOFT).text(r=>"+"+r.delta.toFixed(0)+"°");
+  svg.append("circle").attr("cx",M.l+112).attr("cy",M.t-13).attr("r",5).attr("fill",HI);
+  svg.append("text").attr("class","axlab").attr("x",M.l+122).attr("y",M.t-9).text("A 노드 · 팬 없음 (평균)");
+  svg.append("circle").attr("cx",M.l+10).attr("cy",M.t-13).attr("r",5).attr("fill","none").attr("stroke",HI).attr("stroke-width",1.8);
+  svg.append("text").attr("class","axlab").attr("x",M.l+20).attr("y",M.t-9).text("B 노드 · 녹투아 (평균)");
+}
+
+// ── 그림4: 디코드 중 코어별 점유 ──────────────────────────────
+function coreChart(sel){
+  const cores=[];
+  for(let i=0;i<20;i++){
+    const busy={6:88.3,15:100,17:100,18:98.7,5:6.3}[i]||1.5;
+    cores.push({i,busy,perf:(i>=5&&i<=9)||(i>=15&&i<=19)});
+  }
+  const M={t:30,r:20,b:44,l:44},W=760,H=210;
+  const svg=d3.select(sel).append("svg").attr("viewBox",`0 0 ${W} ${H}`);
+  const x=d3.scaleBand().domain(cores.map(c=>c.i)).range([M.l,W-M.r]).padding(.22);
+  const y=d3.scaleLinear().domain([0,100]).range([H-M.b,M.t]);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`)
+     .call(d3.axisBottom(x).tickSize(0)).selectAll("text").style("font-size","9px");
+  svg.append("text").attr("class","axlab").attr("x",(M.l+W-M.r)/2).attr("y",H-8)
+     .attr("text-anchor","middle").text("CPU 코어 번호 (0~4·10~14 = 효율코어 2.8GHz · 나머지 = 성능코어 3.9GHz)");
+  svg.append("g").attr("class","axis").attr("transform",`translate(${M.l},0)`)
+     .call(d3.axisLeft(y).ticks(4).tickFormat(d=>d+"%"));
+  svg.selectAll("rect").data(cores).join("rect")
+    .attr("x",c=>x(c.i)).attr("width",x.bandwidth())
+    .attr("y",c=>y(c.busy)).attr("height",c=>y(0)-y(c.busy))
+    .attr("fill",c=>c.busy>50?HI:(c.perf?"#cbc9bf":"#e4e2da")).attr("rx",1)
+    .on("mousemove",(e,c)=>show(e,`<b>코어 ${c.i}</b> (${c.perf?"성능 3.9GHz":"효율 2.8GHz"})<br>점유 ${c.busy}%`))
+    .on("mouseleave",hide);
+  svg.append("text").attr("class","axlab").attr("x",M.l).attr("y",M.t-12)
+     .text("요청 1건 · GPU 사용률 95% · 전체 CPU 19.3% — 그런데 네 코어가 100%");
+}
+
+// ── 그림: thinking 단계별 디코드 속도 ────────────────────────
+function thinkChart(sel){
+  const rows=[];
+  D.thinking.forEach(t=>[1,8].forEach(c=>{const v=t["str"+c];
+    if(v) rows.push({...t,conc:c,v});}));
+  const M={t:30,r:56,b:38,l:120},W=760,H=230;
+  const svg=d3.select(sel).append("svg").attr("viewBox",`0 0 ${W} ${H}`);
+  const x=d3.scaleLinear().domain([0,80]).range([M.l,W-M.r]);
+  const y=d3.scaleBand().domain(D.thinking.map(t=>t.label)).range([M.t,H-M.b]).padding(.24);
+  const ys=d3.scaleBand().domain([1,8]).range([0,y.bandwidth()]).padding(.2);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`).call(d3.axisBottom(x).ticks(6));
+  svg.append("text").attr("class","axlab").attr("x",(M.l+W-M.r)/2).attr("y",H-8)
+     .attr("text-anchor","middle").text("스트림당 디코드 tok/s");
+  svg.append("g").attr("class","axis").attr("transform",`translate(${M.l},0)`)
+     .call(d3.axisLeft(y).tickSize(0)).selectAll("text").style("font-size","11.5px").style("fill","#5b5b57");
+  svg.selectAll("rect").data(rows).join("rect")
+    .attr("x",x(0)).attr("y",r=>y(r.label)+ys(r.conc)).attr("height",ys.bandwidth())
+    .attr("width",r=>x(r.v.med)-x(0)).attr("fill",r=>r.conc===1?HI:"#c3c8d8").attr("rx",1)
+    .on("mousemove",(e,r)=>show(e,`<b>추론 ${r.label}</b> · 동시성 ${r.conc}<br>`
+      +`중앙값 <b>${r.v.med.toFixed(1)}</b> tok/s (${r.n}세트)<br>범위 ${r.v.lo.toFixed(1)} ~ ${r.v.hi.toFixed(1)}`))
+    .on("mouseleave",hide);
+  svg.selectAll("text.v").data(rows).join("text").attr("class","v")
+    .attr("x",r=>x(r.v.med)+6).attr("y",r=>y(r.label)+ys(r.conc)+ys.bandwidth()/2+4)
+    .attr("font-size",10.5).attr("fill",SOFT).text(r=>r.v.med.toFixed(1));
+  [[1,HI,"동시성 1"],[8,"#c3c8d8","동시성 8"]].forEach(([c,col,lab],i)=>{
+    svg.append("rect").attr("x",M.l+8+i*80).attr("y",M.t-18).attr("width",11).attr("height",9).attr("fill",col);
+    svg.append("text").attr("class","axlab").attr("x",M.l+23+i*80).attr("y",M.t-10).text(lab);
+  });
+}
+// ── 클럭 상한 전후 온도 (양 노드 · 센서별) ────────────────────
+function clkChart(sel){
+  const rows=D.clkfull;
+  const M={t:34,r:70,b:40,l:186},W=760,rowH=40,H=M.t+M.b+rows.length*rowH;
+  const svg=d3.select(sel).append("svg").attr("viewBox",`0 0 ${W} ${H}`);
+  const lo=d3.min(rows,r=>Math.min(r.B.slow.avg,r.A.slow.avg))-4;
+  const hi=d3.max(rows,r=>Math.max(r.A.fast.avg,r.B.fast.avg))+6;
+  const x=d3.scaleLinear().domain([lo,hi]).range([M.l,W-M.r]);
+  const y=d3.scaleBand().domain(rows.map(r=>r.label)).range([M.t,H-M.b]).padding(.3);
+  const ys=d3.scaleBand().domain(["A","B"]).range([0,y.bandwidth()]).padding(.25);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`)
+     .call(d3.axisBottom(x).ticks(7).tickFormat(d=>d+"°"));
+  svg.append("text").attr("class","axlab").attr("x",(M.l+W-M.r)/2).attr("y",H-8)
+     .attr("text-anchor","middle").text("부하 중 평균 온도 (°C) — 화살표가 클럭 상한 적용 후 이동");
+  svg.append("g").attr("class","axis").attr("transform",`translate(${M.l},0)`)
+     .call(d3.axisLeft(y).tickSize(0)).selectAll("text").style("font-size","10.5px").style("fill","#8a8880");
+  const col={A:HI,B:"#9aa2bd"};
+  rows.forEach(r=>["A","B"].forEach(n=>{
+    const g=svg.append("g")
+      .on("mousemove",e=>show(e,`<b>${r.label}</b> · ${n==="A"?"팬 없음":"녹투아"}<br>`
+        +`3.9GHz ${r[n].fast.avg.toFixed(1)}° (최고 ${r[n].fast.max.toFixed(0)}°)<br>`
+        +`2.8GHz ${r[n].slow.avg.toFixed(1)}° (최고 ${r[n].slow.max.toFixed(0)}°)<br>`
+        +`<b>${(-r[n].d).toFixed(1)}°</b>`))
+      .on("mouseleave",hide);
+    const yy=y(r.label)+ys(n)+ys.bandwidth()/2;
+    g.append("line").attr("x1",x(r[n].slow.avg)).attr("x2",x(r[n].fast.avg))
+     .attr("y1",yy).attr("y2",yy).attr("stroke",col[n]).attr("stroke-width",2).attr("opacity",.45);
+    g.append("circle").attr("cx",x(r[n].fast.avg)).attr("cy",yy).attr("r",4).attr("fill",col[n]);
+    g.append("circle").attr("cx",x(r[n].slow.avg)).attr("cy",yy).attr("r",4)
+     .attr("fill","#faf9f7").attr("stroke",col[n]).attr("stroke-width",1.8);
+    g.append("text").attr("x",W-M.r+6).attr("y",yy+4).attr("font-size",10)
+     .attr("fill",col[n]).text((-r[n].d>=0?"−":"+")+Math.abs(r[n].d).toFixed(1)+"°");
+  }));
+  [["A","팬 없음"],["B","녹투아"]].forEach(([n,lab],i)=>{
+    svg.append("circle").attr("cx",M.l+10+i*104).attr("cy",M.t-20).attr("r",4).attr("fill",col[n]);
+    svg.append("text").attr("class","axlab").attr("x",M.l+20+i*104).attr("y",M.t-16).text(lab);
+  });
+  svg.append("text").attr("class","axlab").attr("x",W-M.r).attr("y",M.t-16)
+     .attr("text-anchor","end").text("채운 점 3.9GHz · 빈 점 2.8GHz");
+}
+thinkChart("#c-think");
+rangeChart("#c-agg8",8,[100,180],"동시 요청 8건");
+rangeChart("#c-agg1",1,[40,70],"요청 1건");
+varChart("#c-var");
+</script></body></html>

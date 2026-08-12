@@ -5,12 +5,37 @@
     <link>https://nacyot.github.io/artifacts/</link>
     <description>공개해도 되는 작업 산출물 모음 — 실측 정리, 리서치, 시각화.</description>
     <language>ko</language>
-    <lastBuildDate>Sun, 10 Aug 2026 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Wed, 12 Aug 2026 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://nacyot.github.io/artifacts/feed.xml" rel="self" type="application/rss+xml"/>
 
     <!-- newest first -->
     <item>
-      <title>NAS는 800MB/s를 낼 수 있는데 rsync로는 230밖에 안 나온다</title>
+      <title>같은 장비에서 동시 처리량 35%를 더 얻었다 — 그리고 얻지 못한 것들</title>
+      <link>https://nacyot.github.io/artifacts/dgx-spark-2node-decode-tuning/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/dgx-spark-2node-decode-tuning/</guid>
+      <pubDate>Wed, 12 Aug 2026 00:00:00 +0000</pubDate>
+      <description><![CDATA[DGX Spark 2노드 DeepSeek V4 Flash 0731을 추론 켠 조건에서 재측정. max_num_seqs 6→8이 동시 8건 +35%, 기동 워밍업이 첫 토큰 3.5초→0.38초. 커뮤니티의 80 tok/s는 추론을 끈 숫자였고, 열 상한을 정하는 것은 GPU가 아니라 동기화 대기로 도는 CPU 성능코어였다. 15회 재기동 반복 측정과 d3 인터랙티브.]]></description>
+      <category>DGX Spark</category>
+      <category>GB10</category>
+      <category>DeepSeek V4 Flash</category>
+      <category>vLLM</category>
+      <category>성능 튜닝</category>
+      <category>발열</category>
+    </item>
+    <item>
+      <title>LLM 추론에서 가장 뜨거운 것은 GPU가 아니었다</title>
+      <link>https://nacyot.github.io/artifacts/vllm-spin-wait-gb10/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10/</guid>
+      <pubDate>Wed, 12 Aug 2026 00:00:00 +0000</pubDate>
+      <description><![CDATA[GB10 2노드 vLLM 서빙에서 SoC 96°C의 열원을 추적하니 GPU가 아니라 대기 루프를 도는 CPU 성능코어였다. py-spy로 vLLM 기본값 한 줄까지 내려가 수정 — CPU 333%→89%, SoC 최고 97→73°C, 성능 손실 없음.]]></description>
+      <category>DGX Spark</category>
+      <category>GB10</category>
+      <category>vLLM</category>
+      <category>발열</category>
+      <category>디버깅</category>
+    </item>
+    <item>
+      <title>DGX Spark 2대에 DeepSeek V4 Flash 0731을 올리다</title>
       <link>https://nacyot.github.io/artifacts/deepseek-v4-flash-2x-dgx-spark/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/deepseek-v4-flash-2x-dgx-spark/</guid>
       <pubDate>Mon, 11 Aug 2026 00:00:00 +0000</pubDate>
