@@ -48,7 +48,7 @@ details[open] summary::before{content:"▾ "}
 <h1>같은 장비에서 동시 처리량 35%를 더 얻었다<br>— 그리고 얻지 못한 것들</h1>
 
 <p><a href="../deepseek-v4-flash-2x-dgx-spark/">1차 기록</a>에서 GB10 2노드에 DeepSeek V4 Flash 0731 원본 FP8을 올리고 코딩 에이전트로 쓰는 상태까지 만들었다. 남은 질문은 하나였다. <strong>추론(thinking)을 켠 실사용 조건에서 더 빠르게 만들 수 있나.</strong></p>
-<p>설정과 코드를 바꿔 가며 서버를 40번 넘게 다시 띄웠다. 얻은 것은 두 줄이고, 답을 찾은 질문이 하나 있으며, 기각한 가설이 열 개쯤 된다. 그리고 측정 방법을 고치는 데 실험 시간의 절반이 들었다.</p>
+<p>설정과 코드를 바꿔 가며 서버를 40번 넘게 다시 띄웠다. 얻은 것은 두 줄이고, 답을 찾은 질문이 하나 있으며, 기각한 가설이 열 개쯤 된다.</p>
 
 <div class="lede">
 <p><strong>얻은 것.</strong> <code>max_num_seqs</code>를 레시피 기본값 6에서 8로 올리면 동시 8건 처리량이 <strong>121.7 → 163.8 tok/s (+35%)</strong>다. 대화형 응답에는 손해가 없다. 기동 직후 워밍업을 흘리면 첫 토큰까지가 <strong>3.51초에서 0.38초로</strong> 줄어든다.</p>
@@ -59,11 +59,7 @@ details[open] summary::before{content:"▾ "}
 
 <h2>먼저, 측정을 믿을 수 있게 만들기</h2>
 
-<p>본론에 들어가기 전에 세 가지를 고쳐야 했다. 이 과정 자체가 결과의 절반이다.</p>
-
-<h3>서버가 설정 파일과 다르게 떠 있었다</h3>
-<p>첫 측정을 시작하자마자 컨테이너 로그에서 <code>'thinking': False</code>를 발견했다. 설정 파일에는 <code>DEFAULT_THINKING=max</code>가 들어 있었다. 이전 실험 스크립트가 종료할 때 파일만 되돌리고 서버를 재기동하지 않아서 파일과 프로세스가 어긋난 상태였다. 그대로 벤치를 돌렸으면 추론을 끈 수치를 켠 수치로 알고 발표했을 것이다.</p>
-<p>이후 모든 측정은 재기동 뒤 컨테이너 로그의 실제 기동 인자를 파싱해 <code>thinking</code>·<code>max_num_seqs</code>·<code>num_speculative_tokens</code>가 의도와 같은지 확인하고, 어긋나면 그 측정을 버린다.</p>
+<p>본론에 들어가기 전에 두 가지를 고쳐야 했다.</p>
 
 <h3>첫 요청이 커널 컴파일 비용을 뒤집어썼다</h3>
 <p>런타임이 로그에 이렇게 남긴다.</p>
@@ -88,7 +84,7 @@ This causes a latency spike; consider extending warmup to cover this shape/confi
 
 <p>1차 기록을 올린 뒤 가장 많이 받은 질문이 이것이었다. 커뮤니티에 도는 수치는 동시성 1에서 82.4나 95.9인데 우리는 왜 56인가.</p>
 <p>답은 <strong>추론(thinking)</strong>이다. 이 모델은 추론 모델이고, 추론을 켜면 디코드가 느려진다. 그런데 공개된 수치 대부분은 추론 상태를 밝히지 않는다.</p>
-<p>요청 단위로 추론을 끌 수 있다는 걸 확인하고(<code>chat_template_kwargs</code>), <strong>서버를 다시 띄우지 않고 같은 부팅 안에서</strong> max ↔ off를 교대로 세 세트 측정했다. 재기동 변동이 개입하지 않는 비교다.</p>
+<p>같은 부팅 안에서 요청 파라미터(<code>chat_template_kwargs</code>)만 바꿔 max ↔ off를 세 세트 교대 측정했다 — 재기동 변동이 개입하지 않는 비교다.</p>
 
 <div class="chart" id="c-think"></div>
 <p class="fcap">그림 2. 추론 단계별 스트림당 디코드 속도. 같은 부팅·같은 커널에서 요청 파라미터만 바꿔 잰 값이다.</p>
@@ -222,7 +218,7 @@ DEFAULT_THINKING=max    # 실사용 조건
 <details><summary>측정 조건</summary>
 <p>2노드 GB10(128GB LPDDR5X 각), ConnectX-7 200GbE 직결, vLLM TP=2 <code>mp</code> 백엔드(0.25.2 계열 커뮤니티 빌드), KV 캐시 <code>nvfp4_ds_mla</code>, MoE 백엔드 <code>flashinfer_b12x</code>(전문가 MXFP4 적재), GPU 클럭 상한 2000MHz, <code>VLLM_USE_BREAKABLE_CUDAGRAPH=0</code>. 모델은 원본 FP8 체크포인트(revision 고정, 해시 검증).</p>
 <p>벤치는 짧은 프롬프트(약 350토큰)에 긴 생성으로 디코드에 맞췄다. 에이전트 사용에서는 컨텍스트가 누적되며 프리픽스 캐시로 흡수되므로 프리필은 측정 대상에서 뺐다. 추론을 <code>max</code>로 고정했기 때문에 생성 토큰은 사실상 전부 추론 토큰이다.</p>
-<p>본실험은 구성 5개 × 재기동 3회(총 15회 기동), 부팅마다 워밍업 후 2라운드 중앙값, 라운드마다 구성 순서 회전. 추론 on/off와 후반 스크리닝은 각각 별도 부팅에서 측정.</p>
+<p>본실험은 구성 5개 × 재기동 3회(총 15회 기동), 부팅마다 워밍업 후 2라운드 중앙값, 라운드마다 구성 순서 회전. 추론 on/off와 후반 스크리닝은 각각 별도 부팅에서 측정. 모든 측정은 재기동 뒤 컨테이너의 실제 기동 인자를 파싱해 의도한 구성과 일치하는지 확인했고, 어긋난 측정은 버렸다.</p>
 <p>전력은 GPU 레일 값만 노출된다(모듈 전력·hwmon 없음). 벽면 소비전력은 측정하지 못했다.</p>
 </details>
 </div><script src="../vendor/d3.v7.min.js"></script><script>
