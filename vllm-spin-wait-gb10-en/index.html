@@ -38,7 +38,7 @@ a{color:var(--hi)}
 <h1>Why vLLM pegs four CPU cores at 100% on the DGX Spark — and the one-line fix</h1>
 <p class="lang">Reworked in English from the <a href="../vllm-spin-wait-gb10/">Korean original</a>, which has the full experiment log.</p>
 
-<p>If you serve LLMs with vLLM on a GB10 machine — NVIDIA DGX Spark, ASUS Ascent GX10, or another OEM variant — check per-core CPU usage during decode. Chances are <strong>three or four performance cores are at 100%</strong> (about 333% CPU in total), even though the GPU is doing the work. They are not computing; they are spinning in a wait loop. On GB10, where the CPU and GPU share one package and one heatsink, this is also a large part of why these machines run hot enough to shut down.</p>
+<p>If you serve LLMs with vLLM across two or more GB10 machines — NVIDIA DGX Spark, ASUS Ascent GX10, or another OEM variant — check per-core CPU usage during decode. Chances are <strong>three or four performance cores are at 100%</strong> (about 333% CPU in total), even though the GPU is doing the work. They are not computing; they are spinning in a wait loop. On GB10, where the CPU and GPU share one package and one heatsink, this is also a large part of why these machines run hot enough to shut down. (Default single-unit setups are not affected — see the scope section below.)</p>
 
 <div class="lede">
 <p><strong>Cause.</strong> vLLM's inter-process queue spins for up to 1 second (<code>busy_loop_s</code>) before it lets a thread sleep. During decode, messages arrive every few milliseconds — the grace period never expires, so the sleep path is never taken and the cores spin at 3.9GHz continuously.</p>
@@ -104,12 +104,14 @@ a{color:var(--hi)}
 <h2>Who this affects</h2>
 
 <ul>
-<li><strong>The wasted cores: every machine running vLLM's v1 engine</strong>, including ordinary x86 GPU servers — the default is hardcoded in upstream main, and neither call site overrides it. On a 128-core server with a dedicated CPU cooler, 3–4 spinning cores is about 3% and goes unnoticed, which is presumably why the default has survived.</li>
+<li><strong>The wasted cores: any deployment using vLLM's multiprocessing executor</strong> — the default whenever the world size is 2 or more (TP≥2), including ordinary multi-GPU x86 servers. The value is hardcoded in upstream main, and neither call site overrides it. On a 128-core server with a dedicated CPU cooler, 3–4 spinning cores is about 3% and goes unnoticed, which is presumably why the default has survived. <em>Correction (2026-08-17):</em> a default single-GPU setup (TP=1) selects the in-process <code>uni</code> executor, so this spin path does not exist there — <strong>a single Spark on default settings is not affected</strong>. An earlier version of this article overstated the scope.</li>
 <li><strong>As an overheating problem: every GB10 device.</strong> Twenty CPU cores and the GPU share one package and one small-chassis heatsink. Under this load the GPU rail draws ~24W, and four P-cores at 3.9GHz is the same order of magnitude — the spin accounts for <strong>roughly half the thermal budget</strong>, millimeters from the GPU. It is also 4 of the 20 CPU cores.</li>
-<li><strong>Model and topology don't matter.</strong> Any model whose decode messages arrive more often than once per second — in practice, all of them — spins. Each tensor-parallel node spins on its own.</li>
+<li><strong>Model choice doesn't matter.</strong> Any model whose decode messages arrive more often than once per second — in practice, all of them — keeps the spin alive. Each tensor-parallel rank spins on its own.</li>
 </ul>
 
 <h2>If you have a GB10</h2>
+
+<p>This applies to multi-unit setups (TP≥2), or an explicit <code>--distributed-executor-backend=mp</code>. On a default single Spark there is nothing to fix — step 1 tells you either way.</p>
 
 <pre><code># 1) Confirm on your box: a few cores at 100% during decode
 mpstat -P ALL 3 1
@@ -125,6 +127,8 @@ docker exec $CT sed -i 's/busy_loop_s: float = [0-9.]*/busy_loop_s: float = 0.00
 docker restart $CT          # on every node if you run TP</code></pre>
 
 <p>No CPU clock caps are required — the cause itself is removed.</p>
+
+<p><strong>Community tooling.</strong> <a href="https://github.com/drowzeys/vllm-gb10-spin-wait-fix">drowzeys/vllm-gb10-spin-wait-fix</a> packages this fix as an automated image-patching script — it builds a <code>-spinfix</code> derived image and verifies it, which survives container recreation better than patching a live container. Credit to that repo for correctly flagging the TP=1 limitation as well.</p>
 
 <h2>Appendix: two more things that help</h2>
 
