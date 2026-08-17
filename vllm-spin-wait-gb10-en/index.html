@@ -38,23 +38,23 @@ a{color:var(--hi)}
 <h1>Why vLLM pegs four CPU cores at 100% on the DGX Spark — and the one-line fix</h1>
 <p class="lang">Reworked in English from the <a href="../vllm-spin-wait-gb10/">Korean original</a>, which has the full experiment log.</p>
 
-<p>If you serve LLMs with vLLM on a GB10 machine — NVIDIA DGX Spark, ASUS Ascent GX10, or any OEM variant — look at per-core CPU usage during decode. You will most likely find <strong>three or four performance cores pinned at 100%</strong>, burning ~333% CPU for a workload the GPU is doing. They aren't computing anything. And on GB10, where the CPU and GPU share one package and one small heatsink, that waste is what pushes the SoC toward the temperatures where these boxes shut themselves down.</p>
+<p>If you serve LLMs with vLLM on a GB10 machine — NVIDIA DGX Spark, ASUS Ascent GX10, or another OEM variant — check per-core CPU usage during decode. Chances are <strong>three or four performance cores are at 100%</strong> (about 333% CPU in total), even though the GPU is doing the work. They are not computing; they are spinning in a wait loop. On GB10, where the CPU and GPU share one package and one heatsink, this is also a large part of why these machines run hot enough to shut down.</p>
 
 <div class="lede">
-<p><strong>Cause.</strong> vLLM's inter-process queue spins for up to 1 second (<code>busy_loop_s</code>) before it lets a thread sleep. During decode, messages arrive every few milliseconds — the grace period never expires, so the sleep path is never taken and the cores spin at 3.9GHz forever.</p>
+<p><strong>Cause.</strong> vLLM's inter-process queue spins for up to 1 second (<code>busy_loop_s</code>) before it lets a thread sleep. During decode, messages arrive every few milliseconds — the grace period never expires, so the sleep path is never taken and the cores spin at 3.9GHz continuously.</p>
 <p><strong>Fix.</strong> One default — 1s → 2ms — cuts vLLM's CPU from <strong>333% to 89%</strong> and the SoC by 11°C. Throughput, latency, and GPU utilization are unchanged.</p>
 </div>
 
 <h2>Something didn't add up</h2>
 
-<p>I also serve large models on a Mac Studio (M3 Ultra, 512GB). There, LLM inference barely touches the CPU — the GPU does the work and the CPU stays near idle. That's what inference is supposed to look like. So the GB10 numbers looked wrong from the start, in two ways.</p>
-<p>First, the CPU load itself. Overall utilization read a calm 19.3%, but per-core it was a different machine: while decoding a <strong>single request</strong>, four cores sat at 100% — all of them 3.9GHz performance cores.</p>
+<p>I also serve large models on a Mac Studio (M3 Ultra, 512GB). There, LLM inference barely touches the CPU — the GPU does the work and the CPU stays near idle. Against that baseline, two things about the GB10 stood out.</p>
+<p>First, the CPU load. Overall utilization read 19.3%, but per-core, four cores sat at 100% while decoding a <strong>single request</strong> — all of them 3.9GHz performance cores.</p>
 
 <div class="chart" id="c-core"></div>
 <p class="fcap">Fig 1. Per-core utilization while decoding one request. Four cores pegged, all performance cores; three share one cluster — and that cluster's thermal sensor runs hottest.</p>
 
-<p>Second, the heat map. The hottest zone on the die wasn't the GPU (72.7°C average under load) but a CPU performance-core cluster (86.5°C average, <strong>96°C peak</strong> vs the GPU's 76°C). On a box where the OS hard-kills at 104.8°C and owners report shutdowns from around 87°C, that's not a curiosity — it's the whole thermal problem.</p>
-<p>The pegged threads were vLLM's <code>EngineCore</code> and <code>Worker_TP</code>: always runnable, no kernel wait channel, 27–35% of their time in system calls. Capping the CPU clock (3.9 → 2.8 → 2.0GHz) didn't slow decode at all — so these cores were not a bottleneck. They were <strong>waiting, at full clock</strong>.</p>
+<p>Second, the temperatures. The hottest zone on the die wasn't the GPU (72.7°C average under load) but a CPU performance-core cluster (86.5°C average, <strong>96°C peak</strong> vs the GPU's 76°C). On a machine that hard-kills itself at 104.8°C, with owner reports of shutdowns from around 87°C, that matters.</p>
+<p>The busy threads were vLLM's <code>EngineCore</code> and <code>Worker_TP</code>: always runnable, no kernel wait channel, 27–35% of their time in system calls. Capping the CPU clock (3.9 → 2.8 → 2.0GHz) did not slow decode, so these cores were not a bottleneck. They were <strong>waiting at full clock</strong>.</p>
 
 <h2>py-spy points at one line</h2>
 
@@ -97,16 +97,16 @@ a{color:var(--hi)}
 </tbody></table>
 <p class="fcap">Same load (4 concurrent requests, GPU ~96%). Throughput and time-to-first-token stay within restart-to-restart noise; only the CPU time and the heat disappear.</p>
 
-<p><strong>Why it costs nothing.</strong> A decode step is tens of milliseconds, and most of it is GPU time with no CPU-side messages. With a 2ms grace the thread sleeps through nearly every step, and the writer wakes it via the notify socket in tens of microseconds — once or twice per step, under 1% of step time. When messages do arrive back-to-back within 2ms it still spins, so the burst-latency behavior the original design wanted is preserved. The change doesn't alter how vLLM waits; it moves a threshold so the sleep path that already exists actually gets used.</p>
-<p><strong>Why it was worth 14–20°C.</strong> A spinning core looks idle from the outside but runs flat out — check flag, yield, come back, hundreds of thousands of times a second, at full dynamic power. A sleeping thread comes off the run queue and the idle core clock-gates to nearly zero. Same "waiting", opposite ends of the power curve.</p>
+<p><strong>Why performance doesn't change.</strong> A decode step is tens of milliseconds, and most of it is GPU time with no CPU-side messages. With a 2ms grace the thread sleeps through nearly every step, and the writer wakes it via the notify socket in tens of microseconds — once or twice per step, under 1% of step time. Messages that arrive within 2ms of each other still hit the spin path, so the burst-latency behavior the original design aimed for is preserved. The change doesn't alter how vLLM waits; it moves a threshold so the sleep path that already exists actually gets used.</p>
+<p><strong>Why the temperature drops.</strong> A spinning core executes the check-yield-return loop continuously at full dynamic power, the same as if it were doing real work. A sleeping thread comes off the run queue, and an idle core clock-gates to nearly zero power. The 14–20°C difference between the two is just that power difference.</p>
 <p>The remaining 89% is real work — scheduling, sampling, and a separate CUDA stream-sync spin inside PyTorch that this change doesn't touch.</p>
 
 <h2>Who this affects</h2>
 
 <ul>
-<li><strong>The wasted cores: every machine running vLLM's v1 engine</strong>, including ordinary x86 GPU servers — the default is hardcoded in upstream main, and neither call site overrides it. On a 128-core server with a dedicated CPU cooler, 3–4 burned cores is ~3% and nobody notices; that's presumably how the default survived this long.</li>
-<li><strong>As an overheating problem: every GB10 device.</strong> Twenty CPU cores and the GPU share one package and one small-chassis heatsink. Under this load the GPU rail draws ~24W, and four P-cores at 3.9GHz is the same order of magnitude — the spin is <strong>roughly half the thermal budget</strong>, sitting millimeters from the GPU. It's also 4 of 20 cores: 20% of the CPU, gone.</li>
-<li><strong>Model and topology don't matter.</strong> Any model whose decode messages arrive more often than once per second — that is, all of them — spins. Each tensor-parallel node spins on its own.</li>
+<li><strong>The wasted cores: every machine running vLLM's v1 engine</strong>, including ordinary x86 GPU servers — the default is hardcoded in upstream main, and neither call site overrides it. On a 128-core server with a dedicated CPU cooler, 3–4 spinning cores is about 3% and goes unnoticed, which is presumably why the default has survived.</li>
+<li><strong>As an overheating problem: every GB10 device.</strong> Twenty CPU cores and the GPU share one package and one small-chassis heatsink. Under this load the GPU rail draws ~24W, and four P-cores at 3.9GHz is the same order of magnitude — the spin accounts for <strong>roughly half the thermal budget</strong>, millimeters from the GPU. It is also 4 of the 20 CPU cores.</li>
+<li><strong>Model and topology don't matter.</strong> Any model whose decode messages arrive more often than once per second — in practice, all of them — spins. Each tensor-parallel node spins on its own.</li>
 </ul>
 
 <h2>If you have a GB10</h2>
@@ -124,7 +124,7 @@ docker exec $CT sed -i 's/busy_loop_s: float = [0-9.]*/busy_loop_s: float = 0.00
   /usr/local/lib/python3.12/dist-packages/vllm/distributed/device_communicators/shm_broadcast.py
 docker restart $CT          # on every node if you run TP</code></pre>
 
-<p>That's it. No CPU clock caps needed — the cause is gone, not managed.</p>
+<p>No CPU clock caps are required — the cause itself is removed.</p>
 
 <h2>Appendix: two more things that help</h2>
 
