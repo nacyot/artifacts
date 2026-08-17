@@ -5,10 +5,22 @@
     <link>https://nacyot.github.io/artifacts/</link>
     <description>공개해도 되는 작업 산출물 모음 — 실측 정리, 리서치, 시각화.</description>
     <language>ko</language>
-    <lastBuildDate>Wed, 12 Aug 2026 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 17 Aug 2026 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://nacyot.github.io/artifacts/feed.xml" rel="self" type="application/rss+xml"/>
 
     <!-- newest first -->
+    <item>
+      <title>Why vLLM pegs four CPU cores at 100% on the DGX Spark — and the one-line fix</title>
+      <link>https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-en/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-en/</guid>
+      <pubDate>Mon, 17 Aug 2026 00:00:00 +0000</pubDate>
+      <description><![CDATA[On GB10 machines (DGX Spark, ASUS Ascent GX10), vLLM keeps 3–4 performance cores spinning at 100% during LLM inference. Traced with py-spy to one default (busy_loop_s); a one-line change cuts CPU 333%→89% and the SoC by 11°C with zero performance loss. English rework of the Korean write-up.]]></description>
+      <category>DGX Spark</category>
+      <category>GB10</category>
+      <category>vLLM</category>
+      <category>English</category>
+      <category>디버깅</category>
+    </item>
     <item>
       <title>같은 장비에서 동시 처리량 35%를 더 얻었다 — 그리고 얻지 못한 것들</title>
       <link>https://nacyot.github.io/artifacts/dgx-spark-2node-decode-tuning/</link>

@@ -40,6 +40,7 @@ details[open] summary::before{content:"▾ "}
 </style></head><body><div class="doc">
 <div class="kicker">DGX Spark ×2 · 발열 추적</div>
 <h1>LLM 추론에서 가장 뜨거운 것은 GPU가 아니었다</h1>
+<p class="fcap" style="margin:0 0 1.4rem"><a href="../vllm-spin-wait-gb10-en/">In English (condensed) →</a></p>
 
 <p>GB10 2노드에 <a href="../deepseek-v4-flash-2x-dgx-spark/">DeepSeek V4 Flash 0731을 올려 쓰는</a> 동안 부하 중 SoC 센서가 96°C까지 올라갔다. 센서가 104.8°C에 닿으면 OS가 기기를 그 자리에서 꺼 버린다(강제 종료 온도). 실제로는 그 전인 87°C 부근에서 꺼졌다는 사용자 보고가 여럿이다. 팬을 달고, 코어별로 계측하고, 프로파일러로 스택을 뜨고, 마지막에 vLLM 소스의 기본값 한 줄에 도달했다.</p>
 
