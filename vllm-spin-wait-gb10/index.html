@@ -180,10 +180,10 @@ details[open] summary::before{content:"▾ "}
 <p>고치려면 어느 층의 문제인지가 분명해야 한다. 층별로 가르면 이렇다.</p>
 
 <table><thead><tr><th>계층</th><th>해당 범위</th><th>근거</th></tr></thead><tbody>
-<tr class="hi"><td>스핀 자체<br><small>(CPU 3~4코어 낭비)</small></td><td><strong>멀티프로세스 executor("mp")를 쓰는 모든 vLLM 배포</strong> — 월드 사이즈 2 이상(TP≥2)이면 기본값. 일반 멀티 GPU x86 서버 포함</td><td>원인은 <code>vllm/distributed/device_communicators/shm_broadcast.py</code>의 <code>SpinCondition</code>이고, <strong>업스트림 main에도 같은 코드가 하드코딩</strong>돼 있다(두 호출부 모두 값을 넘기지 않음). 특정 배포판·커뮤니티 빌드의 문제가 아니다. <em>정정(8/17):</em> world_size=1 기본 설정은 uni(인프로세스) executor를 골라 이 대기 경로 자체가 없다 — <strong>단일 GPU·단일 Spark 기본 구성은 해당 없음</strong>. 초판은 GPU 한 장 구성도 해당한다고 썼는데 과대 서술이었다.</td></tr>
+<tr class="hi"><td>스핀 자체<br><small>(CPU 3~4코어 낭비)</small></td><td><strong>멀티프로세스 executor("mp")로 도는 모든 vLLM 배포</strong> — TP 2 이상(멀티 GPU·멀티 노드)이면 이것이 기본값이다. 일반 x86 멀티 GPU 서버 포함</td><td>원인은 <code>vllm/distributed/device_communicators/shm_broadcast.py</code>의 <code>SpinCondition</code>이고, <strong>업스트림 main에도 같은 코드가 하드코딩</strong>돼 있다(두 호출부 모두 값을 넘기지 않음). 특정 배포판·커뮤니티 빌드의 문제가 아니다. <em>정정(8/17):</em> 단일 GPU(world_size=1) 기본 설정은 uni(단일 프로세스) executor를 쓰기 때문에 이 대기 경로 자체가 생기지 않는다 — <strong>단일 GPU·단일 Spark 기본 구성에는 해당하지 않는다</strong>. 처음 발행본에는 GPU 한 장짜리 구성도 해당한다고 썼는데, 과대 서술이었다.</td></tr>
 <tr class="hi"><td>열 문제로의 발현</td><td><strong>GB10 패키지를 쓰는 모든 기기</strong> — NVIDIA DGX Spark, ASUS Ascent GX10, 그 외 OEM 변형</td><td>Grace CPU와 GPU가 한 패키지를 쓰는 소형기라, 스핀하는 성능코어의 열이 곧 SoC 온도가 된다. 코어가 수십 개인 일반 서버에서는 3~4코어 낭비가 온도로 드러나지 않고, 그래서 이 기본값이 지금까지 문제가 안 됐던 것으로 보인다.</td></tr>
 <tr><td>이 글의 수치</td><td>ASUS Ascent GX10 ×2</td><td>96°C 등 구체 수치는 이 섀시 기준. 다른 OEM 은 방열 설계에 따라 정도가 다를 수 있으나 구조는 같다.</td></tr>
-<tr><td>모델·서빙 구성</td><td>모델 무관</td><td>DeepSeek·DSpark 고유가 아니다. 어떤 모델이든 디코드 중 메시지 간격이 1초보다 짧으면(사실상 항상) 스핀한다. TP 노드가 몇 개든(2 이상이면) 노드마다 각자 스핀한다.</td></tr>
+<tr><td>모델·서빙 구성</td><td>모델 무관</td><td>DeepSeek·DSpark 고유가 아니다. 어떤 모델이든 디코드 중 메시지 간격이 1초보다 짧으면(사실상 항상) 스핀한다. TP 노드 수도 상관없다 — 2대 이상이기만 하면 노드마다 각자 스핀한다.</td></tr>
 </tbody></table>
 
 <h3>왜 일반 서버에서는 안 드러나고 GB10에서 드러나나</h3>
@@ -196,7 +196,7 @@ details[open] summary::before{content:"▾ "}
 
 <h2>GB10에서 같은 문제를 겪는다면</h2>
 
-<p>순서대로: 먼저 자기 기기에서 실제로 일어나는지 확인하고, 고치고, 보험을 건다. (단일 Spark 기본 구성은 이 스핀 경로가 없다 — 1번 진단으로 바로 확인된다.)</p>
+<p>순서대로: 먼저 자기 기기에서 실제로 일어나는지 확인하고, 고치고, 보험을 건다. (단일 Spark 기본 구성에는 이 스핀 경로 자체가 없다 — 1번 진단에서 바로 드러난다.)</p>
 <pre><code># 1) 진단 — 부하 중 코어별 점유와 SoC 존
 mpstat -P ALL 3 1          # 소수 코어만 100% 인지
 for z in /sys/class/thermal/thermal_zone*; do
@@ -211,7 +211,7 @@ docker exec $CT sed -i 's/busy_loop_s: float = [0-9.]*/busy_loop_s: float = 0.00
 docker restart $CT          # TP 구성이면 모든 노드에서</code></pre>
 <p>이걸로 끝이다. 클럭 제한은 필요 없다 — 원인이 사라졌기 때문이다.</p>
 
-<p><strong>커뮤니티 도구.</strong> <a href="https://github.com/drowzeys/vllm-gb10-spin-wait-fix">drowzeys/vllm-gb10-spin-wait-fix</a>가 이 수정을 자동 이미지 패칭 스크립트로 도구화했다 — <code>-spinfix</code> 파생 이미지를 만들고 검증까지 해 줘서, 컨테이너 내 sed보다 재생성에 강하다. TP=1에는 해당 없다는 한계를 먼저 짚어 준 것도 이 저장소다.</p>
+<p><strong>커뮤니티 도구.</strong> <a href="https://github.com/drowzeys/vllm-gb10-spin-wait-fix">drowzeys/vllm-gb10-spin-wait-fix</a>가 이 수정을 자동 패칭 스크립트로 도구화했다. <code>-spinfix</code> 파생 이미지를 만들어 검증까지 해 주므로, 컨테이너를 다시 만들어도 패치가 유지된다. TP=1에는 해당하지 않는다는 사실을 먼저 짚은 것도 이 저장소다.</p>
 
 <details><summary>부록: CPU 클럭 상한을 완화책으로 쓰는 경우</summary>
 <p>코드 수정에 도달하기 전, 성능코어 클럭을 3.9→2.8GHz로 제한하는 실험을 했다(같은 부팅에서 교대 3세트). 결과는 SoC −9°C, 대화형 성능 무손실, 동시 8건 −5%. <strong>증상 완화로는 유효하지만 스핀 자체는 그대로라 근본 해결이 아니다</strong> — 같은 낭비가 더 낮은 전력으로 이어질 뿐이다.</p>
