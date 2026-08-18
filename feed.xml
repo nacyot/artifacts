@@ -10,6 +10,28 @@
 
     <!-- newest first -->
     <item>
+      <title>재현 실험: vLLM 스핀 대기 발열, 부하 3분 만에 90°C</title>
+      <link>https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-repro/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-repro/</guid>
+      <pubDate>Tue, 18 Aug 2026 00:00:00 +0000</pubDate>
+      <description><![CDATA[스핀 대기 기사 후속 재현. 조작변수를 스핀 하나로 통제하고 팬리스·CPU 언캡 조건에서 A/B — stock은 부하 90초에 85°C, 2.3분에 90°C, 피크 95°C. 2ms 패치는 같은 부하에서 −9°C. 동시 부하 성능 손실은 재현되지 않았고 스로틀 개입도 배제. 전 구간 온도 기록과 재현 명령 공개.]]></description>
+      <category>DGX Spark</category>
+      <category>GB10</category>
+      <category>vLLM</category>
+      <category>재현</category>
+    </item>
+    <item>
+      <title>Reproduction: vLLM's spin-wait heat, 90°C within 3 minutes of load</title>
+      <link>https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-repro-en/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-repro-en/</guid>
+      <pubDate>Tue, 18 Aug 2026 00:00:00 +0000</pubDate>
+      <description><![CDATA[Controlled A/B rerun of the spin-wait finding: fanless and uncapped, stock hits 85°C in 90 seconds and peaks at 95°C; the 2ms patch runs 9°C cooler. No concurrent-load throughput loss, throttling ruled out by clock readings. Full temperature timeline and reproduction steps included.]]></description>
+      <category>DGX Spark</category>
+      <category>GB10</category>
+      <category>vLLM</category>
+      <category>English</category>
+    </item>
+    <item>
       <title>Why vLLM pegs four CPU cores at 100% on the DGX Spark — and the one-line fix</title>
       <link>https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-en/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-en/</guid>

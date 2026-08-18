@@ -61,6 +61,30 @@
 </header>
 <p class="sub">공개해도 되는 작업 산출물 모음 — 실측 정리 · 리서치 · 시각화. 개인 식별 정보와 자격증명은 제거한 것만 올린다. 최신순.</p>
 
+<a class="item" href="./vllm-spin-wait-gb10-repro/">
+  <img class="thumb" src="./vllm-spin-wait-gb10-repro/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>재현 실험: vLLM 스핀 대기 발열, 부하 3분 만에 90°C</h2>
+  <p>스핀 대기 기사 후속 재현. 조작변수를 스핀 하나로 통제하고 팬리스·CPU 언캡 조건에서 A/B — stock은 부하 90초에 85°C, 2.3분에 90°C, 피크 95°C. 2ms 패치는 같은 부하에서 −9°C. 동시 부하 성능 손실은 재현되지 않았고 실클럭 확인으로 스로틀 개입도 배제. 전 구간 온도 기록과 재현 명령 공개.</p>
+  <div class="meta">
+    <span class="tag">실측</span>
+
+    <span>DGX Spark, GB10, vLLM, 재현</span>
+    <time datetime="2026-08-18">2026-08-18</time>
+  </div>
+  </div>
+</a>
+<a class="item" href="./vllm-spin-wait-gb10-repro-en/">
+  <img class="thumb" src="./vllm-spin-wait-gb10-repro-en/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>Reproduction: vLLM's spin-wait heat, 90°C within 3 minutes of load</h2>
+  <p>스핀 대기 기사 재현 실험의 영어판. 통제된 A/B로 온도 재현(90초에 85°C, 피크 95°C, 패치 −9°C), 동시 부하 성능 무손실, 스로틀 배제까지 — 전 구간 온도 타임라인과 재현 절차 포함. (English)</p>
+  <div class="meta">
+    <span class="tag">실측</span>
+
+    <span>DGX Spark, GB10, vLLM, English, 재현</span>
+    <time datetime="2026-08-18">2026-08-18</time>
+  </div>
+  </div>
+</a>
 <a class="item" href="./vllm-spin-wait-gb10-en/">
   <img class="thumb" src="./vllm-spin-wait-gb10-en/og.png" alt="" loading="lazy" width="1200" height="630">
   <div class="body">  <h2>Why vLLM pegs four CPU cores at 100% on the DGX Spark — and the one-line fix</h2>
