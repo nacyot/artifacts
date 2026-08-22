@@ -116,11 +116,11 @@ systemctl list-units --state=failed                                # 失敗し�
 <table><thead><tr><th>段階</th><th class="n">サイズ</th><th>内容</th></tr></thead><tbody>
 <tr><td>物理LPDDR5X</td><td class="n">128.00GiB</td><td>CPUとGPUが共用する単一プール (LPDDR5 8533MT/s、dmidecode)</td></tr>
 <tr><td>メモリマップにない区間</td><td class="n">−0.37GiB</td><td>UEFIがカーネルに渡すメモリマップ(memblock 127.63GiB)にそもそも含まれないDRAM区間。ファームウェア側が使っていると見られるが、用途は公開されていない</td></tr>
-<tr><td>マップにあるがreserved</td><td class="n">−3.55GiB</td><td>ディスプレイ/iGPUの予約がここに入る。NVIDIAのリリースノート(2026年7月)は「Display Reserved Memory」をBIOSで2GB(既定)か4GBに選べると記し、旧ファームウェア(大きい予約)の機体はMemTotal約119.7GiB、現行は121.6〜121.7GiBと報告されている。私たちの121.63GiBは現行側だ。私たちのASUSファームウェアでは大きい2領域が2616MiB + 460MiB = 3076MiBで、起動時フレームバッファ(BOOTFB)がその中にあり、3章で見た非表示項目「iGPU Memory Carveout」の値24(×128MiB = 3072MiB)と一致する。ただしその項目の単位は文書化されておらず、最小値も24なのでこれ以上は減らせない。残りの約0.55GiBはUEFIランタイム、ACPI、TPMなど。差し引き後のSystem RAMは124.08GiB</td></tr>
+<tr><td>マップにあるがreserved</td><td class="n">−3.55GiB</td><td>ディスプレイ/iGPUの予約がここに入る。NVIDIAのリリースノート(2026年7月)は「Display Reserved Memory」をBIOSで2GB(既定)か4GBに選べると記している(<a href="https://docs.nvidia.com/dgx/dgx-spark/release-notes.html">リリースノート</a>、<a href="https://forums.developer.nvidia.com/t/dgx-spark-software-updates-july-2026-release/376736">フォーラムの告知</a>)。私たちのASUSファームウェアでは大きい2領域が2616MiB + 460MiB = 3076MiBで、起動時フレームバッファ(BOOTFB)がその中にあり、3章で見た非表示項目「iGPU Memory Carveout」の値24(×128MiB = 3072MiB)と一致する。ただしその項目の単位は文書化されておらず、最小値も24なのでこれ以上は減らせない。残りの約0.55GiBはUEFIランタイム、ACPI、TPMなど。差し引き後のSystem RAMは124.08GiB</td></tr>
 <tr><td>カーネル自体の固定割り当て</td><td class="n">−2.45GiB</td><td>4KiBページ32,526,926個のpage構造体(64Bずつ = 1.94GiB) + カーネルイメージ、initramfs、percpuなど0.5GiB。ここまで引くと<strong>MemTotal 121.63GiB</strong>、<code>free -g</code> の121。CMA 128MiBはこの中に含まれる</td></tr>
 <tr><td>アイドル時のシステム使用</td><td class="n">−2.6GiB</td><td>サービス、スラブ(GPUドライバのUVMを含む)、ページキャッシュは除く。サーバーモードのアイドルで<strong>MemAvailable 119.0GiB</strong>。デスクトップが動いているとここからさらに数GiBが引かれる</td></tr>
 </tbody></table>
-<p>つまり「128GBのうち121GBしか見えない」のは故障ではなく正常で、モデルを載せるときの基準にすべきなのはMemTotalではなく<strong>MemAvailable</strong>だ。100MiBが惜しいサイズのモデルを載せるなら、手を入れられるのは実質ひとつ、page構造体1.94GiBを減らす<strong>64KiBページカーネル</strong>だ(NVIDIAが<code>linux-image-nvidia-64k-hwe-24.04</code>として提供、構造体が約1/16になり1.8GiBほど回収できる)。ただしNVIDIAのDGX OSカーネル表はSparkに64Kでないカーネルを使っており、595ドライバには4GiB以上を一度に固定マッピングする経路(ディスクKVオフロードなど)で既知の不具合(open-gpu-kernel-modules #1269)があるため、使うワークロードで先に検証し、4Kの起動エントリを残しておくこと。ディスプレイ予約はBIOSに項目があっても既定値(2GB、あるいは私たちのファームウェアの24)が最小値なので減らせず、CMA(128MiB)はムーバブルページとしてそのまま使われるので減らしても得はなく、crashkernelはすでに0だ。</p></div>
+<p>つまり「128GBのうち121GBしか見えない」のは故障ではなく正常で、モデルを載せるときの基準にすべきなのはMemTotalではなく<strong>MemAvailable</strong>だ。100MiBが惜しいサイズのモデルを載せるなら、手を入れられるのは実質ひとつ、page構造体1.94GiBを減らす<strong>64KiBページカーネル</strong>だ(NVIDIAが<a href="https://packages.ubuntu.com/noble-updates/linux-image-nvidia-64k-hwe-24.04"><code>linux-image-nvidia-64k-hwe-24.04</code></a>として提供、構造体が約1/16になり1.8GiBほど回収できる。<a href="https://docs.nvidia.com/dccpu/grace-perf-tuning-guide/os-settings.html">Grace性能チューニングガイド</a>も大容量メモリのワークロードに64Kを勧めている)。ただしSparkに最初から入っているDGX OSのカーネルは64Kでない<code>-nvidia</code>カーネルであり、595ドライバには4GiB以上を一度に固定マッピングする経路(ディスクKVオフロードなど)で既知の不具合(<a href="https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1269">open-gpu-kernel-modules #1269</a>)があるため、使うワークロードで先に検証し、4Kの起動エントリを残しておくこと。ディスプレイ予約はBIOSに項目があっても既定値(2GB、あるいは私たちのファームウェアの24)が最小値なので減らせず、CMA(128MiB)はムーバブルページとしてそのまま使われるので減らしても得はなく(<code>cma=</code>と<code>crashkernel=</code>の説明は<a href="https://docs.kernel.org/admin-guide/kernel-parameters.html">カーネルパラメータ文書</a>)、crashkernelはすでに0だ。</p></div>
 
 <p>問題はデスクトップを消すコマンド自体ではなく、その後の <code>apt autoremove --purge</code> だ。2台目をセットアップしたとき、このコマンドが<strong>NVIDIAプラットフォームパッケージ14個を丸ごと持っていった</strong>ことがある。これらのパッケージは <code>dgx-spark-ota-update-meta</code> というメタパッケージの依存関係としてしか参照されていないので、メタパッケージがsnapdと一緒に抜けた瞬間に「誰も必要としないパッケージ」になる。ブートパラメータを入れてくれるスニペット2個(<code>nvidia-spark-initcall-bl</code>、<code>nvidia-spark-grub-pci</code>)が一緒に消え、再インストールと <code>update-grub</code>、再起動で元に戻した。</p>
 <p>今回は三段階で防いだ。消す前にプラットフォームパッケージを手動インストールとしてマークし、消すコマンドはまずシミュレーションで回して削除リストにドライバ、CUDA、プラットフォームパッケージが混ざれば止まるようにし、終わった後にブートパラメータを照合する。</p>
@@ -160,7 +160,7 @@ apt-get install -y nvidia-driver-595-open linux-modules-nvidia-595-open-nvidia-h
 <p><code>linux-modules-nvidia-595-open-nvidia-hwe-24.04</code> は、いま実行中のカーネルに合うビルド済みモジュールパッケージを引き込む(ここでは <code>…-6.17.0-1031-nvidia</code>)。DKMSビルドが不要で、マシンごとにカーネルが違ってもそれぞれ合うものを受け取る。インストール直後は再起動するまで <code>nvidia-smi</code> が「Driver/library version mismatch」を出すが、これは正常だ。戻すには <code>apt-cache policy nvidia-driver-580-open</code> でバージョンを確認したうえで <code>apt-get install nvidia-driver-580-open=&lt;バージョン&gt; linux-modules-nvidia-580-open-nvidia-hwe-24.04</code>。</p>
 
 <h3>1.3 USB-C PDファームウェア</h3>
-<p>GB10製品群の全般で報告されている現象がある。最大負荷でもクロックが400~950MHzにとどまって性能が1/3に落ちるのに、スロットルフラグはすべてNot Activeだ。USB-C PDコントローラのファームウェアが電源ネゴシエーションを誤り、SoCが自らクロックを下げてロックするケースとして知られており、再起動では解けず、電源ケーブルを抜いて放電しないと解けない。予防はPDファームウェアを最新にすることだ。このマシンのPDファームウェアは0x1で、LVFSに0x516(緊急度High)が上がっていた。</p>
+<p>GB10製品群の全般で報告されている現象がある(事例: <a href="https://x.com/runsonai/status/2051757564019212657">GX10ユーザーの報告</a>、<a href="https://x.com/hnakamur2/status/2086253048050159846">PGXユーザーの報告</a>、まとめは<a href="../gb10-clock-cap/#appendix">別記事の付録</a>(韓国語))。最大負荷でもクロックが400~950MHzにとどまって性能が1/3に落ちるのに、スロットルフラグはすべてNot Activeだ。USB-C PDコントローラのファームウェアが電源ネゴシエーションを誤り、SoCが自らクロックを下げてロックするケースとして知られており、再起動では解けず、電源ケーブルを抜いて放電しないと解けない。予防はPDファームウェアを最新にすることだ。このマシンのPDファームウェアは0x1で、LVFSに0x516(緊急度High)が上がっていた(出典: <code>fwupdmgr get-updates</code>の出力、LVFSファームウェアID <code>com.asus.gx10dgx.usbpd.firmware</code>、<a href="https://fwupd.org/lvfs/devices/com.asus.gx10dgx.usbpd.firmware">LVFSページ</a>)。</p>
 <pre><code>fwupdmgr refresh --force
 fwupdmgr get-updates                  # "GX10 USB-C PD FW Controller Update" 0x516
 fwupdmgr update -y --no-reboot-check  # カプセルが /boot/efi/EFI/ubuntu/fw/ に準備される
@@ -225,7 +225,7 @@ WantedBy=multi-user.target</code></pre>
 
 <h3>2.3 vLLMスピンパッチ: 2台以上つなぐとき</h3>
 <div class="note">まず適用範囲から: このスピンはvLLMのマルチプロセスエグゼキューター(<code>mp</code> executor)でのみ起きる。<strong>1台でTP=1で回す場合は該当しない</strong>(ワーカーが同じプロセス内にあり、キュー自体がない)。2台以上をつなぐか、<code>--distributed-executor-backend=mp</code> を明示したときの話だ。</div>
-<p>vLLMの <code>shm_broadcast.py</code> には、メッセージキューを待つとき1秒間(<code>busy_loop_s=1</code>)スピンしてからようやくスリープするデフォルト値がある。デコードのステップ間隔は1秒よりはるかに短いので、事実上つねにスピンしていることになる。コアが数十個ある一般的なサーバーでは3~4コアの浪費は目立たないが、CPUとGPUが一つのパッケージに入っているGB10ではその熱がそのままSoC温度になる。py-spyでスタックを取ってデフォルト値を2msに変えたところ、vLLMプロセスのCPU合計が333%から89%に減り、SoC温度は11°C下がった。調査の経緯は<a href="../vllm-spin-wait-gb10-en/">元記事 (英語)</a>に、条件を揃えた再現実験は<a href="../vllm-spin-wait-gb10-repro-en/">後続実験 (英語)</a>にある。</p>
+<p>vLLMの <a href="https://github.com/vllm-project/vllm/blob/main/vllm/distributed/device_communicators/shm_broadcast.py"><code>shm_broadcast.py</code></a> には、メッセージキューを待つとき1秒間(<code>busy_loop_s=1</code>)スピンしてからようやくスリープするデフォルト値がある。デコードのステップ間隔は1秒よりはるかに短いので、事実上つねにスピンしていることになる。コアが数十個ある一般的なサーバーでは3~4コアの浪費は目立たないが、CPUとGPUが一つのパッケージに入っているGB10ではその熱がそのままSoC温度になる。py-spyでスタックを取ってデフォルト値を2msに変えたところ、vLLMプロセスのCPU合計が333%から89%に減り、SoC温度は11°C下がった。調査の経緯は<a href="../vllm-spin-wait-gb10-en/">元記事 (英語)</a>に、条件を揃えた再現実験は<a href="../vllm-spin-wait-gb10-repro-en/">後続実験 (英語)</a>にある。</p>
 <div class="chart" id="c-spin"></div>
 <p class="fcap">図5. スピンのデフォルト(1秒)と2msパッチ。左: vLLMプロセスのCPU使用量合計(%)。右: 負荷中のSoC温度(°C、外部ファンのないノード)。再現実験ではデフォルトが負荷開始90秒で85°C、2分18秒で90°C、ピークは95°Cに達し、パッチはピーク85°Cだった。</p>
 <pre><code># コンテナ/仮想環境の中、vLLM起動前 (パスはインストール場所に合わせる)
@@ -237,7 +237,7 @@ grep -n 'busy_loop_s' $(python -c 'import vllm,os;print(os.path.dirname(vllm.__f
 <p>一つ正直に断っておきたい。後日の再検証では、単一ストリームのデコードがデフォルト40.9に対しパッチ38.7 tok/sと約2~6%遅かった(反復のばらつきの範囲内だが傾向は一貫していた。同時4ストリームでは差なし、CPU減少はそのまま再現)。そこで私たちはこのパッチを<strong>「発熱が問題のときに入れるスイッチ」</strong>として位置づけている。外部冷却がなく夏なら入れ、単一ストリームの速度が優先なら切る、という具合だ。2.2のCPU上限はその選択とは無関係にかけておく。</p>
 
 <h3>2.4 Tailscale: 家の外からもSSH</h3>
-<p>推論サーバーは一度セットアップすればその前に座って作業することは少なく、ほとんどは別の場所からSSHで入る。ルーターのポートフォワーディングの代わりにTailscaleを入れておけば、どこからでも同じ名前でつながる。この記事の後半の作業も家の外からtailnetで行った。</p>
+<p>推論サーバーは一度セットアップすればその前に座って作業することは少なく、ほとんどは別の場所からSSHで入る。ルーターのポートフォワーディングの代わりに<a href="https://tailscale.com/kb/1031/install-linux">Tailscale</a>を入れておけば、どこからでも同じ名前でつながる。この記事の後半の作業も家の外からtailnetで行った。</p>
 <pre><code>curl -fsSL https://tailscale.com/install.sh | sh
 tailscale up                      # 表示されたURLでログイン (管理コンソールでauth keyを作って --authkey で渡してもよい)
 tailscale ip -4                   # このマシンのtailnetアドレス
@@ -249,7 +249,7 @@ ufw allow in on tailscale0        # ファイアウォールを有効にした�
 <tr><td>再起動後に <code>docker.service</code> が失敗: <code>error creating buildkit instance: invalid database</code></td><td>工場イメージに入っていたbuildkitのローカルDB(2025-09作成)が破損していた。ビルドキャッシュに過ぎないので <code>systemctl stop docker.socket docker; mv /var/lib/docker/buildkit /var/lib/docker/buildkit.bak; systemctl start docker</code>。イメージやコンテナとは無関係だ。続けて <code>nvidia-ctk runtime configure --runtime=docker</code> でnvidiaランタイムを登録しておく。</td></tr>
 <tr><td>ドライバインストール直後の <code>nvidia-smi</code>: Driver/library version mismatch</td><td>カーネルモジュールは旧バージョンがロードされたままでライブラリだけ新しい。再起動すれば解消。再起動前にGPUを使う作業を回さないこと。</td></tr>
 <tr><td>595で <code>nvidia-smi --query-gpu=clocks.applications.graphics</code>、<code>display_mode</code> が文字列を返す</td><td>「Requested functionality has been deprecated」。点検スクリプトが数値比較をすると壊れる。<code>clocks.sm</code> を見るか、文字列を例外処理する。</td></tr>
-<tr><td>負荷中にGPUクロックが400~950MHzにとどまり電力~10W、スロットルフラグはすべてNot Active</td><td>PDファームウェアによる低クロック固着(1.3)。再起動や <code>nvidia-smi -rgc</code> では解けず、シャットダウン → 電源ケーブルを抜く → 電源ボタンで放電 → 1分後に再接続。意図的にかけた上限(約1989MHz)と区別すること。</td></tr>
+<tr><td>負荷中にGPUクロックが400~950MHzにとどまり電力~10W、スロットルフラグはすべてNot Active</td><td>PDファームウェアによる低クロック固着(1.3、事例<a href="https://x.com/runsonai/status/2051757564019212657">1</a>、<a href="https://x.com/hnakamur2/status/2086253048050159846">2</a>)。再起動や <code>nvidia-smi -rgc</code> では解けず、シャットダウン → 電源ケーブルを抜く → 電源ボタンで放電 → 1分後に再接続。意図的にかけた上限(約1989MHz)と区別すること。</td></tr>
 <tr><td><code>apt autoremove</code> の後にブートパラメータが消えた</td><td>メタパッケージの依存パッケージだったプラットフォームパッケージが一緒に削除された(1.1)。大きなpurgeの後は <code>/proc/cmdline</code> と <code>/etc/default/grub.d/</code> を基準マシンと照合する。</td></tr>
 <tr><td>200G ConnectX-7が <code>lspci</code> にない</td><td>ケーブルが挿さっていないとNICが現れない(ホットプラグパッケージが管理)。ドライバの問題ではない。</td></tr>
 <tr><td>再起動したら <code>/tmp</code> に置いたファイルが消えた</td><td>Ubuntuは起動時に <code>/tmp</code> を空にする。再起動前にステージングファイルはホームへ。</td></tr>
@@ -258,27 +258,27 @@ ufw allow in on tailscale0        # ファイアウォールを有効にした�
 </tbody></table>
 
 <div class="infobox"><div class="ib-title">よくある誤解: 「UEFIでDisplayを切るとメモリが増える」</div>
-<p>単一ノードレシピの周辺では「デスクトップ/ディスプレイがUMA 7GiBを占めるので、UEFIのDisplay項目を切れ」という助言が出回っている。確認したところ、GX10ファームウェア(GX10DGX.0105)にDisplay、iGPU、iGPU Memory Carveoutといった項目はあるものの、すべて非表示(<code>SuppressIf</code>)扱いで設定画面には出ず、NVIDIA公式のUEFIガイドにもない。ファームウェアが実際に取り分けるのは1.1のインフォボックスのとおり約3.9GiB(carveout 3.0GiBを含む)で固定されており、問題の7GiBはGNOME/XorgのようなユーザースペースによるGPU割り当てなので、<strong>サーバーモードに変えれば戻ってくる。</strong>ファームウェア側で手を入れることはなく、非表示の変数を直接いじるのは検証されていないので勧めない。</p></div>
+<p>単一ノードレシピの周辺では「デスクトップ/ディスプレイがUMA 7GiBを占めるので、UEFIのDisplay項目を切れ」という助言が出回っている(7GiBの出典: <a href="https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark#readme">MiaAIレシピのREADME</a>)。確認したところ、GX10ファームウェア(GX10DGX.0105)にDisplay、iGPU、iGPU Memory Carveoutといった項目はあるものの、すべて非表示(<code>SuppressIf</code>)扱いで設定画面には出ず、<a href="https://docs.nvidia.com/dgx/dgx-spark-uefi/advanced-tab.html">NVIDIA公式のUEFIガイド</a>にもない。ファームウェアが実際に取り分けるのは1.1のインフォボックスのとおり約3.9GiB(carveout 3.0GiBを含む)で固定されており、問題の7GiBはGNOME/XorgのようなユーザースペースによるGPU割り当てなので、<strong>サーバーモードに変えれば戻ってくる。</strong>ファームウェア側で手を入れることはなく、非表示の変数を直接いじるのは検証されていないので勧めない。</p></div>
 
 <h3>200G ConnectX-7: 見えない、リンクは上がるのに通らない、遅い</h3>
 <p>2台以上を束ねるときに使う200Gポートは、三つの段階で人を惑わせた。各段階の症状と解決を順に書く。すべて私たちのマシンで実際に遭遇したものだ。</p>
 <ol>
 <li><strong>ケーブルがないとデバイスがない。</strong> <code>lspci</code> にConnectX-7が1行も出ない。ドライバ(<code>mlx5_core</code>)はロードされている。ホットプラグパッケージが管理する正常な動作で、ケーブルを挿せば現れる。</li>
-<li><strong>ケーブルを挿すとポート1個がインターフェース2個として見える。</strong> <code>enp1s0f0np0</code> と <code>enP2p1s0f0np0</code> のように名前の違う二つのインターフェースが同じ物理ポートだ(PCIeルート2個にそれぞれ見えるsocket-direct構成)。<code>cat /sys/class/net/*/phys_switch_id</code> で見ると四つのインターフェースが同じ値で、<code>phys_port_name</code> だけp0/p1の二つだ。ボンディングせず、<strong>二つのインターフェースにそれぞれ別サブネットのIPを与える</strong>(NVIDIAのガイドも同じ方式)。そうすることでNCCLが二つの経路を使い分け、帯域が合算される。リンクとRoCEの状態はACTIVEなのにIPがないだけで「上がってこない」ように見えるのがこの段階だ。
+<li><strong>ケーブルを挿すとポート1個がインターフェース2個として見える。</strong> <code>enp1s0f0np0</code> と <code>enP2p1s0f0np0</code> のように名前の違う二つのインターフェースが同じ物理ポートだ(PCIeルート2個にそれぞれ見えるsocket-direct構成。NVIDIAの文書も「QSFPポート1つがLinuxインターフェース2つとして見える」と記している: <a href="https://docs.nvidia.com/dgx/dgx-spark/spark-clustering.html">ConnectX-7 Networking</a>、構造の解説は<a href="https://www.servethehome.com/the-nvidia-gb10-connectx-7-200gbe-networking-is-really-different/">ServeTheHome</a>)。<code>cat /sys/class/net/*/phys_switch_id</code> で見ると四つのインターフェースが同じ値で、<code>phys_port_name</code> だけp0/p1の二つだ。ボンディングせず、<strong>二つのインターフェースにそれぞれ別サブネットのIPを与える</strong>(NVIDIAの<a href="https://build.nvidia.com/spark/connect-two-sparks">Connect Two Sparksプレイブック</a>も同じ方式)。そうすることでNCCLが二つの経路を使い分け、帯域が合算される。リンクとRoCEの状態はACTIVEなのにIPがないだけで「上がってこない」ように見えるのがこの段階だ。
 <pre><code>nmcli con add type ethernet con-name ic200g   ifname enp1s0f0np0   ipv4.method manual ipv4.addresses &lt;rail-A&gt;/24 ipv4.never-default yes 802-3-ethernet.mtu 9000
 nmcli con add type ethernet con-name ic200g-b ifname enP2p1s0f0np0 ipv4.method manual ipv4.addresses &lt;rail-B&gt;/24 ipv4.never-default yes 802-3-ethernet.mtu 9000
 # 相手のマシンも同じ二つのサブネットで。ファイアウォールはポート名4個をすべて許可しておく(ケーブルを別のケージに移しても壊れないように)
 for i in enp1s0f0np0 enp1s0f1np1 enP2p1s0f0np0 enP2p1s0f1np1; do ufw allow in on $i; done</code></pre></li>
-<li><strong>すべての指標が正常なのにスループットだけ1/8だ。</strong> リンク200000Mb/s、RoCE 4X×50G、PCIe Gen5 x4、エラーカウンタ0、ジャンボフレーム通過なのに <code>ib_write_bw</code> も <code>iperf3</code> も13Gb/s付近で止まる(正常は経路あたり約98、合算196Gb/s)。同じデバイスでプロセス2個を回して6.9+6.9に分け合うならデバイス側の上限に当たっているということで、1台の中で二つのインターフェース間で流しても13ならケーブルと相手マシンの容疑は晴れる。<strong>再起動では解けない。2台をシャットダウンして電源ケーブルを抜き、電源ボタンを押して放電し、1分後に再接続</strong>すると解けた(13.3 → 108Gb/s、2経路合計196Gb/s)。以後、通常の再起動を何度しても維持された。PDファームウェアの低クロック固着と同系統の電源側の現象と見られる。</li>
+<li><strong>すべての指標が正常なのにスループットだけ1/8だ。</strong> リンク200000Mb/s、RoCE 4X×50G、PCIe Gen5 x4、エラーカウンタ0、ジャンボフレーム通過なのに <code>ib_write_bw</code> も <code>iperf3</code> も13Gb/s付近で止まる(正常は経路あたり約98、合算196Gb/s。NVIDIAプレイブックの<a href="https://github.com/NVIDIA/dgx-spark-playbooks/blob/main/nvidia/connect-two-sparks/assets/performance_benchmarking_guide.md">ベンチマークガイド</a>はib_write_bwで約197Gb/sを期待値とし、同じ13Gb/sの頭打ちは<a href="https://forums.developer.nvidia.com/t/connectx-7-inter-spark-link-capped-at-13-gbps-expected-200-gbps-pcie-power-throttling-27w/363461">NVIDIAフォーラム</a>にも報告されている)。同じデバイスでプロセス2個を回して6.9+6.9に分け合うならデバイス側の上限に当たっているということで、1台の中で二つのインターフェース間で流しても13ならケーブルと相手マシンの容疑は晴れる。<strong>再起動では解けない。2台をシャットダウンして電源ケーブルを抜き、電源ボタンを押して放電し、1分後に再接続</strong>すると解けた(13.3 → 108Gb/s、2経路合計196Gb/s)。以後、通常の再起動を何度しても維持された。PDファームウェアの低クロック固着と同系統の電源側の現象と見られる。</li>
 <li><strong>ケーブルを別のケージに移すと設定が壊れる。</strong> NetworkManagerが作ったプロファイルにポートのMACが埋め込まれており、<code>permanent MAC address doesn't match</code> で有効化が失敗する。<code>nmcli con mod ic200g 802-3-ethernet.mac-address "" connection.interface-name &lt;新しいインターフェース&gt;</code> でMACの固定を解除し、インターフェース名で紐付け直す。ファイアウォールルールもポート名基準なので、上のように4個すべて開けておく。</li>
 </ol>
-<p>切り分けの際は二つ覚えておきたい。ufwはICMPをデフォルト許可するので、<strong>pingは通るのにTCPが通らない</strong>状態が生じる(<code>ib_write_bw</code> が「Couldn't connect」なのにpingは通る)。そしてGB10では <code>ib_write_bw</code> が低く出てもNCCLは正常という事例が報告されているので、最終判定はNCCL(nccl-tests)で行う。NCCLログの <code>GPU_DIRECT_RDMA_SUPPORTED=False</code> はGB10では正常だ。</p>
+<p>切り分けの際は二つ覚えておきたい。ufwはICMPをデフォルト許可するので、<strong>pingは通るのにTCPが通らない</strong>状態が生じる(<code>ib_write_bw</code> が「Couldn't connect」なのにpingは通る)。そしてGB10では <code>ib_write_bw</code> が低く出てもNCCLは正常という事例が報告されているので(<a href="https://forums.developer.nvidia.com/t/nccl-single-cable-test-caps-at-100gbps/362403">NVIDIAフォーラム</a>)、最終判定はNCCL(nccl-tests)で行う。NCCLログの <code>GPU_DIRECT_RDMA_SUPPORTED=False</code> はGB10では正常だ。</p>
 
 <h2 id="s4">4. 1台ですぐ試せるレシピ: 直接検証したものだけ</h2>
 <p>セットアップの終わった1台でそのまま再現できるレシピを二つ挙げる。どちらも上のGPU上限(1989MHz)がかかった状態で測った。</p>
 
 <h3>4.1 ollama + Qwen3.8-27B (GGUF Q4_K_M): 10分以内に最初のトークン</h3>
-<p>最速の動作確認。公式インストールスクリプトでollamaを入れ、Hugging Faceの <code>ggml-org/Qwen3.8-27B-GGUF</code> から <code>Qwen3.8-27B-Q4_K_M.gguf</code>(19GB)を取得してModelfileで登録する。一つ落とし穴がある。この環境ではollamaのデフォルトコンテキストが262144になっており(<code>ollama ps</code> で確認)、小さなモデルでもKVキャッシュで数十GBを占めうる。Modelfileに <code>num_ctx</code> を明示する。</p>
+<p>最速の動作確認。<a href="https://ollama.com/download/linux">公式インストールスクリプト</a>でollamaを入れ、Hugging Faceの <a href="https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF"><code>ggml-org/Qwen3.8-27B-GGUF</code></a> から <code>Qwen3.8-27B-Q4_K_M.gguf</code>(19GB)を取得してModelfileで登録する。一つ落とし穴がある。この環境ではollamaのデフォルトコンテキストが262144になっており(<code>ollama ps</code> で確認)、小さなモデルでもKVキャッシュで数十GBを占めうる。Modelfileに <code>num_ctx</code> を明示する。</p>
 <pre><code>curl -fsSL https://ollama.com/install.sh | sh
 pip install -U huggingface_hub          # hf CLI
 hf download ggml-org/Qwen3.8-27B-GGUF Qwen3.8-27B-Q4_K_M.gguf --local-dir ~/models/qwen3.8-27b
@@ -296,7 +296,7 @@ ollama run qwen3.8-27b-q4km --verbose "一文で自己紹介して"</code></pre>
 </tbody></table>
 
 <h3>4.2 DeepSeek V4 Flashを1台で: MiaAIレシピ (EXL3 3.0bpw、REAP K216)</h3>
-<p>オリジナルのFP8(166.9GB)は1台に入らない。<a href="https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark">MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark</a> は <code>0xSero/deepseek-v4-flash-0731-spark</code> をSparkInferカーネルとDSpark投機的デコードでサービングする。このチェックポイントはエキスパート256個のうち216個を残し(REAP)、EXL3 3.0bpwで量子化した106.9GBのビルドだ。したがって「オリジナルのDeepSeek V4 Flash」ではなくプルーニング+3bpw版であることは知ったうえで使う。</p>
+<p>オリジナルのFP8(166.9GB)は1台に入らない。<a href="https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark">MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark</a> は <a href="https://huggingface.co/0xSero/deepseek-v4-flash-0731-spark"><code>0xSero/deepseek-v4-flash-0731-spark</code></a> をSparkInferカーネルとDSpark投機的デコードでサービングする。このチェックポイントはエキスパート256個のうち216個を残し(REAP)、EXL3 3.0bpwで量子化した106.9GBのビルドだ。したがって「オリジナルのDeepSeek V4 Flash」ではなくプルーニング+3bpw版であることは知ったうえで使う。</p>
 <pre><code># 前提: docker + compose v2、nvidiaランタイム登録(nvidia-ctk runtime configure --runtime=docker)、ユーザーがdockerグループ
 git clone https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark mia-one &amp;&amp; cd mia-one
 ./download.sh            # イメージpull → HF 107GB → TP4→TP1再結合 → チェックサム。ディスク~200GB、回線次第で30分~数時間
