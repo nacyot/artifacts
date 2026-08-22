@@ -104,7 +104,7 @@ rm -rf /snap /var/snap /var/lib/snapd /home/*/snap
 # 3) 대조 (재부팅 뒤에도 한 번 더)
 update-grub
 grep -o 'initcall_blacklist=[^ ]*\|pci=pcie_bus_safe\|iommu.passthrough=[0-9]' /boot/grub/grub.cfg | sort -u</code></pre>
-<p>OTA 메타패키지는 되살리지 않는다. 되살리면 <code>nvidia-desktop-default-snaps</code>를 통해 snapd가 돌아와 서버 모드가 깨진다. 메타가 하는 일은 "다음 릴리스에서 NVIDIA가 추가하는 패키지를 끌어오는 것"이라, 가끔 <code>Depends</code> 목록과 설치 상태를 대조해 빠진 것만 개별 설치하면 된다. 개별 플랫폼 패키지는 <code>apt upgrade</code>로 정상 갱신된다.</p>
+<p>OTA 메타패키지는 되살리지 않는다. 되살리면 <code>nvidia-desktop-default-snaps</code>를 통해 snapd가 돌아와 서버 모드가 깨진다. 메타패키지가 하는 일은 "다음 릴리스에서 NVIDIA가 추가하는 패키지를 끌어오는 것"이라, 가끔 <code>Depends</code> 목록과 설치 상태를 대조해 빠진 것만 개별 설치하면 된다. 개별 플랫폼 패키지는 <code>apt upgrade</code>로 정상 갱신된다.</p>
 
 <h3>1.2 드라이버 580 → 595</h3>
 <p>바꾸는 이유는 속도가 아니라 결함이다. 580.173.02에서는 KV 캐시를 디스크로 내리는 경로에서 GPU 오류(<code>Xid 13</code>)가 재현됐고, 595.84로 올리자 같은 코드에서 사라졌다. 새 기계도 처음부터 595로 맞춘다.</p>
