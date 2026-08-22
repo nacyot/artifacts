@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DGX Spark 한 대를 추론 서버로 길들이기 — 세 번째 노드 초기 셋업 기록</title><meta name="description" content="ASUS Ascent GX10(GB10) 공장 상태에서 추론 서버 베이스라인까지: 플랫폼 패키지를 지키며 서버 모드로 전환하는 법, 드라이버 595 교체, GPU·CPU 클럭 상한(그리고 CPU 상한이 왜 필요한가 — vLLM 스핀 대기), PD 펌웨어, 보안·네트워크 기본값, 그리고 밟은 함정들. 실험은 제외, 작업 내용만."><meta property="og:title" content="DGX Spark 한 대를 추론 서버로 길들이기 — 초기 셋업 기록"><meta property="og:description" content="서버 모드·드라이버 595·GPU/CPU 클럭 상한·PD 펌웨어·보안·네트워크 — 세 번째 GB10 노드를 기존 두 대와 똑같이 만드는 절차와 함정."><meta property="og:type" content="article"><meta property="og:url" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup/"><meta property="og:image" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup/og.png"><meta name="twitter:card" content="summary_large_image"><style>
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DGX Spark 한 대를 추론 서버로 길들이기 — 세 번째 노드 초기 셋업 기록</title><meta name="description" content="ASUS Ascent GX10(GB10) 공장 상태에서 추론 서버 베이스라인까지: 플랫폼 패키지를 지키며 서버 모드로 전환하는 법, 드라이버 595 교체, GPU·CPU 클럭 상한(그리고 CPU 상한이 왜 필요한가 — vLLM 스핀 대기), PD 펌웨어, 보안 기본값, 그리고 밟은 함정들. 환경 의존적인 네트워크 설정과 실험은 제외, 일반화되는 작업만."><meta property="og:title" content="DGX Spark 한 대를 추론 서버로 길들이기 — 초기 셋업 기록"><meta property="og:description" content="서버 모드·드라이버 595·GPU/CPU 클럭 상한·PD 펌웨어·보안 기본값 — 세 번째 GB10 노드를 기존 두 대와 똑같이 만드는 절차와 함정."><meta property="og:type" content="article"><meta property="og:url" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup/"><meta property="og:image" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup/og.png"><meta name="twitter:card" content="summary_large_image"><style>
 :root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--box:#f3f2ec;--hi:#7a4a3a}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);
@@ -36,10 +36,10 @@ details[open] summary::before{content:"▾ "}
 <h1>DGX Spark 한 대를 추론 서버로 길들이기 — 세 번째 노드 초기 셋업 기록</h1>
 <p class="fcap" style="margin:0 0 1.4rem">관련 글: <a href="../gb10-gpu-clock-cap/">GB10 전력 상한 거는 법 →</a> · <a href="../vllm-spin-wait-gb10/">LLM 추론에서 가장 뜨거운 것은 GPU가 아니었다 →</a></p>
 
-<p>GB10 머신(ASUS Ascent GX10, DGX Spark 제품군)을 한 대 더 들였다. 앞의 두 대는 몇 주에 걸쳐 손을 봐 온 상태라, 이번 목표는 단순했다 — <strong>공장 상태의 새 기계를 기존 두 대와 똑같은 추론 서버 베이스라인으로 만드는 것.</strong> 그 과정을 재현 가능한 절차로 남긴다. 모델을 올려 돌린 실험은 빼고, 기계를 만드는 작업만 적는다.</p>
+<p>GB10 머신(ASUS Ascent GX10, DGX Spark 제품군)을 한 대 더 들였다. 앞의 두 대는 몇 주에 걸쳐 손을 봐 온 상태라, 이번 목표는 단순했다 — <strong>공장 상태의 새 기계를 기존 두 대와 똑같은 추론 서버 베이스라인으로 만드는 것.</strong> 그 과정을 재현 가능한 절차로 남긴다. 모델을 올려 돌린 실험과 우리 집 네트워크에만 해당하는 설정(VLAN·주소·스위치)은 빼고, 어느 GB10 머신에나 적용되는 작업만 적는다.</p>
 
 <div class="lede">
-<p><strong>무엇을 바꾸나.</strong> 데스크탑 이미지를 서버 모드로(플랫폼 패키지를 지키면서), 드라이버 580 → 595, GPU 클럭 상한 2000MHz + CPU 성능코어 상한 2.8GHz, USB-C PD 펌웨어 최신화, 키 전용 SSH·방화벽·보안 업데이트 자동화, 유선 정적 IP·스토리지 VLAN·tailnet. 한 번 재부팅으로 끝난다.</p>
+<p><strong>무엇을 바꾸나.</strong> 데스크탑 이미지를 서버 모드로(플랫폼 패키지를 지키면서), 드라이버 580 → 595, GPU 클럭 상한 2000MHz + CPU 성능코어 상한 2.8GHz, USB-C PD 펌웨어 최신화, 키 전용 SSH·방화벽·보안 업데이트 자동화. 한 번 재부팅으로 끝난다.</p>
 <p><strong>왜 그대로 못 쓰나.</strong> 공장 이미지는 GNOME·snap 13개가 올라간 데스크탑이고(UMA 메모리를 수 GiB 먹는다), 드라이버 580.173에는 우리가 재현한 결함이 있고, PD 펌웨어는 초기 리비전이라 "저클럭 고착" 버그에 노출돼 있으며, 보안 업데이트 자동화는 꺼져 있다. 그리고 기본 설정에서는 추론 중 GPU보다 CPU가 먼저 뜨거워진다.</p>
 </div>
 
@@ -50,10 +50,9 @@ details[open] summary::before{content:"▾ "}
 <tr><td>GPU 드라이버</td><td>580.173.02</td><td><strong>595.84</strong></td></tr>
 <tr><td>클럭</td><td>GPU 최대 3003MHz 자유, CPU 성능코어 3.9GHz 자유</td><td>GPU 300~2000MHz, 성능코어 2.8GHz</td></tr>
 <tr><td>USB-C PD 펌웨어</td><td>0x1</td><td><strong>0x516</strong> (LVFS, 긴급도 High)</td></tr>
-<tr><td>시간대 / Wi-Fi</td><td>UTC / ON (DHCP)</td><td>로컬 / OFF</td></tr>
+<tr><td>시간대 / Wi-Fi</td><td>UTC / ON</td><td>로컬 시간대 / OFF (유선 서버)</td></tr>
 <tr><td>SSH / 방화벽</td><td>비밀번호 허용 / ufw 비활성</td><td>키 전용 / ufw 기본 거부</td></tr>
 <tr><td>보안 업데이트</td><td>unattended-upgrades 없음, 15건 대기</td><td>자동 적용, 자동 재부팅 없음</td></tr>
-<tr><td>sudo</td><td>비밀번호 요구</td><td>NOPASSWD (에이전트 운용)</td></tr>
 </tbody></table>
 <p>한 가지 안심되는 점: 부팅 파라미터(<code>initcall_blacklist=tegra234_cbb_init</code>, <code>pci=pcie_bus_safe</code>, <code>iommu.passthrough=0</code>)와 <code>/etc/default/grub.d/</code>의 NVIDIA 스니펫 10개는 기존 노드와 동일했다. 이것들은 뒤에서 "지켜야 할 것"으로 다시 등장한다.</p>
 
@@ -127,31 +126,19 @@ ls /boot/efi/EFI/ubuntu/fw/     # fwupd-….cap 이 스테이징되면 재부팅
 <h2>5. 보안·운영 기본값</h2>
 <table><thead><tr><th>항목</th><th>설정</th><th>메모</th></tr></thead><tbody>
 <tr><td>sshd</td><td><code>PasswordAuthentication no</code>, <code>KbdInteractiveAuthentication no</code>, <code>PermitRootLogin prohibit-password</code></td><td>authorized_keys에 키가 있는지 확인한 뒤 <code>sshd -t && systemctl reload ssh</code></td></tr>
-<tr><td>ufw</td><td>기본 incoming deny / outgoing allow / routed deny; 22는 LAN·스토리지 서브넷에서만; tailscale 인터페이스와 41641/udp 허용; 200G 인터커넥트 4포트 이름 전체 허용</td><td>인터커넥트는 케이블이 아직 없어도 규칙을 선등록해 둔다 — ufw는 없는 인터페이스 이름도 받는다</td></tr>
+<tr><td>ufw</td><td>기본 incoming deny / outgoing allow / routed deny; SSH는 관리망에서만 허용, 서비스 포트는 필요할 때 명시적으로</td><td>추론 API 포트(vLLM 8000/8888 등)를 LAN에 열 때도 한 줄씩 추가한다 — 기본 거부가 베이스라인</td></tr>
 <tr><td>unattended-upgrades</td><td>패키지 목록·업그레이드 1, <code>Automatic-Reboot "false"</code>, <code>Remove-Unused-Kernel-Packages "true"</code></td><td>추론 중 재부팅 금지</td></tr>
-<tr><td>earlyoom</td><td><code>-m 2 -s 100 -r 300</code></td><td>메모리 고갈로 유저스페이스가 통째로 굳는 사고 뒤 양 노드에 넣은 가드. 레시피에 따라 끄라고 하는 것도 있으니 기동 전 확인</td></tr>
-<tr><td>시간대 / Wi-Fi</td><td>Asia/Seoul / <code>nmcli radio wifi off</code></td><td>Wi-Fi는 유선 정적 IP로 재접속한 뒤 끈다</td></tr>
+<tr><td>시간대 / Wi-Fi</td><td>로컬 시간대 / <code>nmcli radio wifi off</code></td><td>Wi-Fi는 유선으로 재접속을 확인한 뒤 끈다</td></tr>
 <tr><td>persistenced / journald</td><td>enabled / persistent</td><td>공장 기본값 유지</td></tr>
 </tbody></table>
 
-<h2>6. 네트워크</h2>
-<p>유선 한 가닥에 관리용 VLAN(untagged)과 10G 스토리지 VLAN(tagged)을 태우는 구성이다. 스위치 쪽은 해당 포트를 스토리지 VLAN의 tagged 목록에 추가하는 한 줄이고, 어느 포트인지는 새 노드에 기본 설치된 <code>lldpd</code> 덕에 <code>lldpcli show neighbors</code>로 바로 나온다(스위치의 MAC 테이블을 뒤질 필요가 없었다). 호스트 쪽:</p>
-<pre><code># 스토리지 VLAN (기본 경로로 잡히지 않게)
-nmcli con add type vlan con-name vlan10-storage ifname enP7s7.10 dev enP7s7 id 10 \
-  ipv4.method manual ipv4.addresses &lt;storage-ip&gt;/24 ipv4.never-default yes ipv6.method disabled
-# 유선 정적 IP 전환 — 세션이 끊기므로 분리 실행
-nmcli con mod "Wired connection 3" connection.id lan ipv4.method manual \
-  ipv4.addresses &lt;lan-ip&gt;/24 ipv4.gateway &lt;gw&gt; ipv4.dns &lt;dns&gt;
-systemd-run --on-active=2 --unit=lan-static-switch \
-  /bin/bash -c 'nmcli con up lan; sleep 3; nmcli radio wifi off'</code></pre>
-<p>DHCP에서 정적으로 바꾸는 순간 SSH 세션이 죽으므로 <code>systemd-run</code>으로 떼어 놓고 새 주소로 다시 붙는다. tailnet 가입은 관리 API로 만든 1시간짜리 authkey를 표준입력으로 넘겨 <code>tailscale up --authkey</code> 한 번이면 끝난다. 200G ConnectX-7은 아직 케이블을 안 꽂은 상태인데, 이 플랫폼에서는 <strong>케이블이 없으면 NIC이 <code>lspci</code>에도 나타나지 않는다</strong>(핫플러그 패키지가 관리) — 드라이버 문제로 오해하지 말 것.</p>
-
-<h2>7. 밟은 함정</h2>
+<h2>6. 밟은 함정</h2>
 <ul>
 <li><strong>공장 docker의 buildkit DB가 손상본이었다.</strong> 재부팅 후 <code>docker.service</code>가 <code>error creating buildkit instance: invalid database</code>로 실패. <code>/var/lib/docker/buildkit</code>(2025-09 생성, 빌드 캐시일 뿐)을 치우고 재시작하면 정상. 이미지·컨테이너와 무관하다.</li>
 <li><strong><code>/tmp</code>는 부팅 시 비워진다.</strong> 재부팅 전에 스테이징 파일을 홈으로 옮기지 않으면 사라진다.</li>
 <li><strong><code>pgrep -f &lt;스크립트명&gt;</code>은 자기 자신을 잡는다.</strong> ssh로 원격 실행한 대기 루프의 명령줄에 같은 문자열이 들어 있어 "아직 실행 중"으로 영원히 판정했다. <code>[d]ownload.sh</code> 같은 괄호 패턴이 정답. (<code>pkill -f</code>도 같은 이유로 자살한다.)</li>
 <li><strong>595의 deprecated 쿼리.</strong> <code>nvidia-smi --query-gpu=clocks.applications.graphics</code>가 문자열을 돌려줘 점검 스크립트의 숫자 비교가 깨진다.</li>
+<li><strong>200G ConnectX-7은 케이블이 없으면 <code>lspci</code>에도 안 보인다.</strong> 핫플러그 패키지가 관리하는 정상 동작이라 드라이버 문제로 오해하지 말 것 — 케이블을 꽂으면 나타난다.</li>
 <li><strong>autoremove는 메타패키지 의존을 걷어간다.</strong> 위의 세 겹 방어가 그 답이다. 큰 purge 뒤에는 <code>/proc/cmdline</code>을 기준 노드와 대조한다.</li>
 </ul>
 
@@ -165,15 +152,14 @@ systemd-run --on-active=2 --unit=lan-static-switch \
 
 <h2>한 화면 체크리스트</h2>
 <ol>
-<li>루트 권한: <code>/etc/sudoers.d/&lt;user&gt;</code> NOPASSWD (콘솔에서 한 번)</li>
 <li><code>timedatectl set-timezone</code> · <code>apt-get update</code></li>
 <li>플랫폼 패키지 <code>apt-mark manual</code> (메타 Depends + 기준 노드 manual 목록)</li>
 <li>ufw·cifs-utils·build-essential·python3-dev·ffmpeg·aria2·jq·htop·iperf3·rdma-core·perftest·unattended-upgrades</li>
-<li>unattended 설정 2파일 · 클럭캡 유닛 2개 enable · sshd 하드닝 · ufw 규칙 · docker 그룹 · 스토리지 VLAN</li>
-<li>유선 정적 IP(분리 실행) → 재접속 → Wi-Fi off → tailnet 가입</li>
+<li>unattended 설정 2파일 · 클럭캡 유닛 2개 enable · sshd 하드닝 · ufw 기본 거부 · docker 그룹</li>
+<li>유선 접속 확인 후 Wi-Fi off</li>
 <li>드라이버 595(시뮬레이션 후) · multi-user · purge/autoremove(게이트) · grub 대조 · PD FW 스테이징 · 보안 업데이트</li>
-<li>스테이징을 홈으로 → 재부팅 → 검증(드라이버·클럭·cmdline·네트워크·펌웨어 버전·failed 유닛 0)</li>
-<li>노드 간 SSH 키, 점검 스크립트, earlyoom 인자, 공유 스토리지 마운트 등 기준 노드와 잔여 대조</li>
+<li>스테이징을 홈으로 → 재부팅 → 검증(드라이버·클럭·cmdline·펌웨어 버전·failed 유닛 0)</li>
+<li>점검 스크립트·운영 유틸 등 기준 노드와 잔여 대조</li>
 </ol>
-<p class="fcap">기록: 2026-08-21~22. 장비: ASUS Ascent GX10 (GB10, 128GB) × 3, 펌웨어 GX10DGX.0105, Ubuntu 24.04.4, 커널 6.17.0-1031-nvidia, 드라이버 595.84. 주소·호스트명·스위치 식별자는 공개 글에서 제거했다.</p>
+<p class="fcap">기록: 2026-08-21~22. 장비: ASUS Ascent GX10 (GB10, 128GB) × 3, 펌웨어 GX10DGX.0105, Ubuntu 24.04.4, 커널 6.17.0-1031-nvidia, 드라이버 595.84. 네트워크 구성·주소·호스트명 등 환경 의존 항목은 공개 글에서 뺐다.</p>
 </div></body></html>

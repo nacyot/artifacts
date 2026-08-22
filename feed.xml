@@ -14,7 +14,7 @@
       <link>https://nacyot.github.io/artifacts/dgx-spark-node-setup/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/dgx-spark-node-setup/</guid>
       <pubDate>Sat, 22 Aug 2026 00:00:00 +0000</pubDate>
-      <description><![CDATA[ASUS Ascent GX10(GB10) 공장 상태에서 추론 서버 베이스라인까지: 플랫폼 패키지를 지키며 서버 모드로 전환하는 법, 드라이버 595 교체, GPU·CPU 클럭 상한(CPU 상한이 필요한 이유 — vLLM 스핀 대기), PD 펌웨어, 보안·네트워크 기본값, 그리고 밟은 함정들. 실험은 제외, 작업 내용만.]]></description>
+      <description><![CDATA[ASUS Ascent GX10(GB10) 공장 상태에서 추론 서버 베이스라인까지: 플랫폼 패키지를 지키며 서버 모드로 전환하는 법, 드라이버 595 교체, GPU·CPU 클럭 상한(CPU 상한이 필요한 이유 — vLLM 스핀 대기), PD 펌웨어, 보안 기본값, 그리고 밟은 함정들. 환경 의존적인 네트워크 설정과 실험은 제외, 일반화되는 작업만.]]></description>
       <category>DGX Spark</category>
       <category>GB10</category>
       <category>셋업</category>
