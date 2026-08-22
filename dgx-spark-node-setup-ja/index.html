@@ -57,6 +57,7 @@ a{color:var(--hi)}
 <li><a href="#s3">トラブルシューティング</a>: 遭遇した問題、よくある誤解、200G ConnectX-7</li>
 <li><a href="#s4">1台ですぐ試せるレシピ</a>: ollama Qwen3.8-27B、DeepSeek V4 Flash EXL3</li>
 <li><a href="#s5">一画面チェックリスト</a></li>
+<li><a href="#appendix-memory">付録</a>: なぜ128GiBではなく121GiBに見えるのか</li>
 </ol></div>
 
 <h2 id="s0">0. はじめに: 画面の案内どおりに、その後はSSHで</h2>
@@ -111,16 +112,8 @@ systemctl list-units --state=failed                                # 失敗し�
 <p>工場イメージはGNOMEデスクトップだ。推論サーバーとして使うなら取り除いたほうがよい。GB10はCPUとGPUが128GiBのメモリプール一つを分け合うが、デスクトップが動いているとそのプールから数GiBを占有する。単一ノードレシピのREADMEはデスクトップの載ったホストのレシピ起動時の利用可能メモリを約114.5GiBと書いているが、サーバーモードに変えたこのノードは同じレシピの起動時に<strong>117.4GiB</strong>、アイドル状態では119.0GiBだった。同じマシンで前後を測ったわけではないので厳密な比較ではないが、3~4.5GiBの差は大きなモデルを載せるときそのままKVキャッシュの余裕になる。</p>
 <div class="chart" id="c-mem"></div>
 <p class="fcap">図1. 利用可能メモリ(MemTotal 121.6GiB基準)。デスクトップホスト(レシピREADME、起動時) ~114.5GiB、このノードのサーバーモードは起動時117.4GiB、アイドル119.0GiB。</p>
-<div class="infobox"><div class="ib-title">なぜ128GiBではなく121GiBに見えるのか (単位の整理、実測)</div>
-<p>この記事のメモリの数字はすべて二進単位のGiB(2<sup>30</sup>バイト)だ。<code>free -g</code> と <code>/proc/meminfo</code> が使う単位であり、製品表記の「128GB」も実際には128GiB(十進137.4GB)だ。DMIが報告するメモリアドレス範囲0x80000000~0x207FFFFFFFがちょうど2<sup>37</sup>バイト = 128GiBであり、そこから以下の順に差し引かれる(すべてこのマシンで読んだ値)。</p>
-<table><thead><tr><th>段階</th><th class="n">サイズ</th><th>内容</th></tr></thead><tbody>
-<tr><td>物理LPDDR5X</td><td class="n">128.00GiB</td><td>CPUとGPUが共用する単一プール (LPDDR5 8533MT/s、dmidecode)</td></tr>
-<tr><td>メモリマップにない区間</td><td class="n">−0.37GiB</td><td>UEFIがカーネルに渡すメモリマップ(memblock 127.63GiB)にそもそも含まれないDRAM区間。ファームウェア側が使っていると見られるが、用途は公開されていない</td></tr>
-<tr><td>マップにあるがreserved</td><td class="n">−3.55GiB</td><td>ディスプレイ/iGPUの予約がここに入る。NVIDIAのリリースノート(2026年7月)は「Display Reserved Memory」をBIOSで2GB(既定)か4GBに選べると記している(<a href="https://docs.nvidia.com/dgx/dgx-spark/release-notes.html">リリースノート</a>、<a href="https://forums.developer.nvidia.com/t/dgx-spark-software-updates-july-2026-release/376736">フォーラムの告知</a>)。私たちのASUSファームウェアでは大きい2領域が2616MiB + 460MiB = 3076MiBで、起動時フレームバッファ(BOOTFB)がその中にあり、3章で見た非表示項目「iGPU Memory Carveout」の値24(×128MiB = 3072MiB)と一致する。ただしその項目の単位は文書化されておらず、最小値も24なのでこれ以上は減らせない。残りの約0.55GiBはUEFIランタイム、ACPI、TPMなど。差し引き後のSystem RAMは124.08GiB</td></tr>
-<tr><td>カーネル自体の固定割り当て</td><td class="n">−2.45GiB</td><td>4KiBページ32,526,926個のpage構造体(64Bずつ = 1.94GiB) + カーネルイメージ、initramfs、percpuなど0.5GiB。ここまで引くと<strong>MemTotal 121.63GiB</strong>、<code>free -g</code> の121。CMA 128MiBはこの中に含まれる</td></tr>
-<tr><td>アイドル時のシステム使用</td><td class="n">−2.6GiB</td><td>サービス、スラブ(GPUドライバのUVMを含む)、ページキャッシュは除く。サーバーモードのアイドルで<strong>MemAvailable 119.0GiB</strong>。デスクトップが動いているとここからさらに数GiBが引かれる</td></tr>
-</tbody></table>
-<p>つまり「128GBのうち121GBしか見えない」のは故障ではなく正常で、モデルを載せるときの基準にすべきなのはMemTotalではなく<strong>MemAvailable</strong>だ。100MiBが惜しいサイズのモデルを載せるなら、手を入れられるのは実質ひとつ、page構造体1.94GiBを減らす<strong>64KiBページカーネル</strong>だ(NVIDIAが<a href="https://packages.ubuntu.com/noble-updates/linux-image-nvidia-64k-hwe-24.04"><code>linux-image-nvidia-64k-hwe-24.04</code></a>として提供、構造体が約1/16になり1.8GiBほど回収できる。<a href="https://docs.nvidia.com/dccpu/grace-perf-tuning-guide/os-settings.html">Grace性能チューニングガイド</a>も大容量メモリのワークロードに64Kを勧めている)。ただしSparkに最初から入っているDGX OSのカーネルは64Kでない<code>-nvidia</code>カーネルであり、595ドライバには4GiB以上を一度に固定マッピングする経路(ディスクKVオフロードなど)で既知の不具合(<a href="https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1269">open-gpu-kernel-modules #1269</a>)があるため、使うワークロードで先に検証し、4Kの起動エントリを残しておくこと。ディスプレイ予約はBIOSに項目があっても既定値(2GB、あるいは私たちのファームウェアの24)が最小値なので減らせず、CMA(128MiB)はムーバブルページとしてそのまま使われるので減らしても得はなく(<code>cma=</code>と<code>crashkernel=</code>の説明は<a href="https://docs.kernel.org/admin-guide/kernel-parameters.html">カーネルパラメータ文書</a>)、crashkernelはすでに0だ。</p></div>
+<p class="fcap">128GiBのマシンでMemTotalが121GiBに見える理由とその内訳は<a href="#appendix-memory">付録</a>で扱う。</p>
+
 
 <p>問題はデスクトップを消すコマンド自体ではなく、その後の <code>apt autoremove --purge</code> だ。2台目をセットアップしたとき、このコマンドが<strong>NVIDIAプラットフォームパッケージ14個を丸ごと持っていった</strong>ことがある。これらのパッケージは <code>dgx-spark-ota-update-meta</code> というメタパッケージの依存関係としてしか参照されていないので、メタパッケージがsnapdと一緒に抜けた瞬間に「誰も必要としないパッケージ」になる。ブートパラメータを入れてくれるスニペット2個(<code>nvidia-spark-initcall-bl</code>、<code>nvidia-spark-grub-pci</code>)が一緒に消え、再インストールと <code>update-grub</code>、再起動で元に戻した。</p>
 <p>今回は三段階で防いだ。消す前にプラットフォームパッケージを手動インストールとしてマークし、消すコマンドはまずシミュレーションで回して削除リストにドライバ、CUDA、プラットフォームパッケージが混ざれば止まるようにし、終わった後にブートパラメータを照合する。</p>
@@ -258,7 +251,7 @@ ufw allow in on tailscale0        # ファイアウォールを有効にした�
 </tbody></table>
 
 <div class="infobox"><div class="ib-title">よくある誤解: 「UEFIでDisplayを切るとメモリが増える」</div>
-<p>単一ノードレシピの周辺では「デスクトップ/ディスプレイがUMA 7GiBを占めるので、UEFIのDisplay項目を切れ」という助言が出回っている(7GiBの出典: <a href="https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark#readme">MiaAIレシピのREADME</a>)。確認したところ、GX10ファームウェア(GX10DGX.0105)にDisplay、iGPU、iGPU Memory Carveoutといった項目はあるものの、すべて非表示(<code>SuppressIf</code>)扱いで設定画面には出ず、<a href="https://docs.nvidia.com/dgx/dgx-spark-uefi/advanced-tab.html">NVIDIA公式のUEFIガイド</a>にもない。ファームウェアが実際に取り分けるのは1.1のインフォボックスのとおり約3.9GiB(carveout 3.0GiBを含む)で固定されており、問題の7GiBはGNOME/XorgのようなユーザースペースによるGPU割り当てなので、<strong>サーバーモードに変えれば戻ってくる。</strong>ファームウェア側で手を入れることはなく、非表示の変数を直接いじるのは検証されていないので勧めない。</p></div>
+<p>単一ノードレシピの周辺では「デスクトップ/ディスプレイがUMA 7GiBを占めるので、UEFIのDisplay項目を切れ」という助言が出回っている(7GiBの出典: <a href="https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark#readme">MiaAIレシピのREADME</a>)。確認したところ、GX10ファームウェア(GX10DGX.0105)にDisplay、iGPU、iGPU Memory Carveoutといった項目はあるものの、すべて非表示(<code>SuppressIf</code>)扱いで設定画面には出ず、<a href="https://docs.nvidia.com/dgx/dgx-spark-uefi/advanced-tab.html">NVIDIA公式のUEFIガイド</a>にもない。ファームウェアが実際に取り分けるのは<a href="#appendix-memory">付録</a>のとおり約3.9GiB(carveout 3.0GiBを含む)で固定されており、問題の7GiBはGNOME/XorgのようなユーザースペースによるGPU割り当てなので、<strong>サーバーモードに変えれば戻ってくる。</strong>ファームウェア側で手を入れることはなく、非表示の変数を直接いじるのは検証されていないので勧めない。</p></div>
 
 <h3>200G ConnectX-7: 見えない、リンクは上がるのに通らない、遅い</h3>
 <p>2台以上を束ねるときに使う200Gポートは、三つの段階で人を惑わせた。各段階の症状と解決を順に書く。すべて私たちのマシンで実際に遭遇したものだ。</p>
@@ -328,6 +321,18 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:8888/health   # 200なら準�
 <li>一時ファイルをホームに移して再起動 → 検証: ドライババージョン、クロック、<code>/proc/cmdline</code>、PDファームウェア0x516、failedユニット0、docker正常</li>
 <li>レシピ一つで動作確認 (4.1が最速)</li>
 </ol>
+<h2 id="appendix-memory">付録. なぜ128GiBではなく121GiBに見えるのか (単位の整理、実測)</h2>
+<div class="infobox">
+<p>この記事のメモリの数字はすべて二進単位のGiB(2<sup>30</sup>バイト)だ。<code>free -g</code> と <code>/proc/meminfo</code> が使う単位であり、製品表記の「128GB」も実際には128GiB(十進137.4GB)だ。DMIが報告するメモリアドレス範囲0x80000000~0x207FFFFFFFがちょうど2<sup>37</sup>バイト = 128GiBであり、そこから以下の順に差し引かれる(すべてこのマシンで読んだ値)。</p>
+<table><thead><tr><th>段階</th><th class="n">サイズ</th><th>内容</th></tr></thead><tbody>
+<tr><td>物理LPDDR5X</td><td class="n">128.00GiB</td><td>CPUとGPUが共用する単一プール (LPDDR5 8533MT/s、dmidecode)</td></tr>
+<tr><td>メモリマップにない区間</td><td class="n">−0.37GiB</td><td>UEFIがカーネルに渡すメモリマップ(memblock 127.63GiB)にそもそも含まれないDRAM区間。ファームウェア側が使っていると見られるが、用途は公開されていない</td></tr>
+<tr><td>マップにあるがreserved</td><td class="n">−3.55GiB</td><td>ディスプレイ/iGPUの予約がここに入る。NVIDIAのリリースノート(2026年7月)は「Display Reserved Memory」をBIOSで2GB(既定)か4GBに選べると記している(<a href="https://docs.nvidia.com/dgx/dgx-spark/release-notes.html">リリースノート</a>、<a href="https://forums.developer.nvidia.com/t/dgx-spark-software-updates-july-2026-release/376736">フォーラムの告知</a>)。私たちのASUSファームウェアでは大きい2領域が2616MiB + 460MiB = 3076MiBで、起動時フレームバッファ(BOOTFB)がその中にあり、3章で見た非表示項目「iGPU Memory Carveout」の値24(×128MiB = 3072MiB)と一致する。ただしその項目の単位は文書化されておらず、最小値も24なのでこれ以上は減らせない。残りの約0.55GiBはUEFIランタイム、ACPI、TPMなど。差し引き後のSystem RAMは124.08GiB</td></tr>
+<tr><td>カーネル自体の固定割り当て</td><td class="n">−2.45GiB</td><td>4KiBページ32,526,926個のpage構造体(64Bずつ = 1.94GiB) + カーネルイメージ、initramfs、percpuなど0.5GiB。ここまで引くと<strong>MemTotal 121.63GiB</strong>、<code>free -g</code> の121。CMA 128MiBはこの中に含まれる</td></tr>
+<tr><td>アイドル時のシステム使用</td><td class="n">−2.6GiB</td><td>サービス、スラブ(GPUドライバのUVMを含む)、ページキャッシュは除く。サーバーモードのアイドルで<strong>MemAvailable 119.0GiB</strong>。デスクトップが動いているとここからさらに数GiBが引かれる</td></tr>
+</tbody></table>
+<p>つまり「128GBのうち121GBしか見えない」のは故障ではなく正常で、モデルを載せるときの基準にすべきなのはMemTotalではなく<strong>MemAvailable</strong>だ。100MiBが惜しいサイズのモデルを載せるなら、手を入れられるのは実質ひとつ、page構造体1.94GiBを減らす<strong>64KiBページカーネル</strong>だ(NVIDIAが<a href="https://packages.ubuntu.com/noble-updates/linux-image-nvidia-64k-hwe-24.04"><code>linux-image-nvidia-64k-hwe-24.04</code></a>として提供、構造体が約1/16になり1.8GiBほど回収できる。<a href="https://docs.nvidia.com/dccpu/grace-perf-tuning-guide/os-settings.html">Grace性能チューニングガイド</a>も大容量メモリのワークロードに64Kを勧めている)。ただしSparkに最初から入っているDGX OSのカーネルは64Kでない<code>-nvidia</code>カーネルであり、595ドライバには4GiB以上を一度に固定マッピングする経路(ディスクKVオフロードなど)で既知の不具合(<a href="https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1269">open-gpu-kernel-modules #1269</a>)があるため、使うワークロードで先に検証し、4Kの起動エントリを残しておくこと。ディスプレイ予約はBIOSに項目があっても既定値(2GB、あるいは私たちのファームウェアの24)が最小値なので減らせず、CMA(128MiB)はムーバブルページとしてそのまま使われるので減らしても得はなく(<code>cma=</code>と<code>crashkernel=</code>の説明は<a href="https://docs.kernel.org/admin-guide/kernel-parameters.html">カーネルパラメータ文書</a>)、crashkernelはすでに0だ。</p></div>
+
 <p class="fcap">記録: 2026-08-21~22。機器: ASUS Ascent GX10 (NVIDIA GB10、128GB)。他のGB10製品はファームウェアとイメージが異なる可能性がある。ファームウェアGX10DGX.0105、Ubuntu 24.04.4、カーネル6.17.0-1031-nvidia、ドライバ595.84。クロック上限スイープとスピン実験の数値は同機種の既存2台で測った(各リンク参照)。ネットワーク構成、アドレス、ホスト名など環境依存の項目は省いた。</p>
 </div>
 <script src="../vendor/d3.v7.min.js"></script>

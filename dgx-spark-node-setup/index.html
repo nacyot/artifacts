@@ -57,6 +57,7 @@ a{color:var(--hi)}
 <li><a href="#s3">트러블슈팅</a>: 겪은 문제, 잘못 알려진 정보, 200G ConnectX-7</li>
 <li><a href="#s4">한 대에서 바로 돌려볼 레시피</a>: ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3</li>
 <li><a href="#s5">한 화면 체크리스트</a></li>
+<li><a href="#appendix-memory">부록</a>: 왜 128GiB가 아니라 121GiB로 보이나</li>
 </ol></div>
 
 <h2 id="s0">0. 시작하기: 화면 안내대로, 그다음은 SSH로</h2>
@@ -111,16 +112,8 @@ systemctl list-units --state=failed                                # 실패한 �
 <p>공장 이미지는 GNOME 데스크탑이다. 추론 서버로 쓸 거라면 걷어내는 편이 좋다. GB10은 CPU와 GPU가 128GiB 메모리 풀 하나를 나눠 쓰는데, 데스크탑이 떠 있으면 그 풀에서 수 GiB를 차지한다. 단일 노드 레시피의 README는 데스크탑이 올라간 호스트의 기동 시 가용 메모리를 약 114.5GiB로 적고 있는데, 서버 모드로 바꾼 이 노드는 같은 레시피 기동 시 <strong>117.4GiB</strong>, 유휴 상태에서는 119.0GiB였다. 같은 기계에서 전후를 잰 것은 아니라 엄밀한 비교는 아니지만, 3~4.5GiB 차이는 큰 모델을 올릴 때 그대로 KV 캐시 여유가 된다.</p>
 <div class="chart" id="c-mem"></div>
 <p class="fcap">그림 1. 가용 메모리(MemTotal 121.6GiB 기준). 데스크탑 호스트(레시피 README, 기동 시) ~114.5GiB, 이 노드 서버 모드는 기동 시 117.4GiB, 유휴 119.0GiB.</p>
-<div class="infobox"><div class="ib-title">왜 128GiB가 아니라 121GiB로 보이나 (단위 정리, 실측)</div>
-<p>이 글의 메모리 숫자는 전부 이진 단위 GiB(2<sup>30</sup>바이트)다. <code>free -g</code>와 <code>/proc/meminfo</code>가 쓰는 단위이고, 제품 표기 "128GB"도 실제로는 128GiB(십진 137.4GB)다. DMI가 보고하는 메모리 주소 범위 0x80000000~0x207FFFFFFF가 정확히 2<sup>37</sup>바이트 = 128GiB이고, 거기서 아래 순서로 빠진다(모두 이 기계에서 읽은 값).</p>
-<table><thead><tr><th>단계</th><th class="n">크기</th><th>내용</th></tr></thead><tbody>
-<tr><td>물리 LPDDR5X</td><td class="n">128.00GiB</td><td>CPU와 GPU가 함께 쓰는 단일 풀 (LPDDR5 8533MT/s, dmidecode)</td></tr>
-<tr><td>맵에 없는 구간</td><td class="n">−0.37GiB</td><td>UEFI가 커널에 넘긴 메모리 맵(memblock 127.63GiB)에 아예 없는 DRAM 구간. 펌웨어 쪽이 쓰는 것으로 보이지만 용도는 공개돼 있지 않다</td></tr>
-<tr><td>맵에 있지만 reserved</td><td class="n">−3.55GiB</td><td>디스플레이/iGPU 예약이 여기 들어 있다. NVIDIA 릴리스 노트(2026년 7월)는 "Display Reserved Memory"를 BIOS에서 2GB(기본) 또는 4GB로 고를 수 있다고 적는다(<a href="https://docs.nvidia.com/dgx/dgx-spark/release-notes.html">릴리스 노트</a>, <a href="https://forums.developer.nvidia.com/t/dgx-spark-software-updates-july-2026-release/376736">포럼 공지</a>). 우리 ASUS 펌웨어에서는 큰 두 영역이 2616MiB + 460MiB = 3076MiB이고 부팅 프레임버퍼(BOOTFB)가 그 안에 있는데, 3장에서 본 숨김 항목 "iGPU Memory Carveout"의 값 24(×128MiB = 3072MiB)와 맞아떨어진다. 다만 그 항목의 단위는 문서화돼 있지 않고, 최솟값도 24라 더 줄일 수는 없다. 나머지 약 0.55GiB는 UEFI 런타임, ACPI, TPM 등. 남는 System RAM 124.08GiB</td></tr>
-<tr><td>커널 자체 고정 할당</td><td class="n">−2.45GiB</td><td>4KiB 페이지 32,526,926개의 page 구조체(64B씩 = 1.94GiB) + 커널 이미지, initramfs, percpu 등 0.5GiB. 여기까지 빼면 <strong>MemTotal 121.63GiB</strong>, <code>free -g</code>의 121. CMA 128MiB는 이 안에 들어 있다</td></tr>
-<tr><td>유휴 시스템 사용</td><td class="n">−2.6GiB</td><td>서비스, 슬랩(GPU 드라이버 UVM 포함), 페이지캐시 제외. 서버 모드 유휴 <strong>MemAvailable 119.0GiB</strong>. 데스크탑이 떠 있으면 여기서 몇 GiB가 더 빠진다</td></tr>
-</tbody></table>
-<p>"128GB 중 121GB만 보인다"는 고장이 아니라 정상이고, 모델을 올릴 때 기준으로 삼을 수는 MemTotal보다 <strong>MemAvailable</strong>이다. 100MiB가 아쉬운 크기의 모델을 올린다면 손댈 수 있는 곳은 사실상 하나, page 구조체 1.94GiB를 줄이는 <strong>64KiB 페이지 커널</strong>이다(NVIDIA가 <a href="https://packages.ubuntu.com/noble-updates/linux-image-nvidia-64k-hwe-24.04"><code>linux-image-nvidia-64k-hwe-24.04</code></a>로 제공, 구조체가 약 1/16로 줄어 1.8GiB 남짓 회수. <a href="https://docs.nvidia.com/dccpu/grace-perf-tuning-guide/os-settings.html">Grace 성능 튜닝 가이드</a>도 큰 메모리 워크로드에 64K를 권한다). 다만 Spark에 설치돼 나오는 DGX OS 커널은 64K가 아닌 <code>-nvidia</code> 커널이고, 595 드라이버에는 4GiB 이상을 한 번에 고정 매핑하는 경로(디스크 KV 오프로딩 같은)에 알려진 결함(<a href="https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1269">open-gpu-kernel-modules #1269</a>)이 있어, 쓰는 워크로드로 먼저 검증하고 4K 부팅 항목을 남겨 둬야 한다. 디스플레이 예약은 BIOS 항목이 있어도 기본값(2GB, 우리 펌웨어에서는 24)이 최솟값이라 더 못 줄이고, CMA(128MiB)는 이동 가능한 페이지로 그대로 쓰이므로 줄여도 이득이 없으며(<code>cma=</code>, <code>crashkernel=</code> 설명은 <a href="https://docs.kernel.org/admin-guide/kernel-parameters.html">커널 파라미터 문서</a>), crashkernel은 이미 0이다.</p></div>
+<p class="fcap">128GiB 기계에서 MemTotal이 121GiB로 보이는 이유와 그 수지는 <a href="#appendix-memory">부록</a>에서 다룬다.</p>
+
 
 <p>문제는 데스크탑을 지우는 명령 자체가 아니라 그 뒤의 <code>apt autoremove --purge</code>다. 두 번째 기계를 세팅할 때 이 명령이 <strong>NVIDIA 플랫폼 패키지 14개를 통째로 걷어간</strong> 적이 있다. 이 패키지들은 <code>dgx-spark-ota-update-meta</code>라는 메타패키지의 의존 패키지로만 잡혀 있어서, 메타패키지가 snapd와 함께 빠지는 순간 "아무도 필요로 하지 않는 패키지"가 된다. 부팅 파라미터를 넣어 주는 스니펫 두 개(<code>nvidia-spark-initcall-bl</code>, <code>nvidia-spark-grub-pci</code>)가 같이 사라졌고, 재설치와 <code>update-grub</code>, 재부팅으로 되돌렸다.</p>
 <p>이번에는 세 단계로 막았다. 지우기 전에 플랫폼 패키지를 수동 설치로 표시하고, 지우는 명령은 먼저 시뮬레이션으로 돌려 제거 목록에 드라이버, CUDA, 플랫폼 패키지가 섞이면 멈추게 하고, 끝난 뒤 부팅 파라미터를 대조한다.</p>
@@ -258,7 +251,7 @@ ufw allow in on tailscale0        # 방화벽을 켰다면 tailnet 인터페이�
 </tbody></table>
 
 <div class="infobox"><div class="ib-title">잘못 알려진 정보: "UEFI에서 Display를 끄면 메모리가 는다"</div>
-<p>단일 노드 레시피 쪽에서 "데스크탑/디스플레이가 UMA 7GiB를 차지하니 UEFI의 Display 항목을 끄라"는 조언이 돈다(7GiB 출처: <a href="https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark#readme">MiaAI 레시피 README</a>). 확인 결과 GX10 펌웨어(GX10DGX.0105)에 Display, iGPU, iGPU Memory Carveout 같은 항목이 있긴 하지만 전부 숨김(<code>SuppressIf</code>) 처리라 설정 화면에 나오지 않고, <a href="https://docs.nvidia.com/dgx/dgx-spark-uefi/advanced-tab.html">NVIDIA 공식 UEFI 가이드</a>에도 없다. 펌웨어가 실제로 떼는 것은 1.1의 인포박스처럼 약 3.9GiB(carveout 3.0GiB 포함)로 고정돼 있고, 문제의 7GiB는 GNOME/Xorg 같은 유저스페이스의 GPU 할당이라 <strong>서버 모드로 바꾸면 돌아온다.</strong> 펌웨어에서 할 일은 없고, 숨김 변수를 직접 고치는 것은 검증되지 않았으니 권하지 않는다.</p></div>
+<p>단일 노드 레시피 쪽에서 "데스크탑/디스플레이가 UMA 7GiB를 차지하니 UEFI의 Display 항목을 끄라"는 조언이 돈다(7GiB 출처: <a href="https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark#readme">MiaAI 레시피 README</a>). 확인 결과 GX10 펌웨어(GX10DGX.0105)에 Display, iGPU, iGPU Memory Carveout 같은 항목이 있긴 하지만 전부 숨김(<code>SuppressIf</code>) 처리라 설정 화면에 나오지 않고, <a href="https://docs.nvidia.com/dgx/dgx-spark-uefi/advanced-tab.html">NVIDIA 공식 UEFI 가이드</a>에도 없다. 펌웨어가 실제로 떼는 것은 <a href="#appendix-memory">부록</a>에서 보듯 약 3.9GiB(carveout 3.0GiB 포함)로 고정돼 있고, 문제의 7GiB는 GNOME/Xorg 같은 유저스페이스의 GPU 할당이라 <strong>서버 모드로 바꾸면 돌아온다.</strong> 펌웨어에서 할 일은 없고, 숨김 변수를 직접 고치는 것은 검증되지 않았으니 권하지 않는다.</p></div>
 
 <h3>200G ConnectX-7: 안 보이거나, 링크는 뜨는데 안 되거나, 느리거나</h3>
 <p>두 대 이상을 묶을 때 쓰는 200G 포트는 네 단계에서 사람을 헷갈리게 했다. 각 단계의 증상과 해결을 순서대로 적는다. 전부 우리 기계에서 실제로 겪은 것이다.</p>
@@ -328,6 +321,18 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:8888/health   # 200 이면 �
 <li>임시 파일을 홈으로 옮기고 재부팅 → 검증: 드라이버 버전, 클럭, <code>/proc/cmdline</code>, PD 펌웨어 0x516, failed 유닛 0, docker 정상</li>
 <li>레시피 하나로 동작 확인 (4.1이 가장 빠르다)</li>
 </ol>
+<h2 id="appendix-memory">부록. 왜 128GiB가 아니라 121GiB로 보이나 (단위 정리, 실측)</h2>
+<div class="infobox">
+<p>이 글의 메모리 숫자는 전부 이진 단위 GiB(2<sup>30</sup>바이트)다. <code>free -g</code>와 <code>/proc/meminfo</code>가 쓰는 단위이고, 제품 표기 "128GB"도 실제로는 128GiB(십진 137.4GB)다. DMI가 보고하는 메모리 주소 범위 0x80000000~0x207FFFFFFF가 정확히 2<sup>37</sup>바이트 = 128GiB이고, 거기서 아래 순서로 빠진다(모두 이 기계에서 읽은 값).</p>
+<table><thead><tr><th>단계</th><th class="n">크기</th><th>내용</th></tr></thead><tbody>
+<tr><td>물리 LPDDR5X</td><td class="n">128.00GiB</td><td>CPU와 GPU가 함께 쓰는 단일 풀 (LPDDR5 8533MT/s, dmidecode)</td></tr>
+<tr><td>맵에 없는 구간</td><td class="n">−0.37GiB</td><td>UEFI가 커널에 넘긴 메모리 맵(memblock 127.63GiB)에 아예 없는 DRAM 구간. 펌웨어 쪽이 쓰는 것으로 보이지만 용도는 공개돼 있지 않다</td></tr>
+<tr><td>맵에 있지만 reserved</td><td class="n">−3.55GiB</td><td>디스플레이/iGPU 예약이 여기 들어 있다. NVIDIA 릴리스 노트(2026년 7월)는 "Display Reserved Memory"를 BIOS에서 2GB(기본) 또는 4GB로 고를 수 있다고 적는다(<a href="https://docs.nvidia.com/dgx/dgx-spark/release-notes.html">릴리스 노트</a>, <a href="https://forums.developer.nvidia.com/t/dgx-spark-software-updates-july-2026-release/376736">포럼 공지</a>). 우리 ASUS 펌웨어에서는 큰 두 영역이 2616MiB + 460MiB = 3076MiB이고 부팅 프레임버퍼(BOOTFB)가 그 안에 있는데, 3장에서 본 숨김 항목 "iGPU Memory Carveout"의 값 24(×128MiB = 3072MiB)와 맞아떨어진다. 다만 그 항목의 단위는 문서화돼 있지 않고, 최솟값도 24라 더 줄일 수는 없다. 나머지 약 0.55GiB는 UEFI 런타임, ACPI, TPM 등. 남는 System RAM 124.08GiB</td></tr>
+<tr><td>커널 자체 고정 할당</td><td class="n">−2.45GiB</td><td>4KiB 페이지 32,526,926개의 page 구조체(64B씩 = 1.94GiB) + 커널 이미지, initramfs, percpu 등 0.5GiB. 여기까지 빼면 <strong>MemTotal 121.63GiB</strong>, <code>free -g</code>의 121. CMA 128MiB는 이 안에 들어 있다</td></tr>
+<tr><td>유휴 시스템 사용</td><td class="n">−2.6GiB</td><td>서비스, 슬랩(GPU 드라이버 UVM 포함), 페이지캐시 제외. 서버 모드 유휴 <strong>MemAvailable 119.0GiB</strong>. 데스크탑이 떠 있으면 여기서 몇 GiB가 더 빠진다</td></tr>
+</tbody></table>
+<p>"128GB 중 121GB만 보인다"는 고장이 아니라 정상이고, 모델을 올릴 때 기준으로 삼을 수는 MemTotal보다 <strong>MemAvailable</strong>이다. 100MiB가 아쉬운 크기의 모델을 올린다면 손댈 수 있는 곳은 사실상 하나, page 구조체 1.94GiB를 줄이는 <strong>64KiB 페이지 커널</strong>이다(NVIDIA가 <a href="https://packages.ubuntu.com/noble-updates/linux-image-nvidia-64k-hwe-24.04"><code>linux-image-nvidia-64k-hwe-24.04</code></a>로 제공, 구조체가 약 1/16로 줄어 1.8GiB 남짓 회수. <a href="https://docs.nvidia.com/dccpu/grace-perf-tuning-guide/os-settings.html">Grace 성능 튜닝 가이드</a>도 큰 메모리 워크로드에 64K를 권한다). 다만 Spark에 설치돼 나오는 DGX OS 커널은 64K가 아닌 <code>-nvidia</code> 커널이고, 595 드라이버에는 4GiB 이상을 한 번에 고정 매핑하는 경로(디스크 KV 오프로딩 같은)에 알려진 결함(<a href="https://github.com/NVIDIA/open-gpu-kernel-modules/issues/1269">open-gpu-kernel-modules #1269</a>)이 있어, 쓰는 워크로드로 먼저 검증하고 4K 부팅 항목을 남겨 둬야 한다. 디스플레이 예약은 BIOS 항목이 있어도 기본값(2GB, 우리 펌웨어에서는 24)이 최솟값이라 더 못 줄이고, CMA(128MiB)는 이동 가능한 페이지로 그대로 쓰이므로 줄여도 이득이 없으며(<code>cma=</code>, <code>crashkernel=</code> 설명은 <a href="https://docs.kernel.org/admin-guide/kernel-parameters.html">커널 파라미터 문서</a>), crashkernel은 이미 0이다.</p></div>
+
 <p class="fcap">기록: 2026-08-21~22. 장비: ASUS Ascent GX10 (NVIDIA GB10, 128GB). 다른 GB10 제품은 펌웨어와 이미지가 다를 수 있다. 펌웨어 GX10DGX.0105, Ubuntu 24.04.4, 커널 6.17.0-1031-nvidia, 드라이버 595.84. 클럭 상한 스윕과 스핀 실험 수치는 같은 기종의 기존 두 대에서 쟀다(각 링크 참조). 네트워크 구성, 주소, 호스트명 등 환경 의존 항목은 뺐다.</p>
 </div>
 <script src="../vendor/d3.v7.min.js"></script>
