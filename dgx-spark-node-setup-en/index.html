@@ -278,7 +278,7 @@ for i in enp1s0f0np0 enp1s0f1np1 enP2p1s0f0np0 enP2p1s0f1np1; do ufw allow in on
 <p>Two recipes you can follow verbatim on a single node once setup is done. Both were measured with the GPU cap above (1989MHz) in place.</p>
 
 <h3>4.1 ollama + Qwen3.8-27B (GGUF Q4_K_M): first token within 10 minutes</h3>
-<p>The fastest functional check. Install ollama with the official script, download <code>Qwen3.8-27B-Q4_K_M.gguf</code> (19GB) from <a href="https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF"><code>ggml-org/Qwen3.8-27B-GGUF</code></a> on Hugging Face, and register it with a Modelfile. One trap: in this environment ollama's default context came out as 262144 (check with <code>ollama ps</code>), so even a small model can take tens of GB of KV cache. Set <code>num_ctx</code> explicitly in the Modelfile.</p>
+<p>The fastest functional check. Install ollama with the <a href="https://ollama.com/download/linux">official script</a>, download <code>Qwen3.8-27B-Q4_K_M.gguf</code> (19GB) from <a href="https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF"><code>ggml-org/Qwen3.8-27B-GGUF</code></a> on Hugging Face, and register it with a Modelfile. One trap: in this environment ollama's default context came out as 262144 (check with <code>ollama ps</code>), so even a small model can take tens of GB of KV cache. Set <code>num_ctx</code> explicitly in the Modelfile.</p>
 <pre><code>curl -fsSL https://ollama.com/install.sh | sh
 pip install -U huggingface_hub          # hf CLI
 hf download ggml-org/Qwen3.8-27B-GGUF Qwen3.8-27B-Q4_K_M.gguf --local-dir ~/models/qwen3.8-27b
