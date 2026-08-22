@@ -10,7 +10,7 @@
 
     <!-- newest first -->
     <item>
-      <title>DGX Spark 한 대를 추론 서버로 세팅하기 — 필수 설정, 추천 설정, 트러블슈팅, 바로 돌려볼 레시피</title>
+      <title>ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기 — 필수 설정, 추천 설정, 트러블슈팅, 바로 돌려볼 레시피</title>
       <link>https://nacyot.github.io/artifacts/dgx-spark-node-setup/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/dgx-spark-node-setup/</guid>
       <pubDate>Sat, 22 Aug 2026 00:00:00 +0000</pubDate>
