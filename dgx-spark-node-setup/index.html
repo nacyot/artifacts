@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기: 필수 설정, 추천 설정, 트러블슈팅, 바로 돌려볼 레시피</title><meta name="description" content="ASUS Ascent GX10(GB10) 공장 상태에서 추론 서버까지. 필수: 플랫폼 패키지를 지키며 서버 모드 전환, 드라이버 595, PD 펌웨어, 보안 기본값. 추천: GPU 클럭 상한(스윕 실측 그래프), CPU 성능코어 상한, vLLM 스핀 패치. 트러블슈팅과 한 대에서 직접 검증한 레시피(ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3)까지."><meta property="og:title" content="ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기"><meta property="og:description" content="필수 설정, 추천 설정(전력과 스핀 패치, 실측 그래프), 트러블슈팅, 한 대에서 바로 돌려본 레시피"><meta property="og:type" content="article"><meta property="og:url" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup/"><meta property="og:image" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup/og.png"><meta name="twitter:card" content="summary_large_image"><style>
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기: 필수 설정, 추천 설정, 트러블슈팅, 바로 돌려볼 레시피</title><meta name="description" content="ASUS Ascent GX10(GB10) 공장 상태에서 추론 서버까지. 필수: 플랫폼 패키지를 지키며 서버 모드 전환, 드라이버 595, PD 펌웨어, 보안 기본값. 추천: GPU 클럭 상한(스윕 실측 그래프), CPU 성능코어 상한, vLLM 스핀 패치. 초기 상태 점검, 200G ConnectX-7 트러블슈팅, 한 대에서 직접 검증한 레시피(ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3)까지."><meta property="og:title" content="ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기"><meta property="og:description" content="필수 설정, 추천 설정(전력과 스핀 패치, 실측 그래프), 트러블슈팅, 한 대에서 바로 돌려본 레시피"><meta property="og:type" content="article"><meta property="og:url" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup/"><meta property="og:image" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup/og.png"><meta name="twitter:card" content="summary_large_image"><style>
 :root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--box:#f3f2ec;--hi:#7a4a3a;--blu:#3b6ea5}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);
@@ -52,8 +52,8 @@ a{color:var(--hi)}
 <ol>
 <li><a href="#s0">시작하기: 화면 안내대로, 그다음은 SSH로</a></li>
 <li><a href="#s1">필수 설정</a>: 서버 모드, 드라이버 595, PD 펌웨어, 보안 기본값</li>
-<li><a href="#s2">추천 설정</a>: GPU 클럭 상한, CPU 성능코어 상한, vLLM 스핀 패치</li>
-<li><a href="#s3">트러블슈팅</a>: 겪은 문제와 잘못 알려진 정보</li>
+<li><a href="#s2">추천 설정</a>: GPU 클럭 상한, CPU 성능코어 상한, vLLM 스핀 패치, Tailscale</li>
+<li><a href="#s3">트러블슈팅</a>: 겪은 문제, 잘못 알려진 정보, 200G ConnectX-7</li>
 <li><a href="#s4">한 대에서 바로 돌려볼 레시피</a>: ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3</li>
 <li><a href="#s5">한 화면 체크리스트</a></li>
 </ol></div>
@@ -77,6 +77,32 @@ ssh user@&lt;spark-ip&gt;</code></pre>
 <tr><td>SSH / 방화벽</td><td>비밀번호 로그인 허용 / 방화벽 꺼짐</td><td>키 전용 / 기본 거부</td></tr>
 <tr><td>보안 업데이트</td><td>자동화 없음, 15건 대기</td><td>자동 적용, 자동 재부팅 없음</td></tr>
 </tbody></table>
+
+<h3>0.1 초기 상태 점검: 포트와 장치가 다 올라왔는지</h3>
+<p>세팅을 시작하기 전에, 그리고 끝난 뒤 한 번 더, OS에서 보이는 장치 목록을 기대값과 대조한다. 한 줄씩 실행해도 되고 묶어서 스크립트로 돌려도 된다.</p>
+<pre><code>lspci | grep -E 'ConnectX|NVIDIA|Non-Volatile|Realtek|MEDIATEK'   # PCI 장치
+ip -br link                                                        # 네트워크 인터페이스
+ethtool enP7s7 | grep -E 'Speed|Link detected'                     # 10G RJ45
+for d in /sys/class/net/en*np*; do echo $(basename $d) $(cat $d/operstate) $(cat $d/speed); done   # 200G
+ls /sys/bus/usb/devices | grep -c '^usb'; lsusb                    # USB 루트허브 수와 장치
+lsblk -d -o NAME,SIZE,MODEL | grep nvme                            # NVMe
+nproc; free -g | grep Mem; nvidia-smi -L                           # CPU, 메모리, GPU
+nvidia-smi --query-gpu=driver_version,clocks.sm --format=csv       # 드라이버, 클럭
+for z in /sys/class/thermal/thermal_zone*; do printf '%s=%s°C ' $(cat $z/device/path | sed 's/.*\.//') $(( $(cat $z/temp)/1000 )); done; echo   # 열 존 7개
+fwupdmgr get-devices | grep 'Current version'                      # EC, SoC FW, PD, NVMe 펌웨어
+sudo dmesg --level=err,crit | grep -v -i tpm | tail                # 커널 에러
+systemctl list-units --state=failed                                # 실패한 유닛</code></pre>
+<table><thead><tr><th>항목</th><th>GX10에서 기대하는 값 (세 대 모두 동일했다)</th></tr></thead><tbody>
+<tr><td>PCI 장치</td><td>NVIDIA VGA(GB10) 1, NVMe(Phison) 1, Realtek 8127 10G 1, MediaTek 7925 Wi-Fi 1, <strong>ConnectX-7 4개(케이블이 꽂혀 있을 때만)</strong></td></tr>
+<tr><td>네트워크 인터페이스</td><td><code>enP7s7</code>(10G RJ45) UP 10000Mb/s, <code>wlP9s9</code>(Wi-Fi), 200G는 <code>enp1s0f0np0</code>, <code>enp1s0f1np1</code>, <code>enP2p1s0f0np0</code>, <code>enP2p1s0f1np1</code> 4개(물리 포트는 2개, 각 포트가 PCIe 함수 2개로 보인다). 케이블 꽂힌 포트는 <code>up 200000</code></td></tr>
+<tr><td>USB</td><td>루트허브 12개(USB 2.0 6 + 3.0 6), 내장 장치로 Wi-Fi/BT 콤보 1개</td></tr>
+<tr><td>저장장치</td><td>NVMe 1개(출하 구성에 따라 1TB 또는 4TB)</td></tr>
+<tr><td>CPU / 메모리 / GPU</td><td>20코어 / MemTotal 121GiB / GPU 0: NVIDIA GB10</td></tr>
+<tr><td>열 존</td><td>7개: TSOC, TS0E, TS0P, TS1E, TS1P, TGPU, TUNC. 유휴 42~50°C</td></tr>
+<tr><td>펌웨어</td><td>EC, SoC FW(UEFI), USB-C PD, NVMe 버전이 나열된다. PD가 0x1이면 1.3으로</td></tr>
+<tr><td>커널 에러 / 실패 유닛</td><td><code>nvidia-fs: warning: error retrieving numa node</code>는 무해. 그 외 에러 0, 실패 유닛 0</td></tr>
+</tbody></table>
+<p><strong>물리적으로도 확인하자.</strong> OS에 장치가 보이는 것과 포트가 실제로 동작하는 것은 다르다. 특히 200G QSFP 두 포트는 케이블이 없으면 PCI 장치 자체가 안 보이기 때문에, DAC 케이블을 실제로 꽂아 두 케이지 모두 링크가 뜨는지(<code>operstate up</code>, <code>speed 200000</code>) 봐야 한다. USB-C 포트는 각각 장치를 꽂아 <code>lsusb</code>에 잡히는지, RJ45는 링크 LED와 <code>ethtool</code>의 10000Mb/s, HDMI는 모니터로 한 번씩. 기계를 설치 장소에 고정하기 전, 교환이 가능한 기간 안에 해 두는 편이 좋다. 우리는 세 번째 기계의 200G 포트를 케이블 없이 들였다가 "PCI에 안 보인다"를 한참 의심했다(3장).</p>
 
 <h2 id="s1">1. 필수 설정</h2>
 
@@ -198,6 +224,14 @@ grep -n 'busy_loop_s' $(python -c 'import vllm,os;print(os.path.dirname(vllm.__f
 # 빌드에 따라 환경 변수(VLLM_MQ_SPIN_SECONDS 등)로 노출된 경우는 그쪽을 쓴다.</code></pre>
 <p>솔직하게 덧붙일 것이 있다. 나중에 한 재검증에서 단일 스트림 디코드가 기본값 40.9 대 패치 38.7 tok/s로 약 2~6% 느렸다(반복 분산 안쪽이지만 방향은 일관. 동시 4 스트림에서는 차이 없음, CPU 감소는 그대로 재현). 그래서 우리는 이 패치를 <strong>"발열이 문제일 때 켜는 스위치"</strong>로 둔다. 외부 냉각이 없고 여름이면 켜고, 단일 스트림 속도가 우선이면 끄는 식이다. 2.2의 CPU 상한은 그 선택과 무관하게 걸어 둔다.</p>
 
+<h3>2.4 Tailscale: 집 밖에서도 SSH</h3>
+<p>추론 서버는 한 번 세팅하면 붙잡고 있을 일이 적고, 대부분 다른 곳에서 SSH로 들어온다. 공유기 포트 포워딩 대신 Tailscale을 올려 두면 어디서든 같은 이름으로 붙는다. 이 글의 뒷부분 작업도 집 밖에서 tailnet으로 했다.</p>
+<pre><code>curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up                      # 출력된 URL로 로그인 (관리 콘솔에서 auth key를 만들어 --authkey 로 넘겨도 된다)
+tailscale ip -4                   # 이 기계의 tailnet 주소
+ufw allow in on tailscale0        # 방화벽을 켰다면 tailnet 인터페이스는 통째로 허용</code></pre>
+<p>MagicDNS를 켜 두면 <code>ssh &lt;호스트명&gt;</code>만으로 붙는다. 추론 API도 같은 경로로 열 수 있으니 LAN 밖에서 쓸 서비스는 ufw에 LAN 규칙을 추가하는 대신 tailnet으로만 열어 두는 쪽이 단순하다.</p>
+
 <h2 id="s3">3. 트러블슈팅: 겪은 문제와 잘못 알려진 정보</h2>
 <table><thead><tr><th style="width:34%">증상</th><th>원인 / 조치</th></tr></thead><tbody>
 <tr><td>재부팅 후 <code>docker.service</code> 실패: <code>error creating buildkit instance: invalid database</code></td><td>공장 이미지에 들어 있던 buildkit 로컬 DB(2025-09 생성)가 손상돼 있었다. 빌드 캐시일 뿐이라 <code>systemctl stop docker.socket docker; mv /var/lib/docker/buildkit /var/lib/docker/buildkit.bak; systemctl start docker</code>. 이미지나 컨테이너와는 무관하다. 이어서 <code>nvidia-ctk runtime configure --runtime=docker</code>로 nvidia 런타임을 등록해 둔다.</td></tr>
@@ -213,6 +247,20 @@ grep -n 'busy_loop_s' $(python -c 'import vllm,os;print(os.path.dirname(vllm.__f
 
 <div class="infobox"><div class="ib-title">잘못 알려진 정보: "UEFI에서 Display를 끄면 메모리가 는다"</div>
 <p>단일 노드 레시피 쪽에서 "데스크탑/디스플레이가 UMA 7GiB를 차지하니 UEFI의 Display 항목을 끄라"는 조언이 돈다. 확인 결과 GX10 펌웨어(GX10DGX.0105)에 Display, iGPU, iGPU Memory Carveout 같은 항목이 있긴 하지만 전부 숨김(<code>SuppressIf</code>) 처리라 설정 화면에 나오지 않고, NVIDIA 공식 UEFI 가이드에도 없다. 그 7GiB는 펌웨어 예약이 아니라 GNOME/Xorg 같은 유저스페이스의 GPU 할당이라 <strong>서버 모드로 바꾸면 돌아온다.</strong> 펌웨어에서 할 일은 없고, 숨김 변수를 직접 고치는 것은 검증되지 않았으니 권하지 않는다.</p></div>
+
+<h3>200G ConnectX-7: 안 보이거나, 링크는 뜨는데 안 되거나, 느리거나</h3>
+<p>두 대 이상을 묶을 때 쓰는 200G 포트는 세 단계에서 사람을 헷갈리게 했다. 각 단계의 증상과 해결을 순서대로 적는다. 전부 우리 기계에서 실제로 겪은 것이다.</p>
+<ol>
+<li><strong>케이블이 없으면 장치가 없다.</strong> <code>lspci</code>에 ConnectX-7이 한 줄도 안 나온다. 드라이버(<code>mlx5_core</code>)는 로드돼 있다. 핫플러그 패키지가 관리하는 정상 동작이라, 케이블을 꽂으면 나타난다.</li>
+<li><strong>케이블을 꽂으면 포트 하나가 인터페이스 두 개로 보인다.</strong> <code>enp1s0f0np0</code>과 <code>enP2p1s0f0np0</code>처럼 이름이 다른 두 인터페이스가 같은 물리 포트다(PCIe 루트 두 개에 각각 노출되는 socket-direct 구성). <code>cat /sys/class/net/*/phys_switch_id</code>로 보면 네 인터페이스가 같은 값이고 <code>phys_port_name</code>만 p0/p1 둘이다. 본딩하지 말고 <strong>두 인터페이스에 각각 다른 서브넷의 IP를 준다</strong>(NVIDIA 가이드도 같은 방식). 그래야 NCCL이 두 경로를 나눠 써서 대역폭이 합산된다. 링크와 RoCE 상태가 ACTIVE인데 IP만 없어서 "안 올라온다"로 보이는 단계가 이것이다.
+<pre><code>nmcli con add type ethernet con-name ic200g   ifname enp1s0f0np0   ipv4.method manual ipv4.addresses &lt;rail-A&gt;/24 ipv4.never-default yes 802-3-ethernet.mtu 9000
+nmcli con add type ethernet con-name ic200g-b ifname enP2p1s0f0np0 ipv4.method manual ipv4.addresses &lt;rail-B&gt;/24 ipv4.never-default yes 802-3-ethernet.mtu 9000
+# 상대 기계도 같은 두 서브넷으로. 방화벽은 포트 이름 네 개를 전부 허용해 둔다(케이블을 다른 케이지로 옮겨도 깨지지 않게)
+for i in enp1s0f0np0 enp1s0f1np1 enP2p1s0f0np0 enP2p1s0f1np1; do ufw allow in on $i; done</code></pre></li>
+<li><strong>모든 지표가 정상인데 처리량만 1/8이다.</strong> 링크 200000Mb/s, RoCE 4X×50G, PCIe Gen5 x4, 에러 카운터 0, 점보프레임 통과인데 <code>ib_write_bw</code>도 <code>iperf3</code>도 13Gb/s 언저리에 멈춘다(정상은 경로당 약 98, 합산 196Gb/s). 같은 장치에 프로세스 두 개를 돌려 6.9+6.9로 나눠 가지면 장치 상한에 걸린 것이고, 한 기계 안에서 두 인터페이스끼리 쏴도 13이면 케이블과 상대 기계는 혐의를 벗는다. <strong>재부팅으로는 안 풀린다. 두 기계를 종료하고 전원 케이블을 뽑은 뒤 전원 버튼을 눌러 방전하고 1분 뒤 다시 연결</strong>하면 풀렸다(13.3 → 108Gb/s, 두 경로 합 196Gb/s). 이후 정규 재부팅을 여러 번 해도 유지됐다. PD 펌웨어 저클럭 고착과 같은 계열의 전원 쪽 현상으로 보인다.</li>
+<li><strong>케이블을 다른 케이지로 옮기면 설정이 깨진다.</strong> NetworkManager가 만든 프로파일에 포트 MAC이 박혀 있어 <code>permanent MAC address doesn't match</code>로 활성화가 실패한다. <code>nmcli con mod ic200g 802-3-ethernet.mac-address "" connection.interface-name &lt;새 인터페이스&gt;</code>로 MAC 잠금을 비우고 이름으로 다시 묶는다. 방화벽 규칙도 포트 이름 기준이라 위처럼 네 개를 다 열어 둔다.</li>
+</ol>
+<p>판정할 때 두 가지를 기억하자. ufw는 ICMP를 기본 허용하므로 <strong>ping은 되는데 TCP가 안 되는</strong> 상태가 생긴다(<code>ib_write_bw</code>가 "Couldn't connect"인데 ping은 멀쩡). 그리고 GB10에서는 <code>ib_write_bw</code>가 낮게 나와도 NCCL은 정상인 사례가 보고돼 있어, 최종 판정은 NCCL(nccl-tests)로 한다. NCCL 로그의 <code>GPU_DIRECT_RDMA_SUPPORTED=False</code>는 GB10에서 정상이다.</p>
 
 <h2 id="s4">4. 한 대에서 바로 돌려볼 레시피: 직접 검증한 것만</h2>
 <p>세팅이 끝난 한 대에서 그대로 따라 할 수 있는 두 가지다. 둘 다 위의 GPU 상한(1989MHz)이 걸린 상태에서 쟀다.</p>
@@ -258,11 +306,12 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:8888/health   # 200 이면 �
 <h2 id="s5">5. 한 화면 체크리스트</h2>
 <ol>
 <li>화면 안내대로 초기 설정 → <code>ip -br a</code>, <code>systemctl status ssh</code> → 작업 PC에서 <code>ssh-copy-id</code></li>
+<li>초기 상태 점검(0.1): PCI, 네트워크, USB, NVMe, 열 존, 펌웨어, 커널 에러. 200G 포트는 케이블을 꽂아 물리 확인</li>
 <li><code>timedatectl set-timezone</code>, <code>apt-get update</code></li>
 <li>플랫폼 패키지 <code>apt-mark manual</code> (메타 Depends + 설치된 <code>nvidia-spark-*</code> 등)</li>
 <li>ufw, unattended-upgrades, build-essential, python3-dev, jq, htop 등 기본 패키지</li>
 <li>unattended 설정(자동 재부팅 off), sshd 키 전용, ufw 기본 거부, docker 그룹</li>
-<li>(추천) 클럭 상한 유닛 2개 enable (GPU 300,2000 / CPU 성능코어 2.8GHz)</li>
+<li>(추천) 클럭 상한 유닛 2개 enable (GPU 300,2000 / CPU 성능코어 2.8GHz), Tailscale</li>
 <li>드라이버 595(시뮬레이션 후), multi-user, purge/autoremove(게이트), grub 대조, PD FW 준비, 보안 업데이트</li>
 <li>임시 파일을 홈으로 옮기고 재부팅 → 검증: 드라이버 버전, 클럭, <code>/proc/cmdline</code>, PD 펌웨어 0x516, failed 유닛 0, docker 정상</li>
 <li>레시피 하나로 동작 확인 (4.1이 가장 빠르다)</li>
