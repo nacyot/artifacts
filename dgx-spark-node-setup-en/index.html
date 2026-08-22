@@ -1,0 +1,427 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Setting up a single ASUS Ascent GX10 (DGX Spark) as an inference server: essentials, recommended settings, troubleshooting, and recipes to try</title><meta name="description" content="ASUS Ascent GX10 (GB10) from factory state to inference server. Essentials: switching to server mode while keeping the platform packages, driver 595, PD firmware, security defaults. Recommended: GPU clock cap (measured sweep charts), CPU performance-core cap, vLLM spin patch. Initial state checks, 200G ConnectX-7 troubleshooting, and recipes verified on a single node (ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3)."><meta property="og:title" content="Setting up a single ASUS Ascent GX10 (DGX Spark) as an inference server"><meta property="og:description" content="Essentials, recommended settings (power and the spin patch, with measured charts), troubleshooting, and recipes run on a single node"><meta property="og:type" content="article"><meta property="og:url" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup-en/"><meta property="og:image" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup-en/og.png"><meta name="twitter:card" content="summary_large_image"><style>
+:root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--box:#f3f2ec;--hi:#7a4a3a;--blu:#3b6ea5}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+ font-family:Pretendard,"Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;
+ font-size:18px;line-height:1.72;word-break:normal;overflow-wrap:anywhere}
+.doc{max-width:44em;margin:0 auto;padding:4rem 1.4rem 7rem}
+.kicker{font-size:.82rem;font-weight:700;letter-spacing:.06em;color:var(--hi);margin:0 0 1rem}
+h1{font-size:1.75rem;font-weight:800;line-height:1.34;letter-spacing:-.01em;margin:0 0 1.3rem}
+h2{font-size:1.2rem;font-weight:800;margin:3rem 0 .7rem;padding-top:.75rem;border-top:2px solid var(--ink)}
+h3{font-size:1.04rem;font-weight:700;margin:1.9rem 0 .5rem}
+p{margin:0 0 .95rem}
+.lede{background:var(--box);border-radius:5px;padding:1rem 1.15rem .3rem;margin:0 0 1.6rem}
+.lede p{font-size:.95rem}
+ul,ol{margin:.4rem 0 1.1rem;padding-left:1.15rem} li{margin:.45rem 0}
+table{width:100%;border-collapse:collapse;font-size:.85rem;line-height:1.5;margin:0 0 1.1rem}
+th,td{text-align:left;padding:.48rem .6rem .48rem 0;vertical-align:top}
+thead th{border-bottom:1px solid var(--ink);font-size:.79rem;font-weight:700}
+tbody tr+tr td{border-top:1px solid var(--rule)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.hi td{font-weight:700}
+td small{color:var(--soft);font-size:.85em}
+.fcap{font-size:.83rem;color:var(--soft);margin:.2rem 0 1.6rem}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.axis line,.axis path{stroke:var(--rule)}
+.axis text{fill:var(--faint);font-size:10px}
+.axlab{fill:var(--soft);font-size:10.5px}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8em;color:#46443f;background:#efeee7;
+ padding:0 .25em;border-radius:2px}
+pre{background:#f3f2ec;border-radius:4px;padding:.85rem 1rem;overflow-x:auto;font-size:.8rem;line-height:1.6;margin:0 0 1.1rem}
+pre code{background:none;padding:0;font-size:1em}
+a{color:var(--hi)}
+.toc{font-size:.9rem;background:var(--box);border-radius:5px;padding:.8rem 1.1rem;margin:0 0 1.6rem}
+.toc ol{margin:.2rem 0 0;padding-left:1.2rem}
+.toc li{margin:.15rem 0}
+.note{border-left:3px solid var(--hi);padding:.2rem 0 .2rem .9rem;margin:0 0 1.1rem;font-size:.93rem;color:var(--soft)}
+.warn{background:#f7efe9;border:1px solid #e6cfc3;border-radius:5px;padding:.85rem 1.1rem .1rem;margin:0 0 1.6rem;font-size:.92rem}
+.warn b{color:var(--hi)}
+.infobox{background:var(--box);border:1px solid var(--rule);border-radius:5px;padding:.9rem 1.1rem .2rem;margin:1.4rem 0 1.2rem;font-size:.92rem}
+.infobox .ib-title{font-weight:700;margin:0 0 .5rem;color:var(--hi)}
+@media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.1rem 5rem}}
+</style></head><body><div class="doc">
+<div class="kicker">ASUS Ascent GX10 (NVIDIA GB10) setup guide</div>
+<h1>Setting up a single ASUS Ascent GX10 (DGX Spark) as an inference server: essentials, recommended settings, troubleshooting, and recipes to try</h1>
+<p class="fcap" style="margin:0 0 1.4rem">Related: <a href="../gb10-clock-cap/">How to set a clock cap on the GB10 →</a> (Korean) / <a href="../vllm-spin-wait-gb10-en/">Why vLLM pegs four CPU cores at 100% on the DGX Spark →</a> / <a href="../deepseek-v4-flash-2x-dgx-spark/">Running DeepSeek V4 Flash on two DGX Sparks →</a> (Korean)</p>
+<p class="fcap" style="margin:0 0 1.4rem"><a href="../dgx-spark-node-setup/">한국어 원문 →</a> / <a href="../dgx-spark-node-setup-ja/">日本語 →</a></p>
+
+<p>While bringing in our third ASUS Ascent GX10 (NVIDIA GB10, part of the DGX Spark family), we walked through the procedure of turning a factory-state machine into an inference server once more, from the beginning. This article is about the <strong>ASUS Ascent GX10</strong>. The NVIDIA DGX Spark and GB10 machines from other vendors are probably similar, but firmware, base image, and package composition can differ by product, so check on your own hardware before following along. This time we applied in one pass everything we had worked out piece by piece over several weeks on the first two machines, and we also record the problems we hit along the way. The article splits the procedure into four parts: what you must do, what is worth doing, the problems we ran into, and recipes you can run right away on a single node once setup is done. Settings specific to our home network (VLANs, addresses, switches) are left out.</p>
+
+<div class="warn"><p><b>Caution.</b> This article describes system changes that are hard to undo or can cut off remote access: firmware upgrades, driver replacement, removal of desktop packages, firewall configuration. Before running any command, check what it changes on your own hardware and version, and proceed at your own risk. The numbers are measurements from our machines, not guarantees.</p></div>
+
+<div class="toc"><strong>Contents</strong>
+<ol>
+<li><a href="#s0">Getting started: follow the on-screen setup, then switch to SSH</a></li>
+<li><a href="#s1">Essentials</a>: server mode, driver 595, PD firmware, security defaults</li>
+<li><a href="#s2">Recommended settings</a>: GPU clock cap, CPU performance-core cap, vLLM spin patch, Tailscale</li>
+<li><a href="#s3">Troubleshooting</a>: problems we hit, misinformation, 200G ConnectX-7</li>
+<li><a href="#s4">Recipes to run right away on one node</a>: ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3</li>
+<li><a href="#s5">One-screen checklist</a></li>
+</ol></div>
+
+<h2 id="s0">0. Getting started: follow the on-screen setup, then switch to SSH</h2>
+<p>The first-boot setup screens (account, keyboard, network) can be completed as guided. There is nothing special to choose. After that it is easier to put the monitor and keyboard away and work over SSH. Everything else in this article was done over SSH. We recommend giving a coding agent (for example Claude Code) SSH access and working through it together. Most of the steps below are repeated checks and comparisons, which suits an agent well.</p>
+<pre><code># On the DGX Spark (once, from a local terminal)
+ip -br a                       # check the wired IP
+systemctl status ssh           # check the SSH server is running (if missing: sudo apt install openssh-server)
+
+# On your workstation
+ssh-copy-id user@&lt;spark-ip&gt;     # copy the public key. No password needed from here on
+ssh user@&lt;spark-ip&gt;</code></pre>
+<p>This is what the factory state looked like. Driver and firmware versions can differ from machine to machine, so check first.</p>
+<table><thead><tr><th>Item</th><th>Factory state (delivered 2026-08)</th><th>Target in this article</th></tr></thead><tbody>
+<tr><td>OS / kernel</td><td>Ubuntu 24.04.4 / 6.17.0-1031-nvidia</td><td>unchanged</td></tr>
+<tr><td>Default target</td><td>graphical (GNOME, gdm3, 13 snaps, setup wizard app)</td><td>multi-user</td></tr>
+<tr><td>GPU driver</td><td>580.173.02</td><td><strong>595.84</strong></td></tr>
+<tr><td>USB-C PD firmware</td><td>0x1</td><td><strong>0x516</strong></td></tr>
+<tr><td>Clocks</td><td>GPU up to 3003MHz, CPU performance cores 3.9GHz (no limit)</td><td>(recommended) GPU 2000MHz, performance cores 2.8GHz</td></tr>
+<tr><td>SSH / firewall</td><td>password login allowed / firewall off</td><td>key only / default deny</td></tr>
+<tr><td>Security updates</td><td>no automation, 15 pending</td><td>applied automatically, no automatic reboot</td></tr>
+</tbody></table>
+
+<h3>0.1 Initial state check: are all ports and devices up?</h3>
+<p>Before starting the setup, and once more after finishing, compare the device list the OS sees against the expected values. Run the lines one at a time or bundle them into a script.</p>
+<pre><code>lspci | grep -E 'ConnectX|NVIDIA|Non-Volatile|Realtek|MEDIATEK'   # PCI devices
+ip -br link                                                        # network interfaces
+ethtool enP7s7 | grep -E 'Speed|Link detected'                     # 10G RJ45
+for d in /sys/class/net/en*np*; do echo $(basename $d) $(cat $d/operstate) $(cat $d/speed); done   # 200G
+ls /sys/bus/usb/devices | grep -c '^usb'; lsusb                    # number of USB root hubs, and devices
+lsblk -d -o NAME,SIZE,MODEL | grep nvme                            # NVMe
+nproc; free -g | grep Mem; nvidia-smi -L                           # CPU, memory, GPU
+nvidia-smi --query-gpu=driver_version,clocks.sm --format=csv       # driver, clock
+for z in /sys/class/thermal/thermal_zone*; do printf '%s=%s°C ' $(cat $z/device/path | sed 's/.*\.//') $(( $(cat $z/temp)/1000 )); done; echo   # 7 thermal zones
+fwupdmgr get-devices | grep 'Current version'                      # EC, SoC FW, PD, NVMe firmware
+sudo dmesg --level=err,crit | grep -v -i tpm | tail                # kernel errors
+systemctl list-units --state=failed                                # failed units</code></pre>
+<table><thead><tr><th>Item</th><th>Expected on the GX10 (identical on all three machines)</th></tr></thead><tbody>
+<tr><td>PCI devices</td><td>1 NVIDIA VGA (GB10), 1 NVMe (Phison), 1 Realtek 8127 10G, 1 MediaTek 7925 Wi-Fi, <strong>4 ConnectX-7 (only while a cable is plugged in)</strong></td></tr>
+<tr><td>Network interfaces</td><td><code>enP7s7</code> (10G RJ45) UP 10000Mb/s, <code>wlP9s9</code> (Wi-Fi), and four 200G interfaces: <code>enp1s0f0np0</code>, <code>enp1s0f1np1</code>, <code>enP2p1s0f0np0</code>, <code>enP2p1s0f1np1</code> (two physical ports, each exposed as two PCIe functions). A port with a cable shows <code>up 200000</code></td></tr>
+<tr><td>USB</td><td>12 root hubs (6 USB 2.0 + 6 USB 3.0), one built-in Wi-Fi/BT combo device</td></tr>
+<tr><td>Storage</td><td>1 NVMe (1TB or 4TB depending on the shipping configuration)</td></tr>
+<tr><td>CPU / memory / GPU</td><td>20 cores / MemTotal 121GiB / GPU 0: NVIDIA GB10</td></tr>
+<tr><td>Thermal zones</td><td>7: TSOC, TS0E, TS0P, TS1E, TS1P, TGPU, TUNC. Idle 42-50°C</td></tr>
+<tr><td>Firmware</td><td>EC, SoC FW (UEFI), USB-C PD, and NVMe versions are listed. If PD is 0x1, go to 1.3</td></tr>
+<tr><td>Kernel errors / failed units</td><td><code>nvidia-fs: warning: error retrieving numa node</code> is harmless. Otherwise 0 errors, 0 failed units</td></tr>
+</tbody></table>
+<p><strong>Check physically too.</strong> A device showing up in the OS and a port actually working are two different things. The two 200G QSFP ports in particular do not even appear as PCI devices without a cable, so plug a DAC cable in and confirm that both cages link up (<code>operstate up</code>, <code>speed 200000</code>). Plug a device into each USB-C port and check it appears in <code>lsusb</code>, check the RJ45 link LED and 10000Mb/s in <code>ethtool</code>, and try HDMI with a monitor once. Best done before bolting the machine into its final spot, while it can still be exchanged. We brought in the third machine without cables in the 200G ports and spent a while chasing a phantom "it doesn't show up on PCI" problem (section 3).</p>
+
+<h2 id="s1">1. Essentials</h2>
+
+<h3>1.1 Switching to server mode while keeping the platform packages</h3>
+<p>The factory image is a GNOME desktop. If the machine is going to be an inference server, it is better to strip the desktop off. The GB10's CPU and GPU share a single 128GiB memory pool, and a running desktop takes several GiB out of that pool. The README of the single-node recipe lists available memory at launch puts available memory at launch at about 114.5GiB on a host with the desktop still running; this node, switched to server mode, had <strong>117.4GiB</strong> at launch of the same recipe and 119.0GiB idle. This was not measured before and after on the same machine, so it is not a strict comparison, but a 3-4.5GiB difference goes straight into KV cache headroom when loading a large model.</p>
+<div class="chart" id="c-mem"></div>
+<p class="fcap">Figure 1. Available memory (out of MemTotal 121.6GiB). Desktop host (recipe README, at launch) ~114.5GiB; this node in server mode 117.4GiB at launch, 119.0GiB idle.</p>
+<div class="infobox"><div class="ib-title">Why it shows 121GiB instead of 128GiB (units explained, measured)</div>
+<p>All memory numbers in this article are binary GiB (2<sup>30</sup> bytes). That is the unit <code>free -g</code> and <code>/proc/meminfo</code> use, and the product's "128GB" is really 128GiB (137.4GB decimal). The memory address range DMI reports, 0x80000000-0x207FFFFFFF, is exactly 2<sup>37</sup> bytes = 128GiB, and it is whittled down from there in the order below (all values read on this machine).</p>
+<table><thead><tr><th>Stage</th><th class="n">Size</th><th>What</th></tr></thead><tbody>
+<tr><td>Physical LPDDR5X</td><td class="n">128.00GiB</td><td>Single pool shared by CPU and GPU (LPDDR5 8533MT/s, dmidecode)</td></tr>
+<tr><td>Not in the memory map</td><td class="n">−0.37GiB</td><td>DRAM that is simply absent from the memory map UEFI hands to the kernel (memblock 127.63GiB). Presumably used by firmware; its purpose is not documented</td></tr>
+<tr><td>In the map but reserved</td><td class="n">−3.55GiB</td><td>The display/iGPU reservation lives here. NVIDIA's release notes (July 2026) say the "Display Reserved Memory" can be set in the BIOS to 2GB (default) or 4GB, and machines on older firmware (larger reservation) report MemTotal around 119.7GiB while current ones report 121.6 to 121.7GiB; our 121.63GiB is in the current class. On our ASUS firmware the two large regions are 2616MiB + 460MiB = 3076MiB, the boot framebuffer (BOOTFB) sits inside them, and that matches the hidden "iGPU Memory Carveout" value 24 from section 3 (times 128MiB = 3072MiB). The unit of that field is not documented, though, and its minimum is also 24, so it cannot be reduced. The remaining ~0.55GiB is UEFI runtime, ACPI, TPM and similar. System RAM left: 124.08GiB</td></tr>
+<tr><td>Kernel's own fixed allocations</td><td class="n">−2.45GiB</td><td>page structs for 32,526,926 4KiB pages (64B each = 1.94GiB) + kernel image, initramfs, percpu, and so on, 0.5GiB. After this: <strong>MemTotal 121.63GiB</strong>, the 121 in <code>free -g</code>. CMA 128MiB is included in here</td></tr>
+<tr><td>Idle system usage</td><td class="n">−2.6GiB</td><td>Services, slab (including the GPU driver's UVM), excluding page cache. Server mode idle <strong>MemAvailable 119.0GiB</strong>. With a desktop running, a few more GiB go here</td></tr>
+</tbody></table>
+<p>So "only 121GB of 128GB shows up" is normal, not a fault, and the number to plan a model against is <strong>MemAvailable</strong> rather than MemTotal. If you are loading a model where 100MiB matters, there is really one lever left: a <strong>64KiB-page kernel</strong> (NVIDIA ships it as <code>linux-image-nvidia-64k-hwe-24.04</code>) shrinks the 1.94GiB of page structs to about one sixteenth and recovers roughly 1.8GiB. But NVIDIA's DGX OS kernel table uses a non-64K kernel for Spark, and the 595 driver has a known defect (open-gpu-kernel-modules #1269) on paths that pin 4GiB or more in one mapping (such as disk KV offloading), so validate with your workload first and keep a 4K boot entry. The display reservation cannot be lowered even where the BIOS exposes it (the default, 2GB or the value 24 on our firmware, is the minimum), CMA (128MiB) is already used as movable pages so shrinking it gains nothing, and crashkernel is already 0.</p></div>
+
+<p>The problem is not the command that removes the desktop but the <code>apt autoremove --purge</code> that follows it. When setting up the second machine, that command <strong>took out 14 NVIDIA platform packages in one go</strong>. These packages are held only as dependencies of a metapackage called <code>dgx-spark-ota-update-meta</code>, so the moment the metapackage leaves together with snapd, they become "packages nobody needs". The two snippets that supply boot parameters (<code>nvidia-spark-initcall-bl</code>, <code>nvidia-spark-grub-pci</code>) went with them, and we recovered with a reinstall, <code>update-grub</code>, and a reboot.</p>
+<p>This time we blocked it in three steps. Mark the platform packages as manually installed before removing anything; run the removal as a simulation first and stop if the removal list contains driver, CUDA, or platform packages; and compare the boot parameters afterwards.</p>
+<pre><code># Commands in sections 1 and 2 assume a root shell (sudo -i)
+
+# 1) Protect: mark the metapackage's dependencies (except snap-related) + installed NVIDIA/DGX/docker/CUDA packages as manually installed
+apt-cache depends dgx-spark-ota-update-meta | awk '/Depends:/{print $2}' | grep -v snaps | xargs apt-mark manual
+apt-mark manual $(dpkg -l | awk '/^ii/{print $2}' | grep -E '^(nvidia-|dgx-|docker|containerd|cuda|lldpd)')
+# (if you have a reference machine, compare against its `apt-mark showmanual` list and add what is missing)
+
+# 2) Switch + simulation gate (stops if protected packages appear in the removal list)
+systemctl set-default multi-user.target
+CAND="ubuntu-desktop ubuntu-desktop-minimal gdm3 gnome-shell xorg xwayland gnome-control-center \
+      libreoffice-core network-manager-gnome snapd nvidia-desktop-default-snaps nvidia-system-station \
+      dgxstation-desktop dgx-oobe-desktop dgx-spark-ota-update-meta ubuntu-server-minimal"
+PURGE=""; for p in $CAND; do dpkg -s "$p" &gt;/dev/null 2&gt;&amp;1 &amp;&amp; PURGE="$PURGE $p"; done   # installed ones only
+apt-get -s purge $PURGE | grep ^Remv | grep -E 'nvidia-driver|linux-modules-nvidia|cuda|docker|nvidia-spark' \
+  &amp;&amp; { echo "protected package in removal list, aborting"; exit 1; }
+apt-get purge -y $PURGE
+apt-get -s autoremove --purge | grep ^Remv | grep -E 'nvidia-|dgx-|lldpd|docker|cuda' \
+  &amp;&amp; { echo "protected package in removal list, aborting"; exit 1; }
+apt-get autoremove --purge -y
+rm -rf /snap /var/snap /var/lib/snapd /home/*/snap
+
+# 3) Compare (once more after the reboot)
+update-grub
+grep -o 'initcall_blacklist=[^ ]*\|pci=pcie_bus_safe\|iommu.passthrough=[0-9]' /boot/grub/grub.cfg | sort -u</code></pre>
+<p>We do not restore the OTA metapackage. Restoring it brings snapd back through <code>nvidia-desktop-default-snaps</code> and breaks server mode. What the metapackage does is "pull in the packages NVIDIA adds in the next release", so every so often compare its <code>Depends</code> list with what is installed and install only the missing ones individually. Individual platform packages update normally through <code>apt upgrade</code>.</p>
+
+<h3>1.2 Driver 580 → 595</h3>
+<p>The reason to switch is a defect, not speed. On 580.173.02, a GPU error (<code>Xid 13</code>) reproduced on the path that offloads KV cache to disk, and it disappeared with the same code on 595.84. We put new machines on 595 from the start as well.</p>
+<pre><code>apt-get -s install nvidia-driver-595-open linux-modules-nvidia-595-open-nvidia-hwe-24.04 | grep -E '^(Inst|Remv)'
+# Check that every removal (Remv) line is a 580-series package. If not, stop
+apt-get -s install nvidia-driver-595-open linux-modules-nvidia-595-open-nvidia-hwe-24.04 \
+  | grep ^Remv | grep -v 580 &amp;&amp; { echo "removal other than 580, aborting"; exit 1; }
+apt-get install -y nvidia-driver-595-open linux-modules-nvidia-595-open-nvidia-hwe-24.04</code></pre>
+<p><code>linux-modules-nvidia-595-open-nvidia-hwe-24.04</code> pulls in the prebuilt module package matching the running kernel (here <code>…-6.17.0-1031-nvidia</code>). No DKMS build is needed, and machines with different kernels each get the right one. Right after installation, until reboot, <code>nvidia-smi</code> reports "Driver/library version mismatch"; this is normal. To roll back, check the version with <code>apt-cache policy nvidia-driver-580-open</code> and then <code>apt-get install nvidia-driver-580-open=&lt;version&gt; linux-modules-nvidia-580-open-nvidia-hwe-24.04</code>.</p>
+
+<h3>1.3 USB-C PD firmware</h3>
+<p>There is a phenomenon reported across the GB10 family. Under full load the clock sits at 400-950MHz and performance drops to a third, yet every throttle flag reads Not Active. The understood cause is the USB-C PD controller firmware negotiating power incorrectly and the SoC locks its own clock down; a reboot does not clear it, and you have to unplug the power cable and drain the machine. The prevention is to update the PD firmware to the latest version. This machine's PD firmware was 0x1, and LVFS had 0x516 (urgency High).</p>
+<pre><code>fwupdmgr refresh --force
+fwupdmgr get-updates                  # "GX10 USB-C PD FW Controller Update" 0x516
+fwupdmgr update -y --no-reboot-check  # the capsule is staged in /boot/efi/EFI/ubuntu/fw/
+# Reboot (about 2 minutes) → check 0x00000516 in fwupdmgr get-devices</code></pre>
+<p>We handled the driver replacement, the server mode switch, and the firmware update into a single reboot. The UEFI ("GX10 SoC FW") and EC firmware also arrive through the same channel.</p>
+
+<h3>1.4 Security and update defaults</h3>
+<table><thead><tr><th>Item</th><th>Setting</th><th>Notes</th></tr></thead><tbody>
+<tr><td>sshd</td><td><code>PasswordAuthentication no</code>, <code>KbdInteractiveAuthentication no</code>, <code>PermitRootLogin prohibit-password</code></td><td>After confirming the key is in <code>~/.ssh/authorized_keys</code>, <code>sshd -t &amp;&amp; systemctl reload ssh</code></td></tr>
+<tr><td>ufw</td><td>incoming deny / outgoing allow / routed deny. SSH only from the management network; service ports one line at a time as needed</td><td>If you are working over SSH, add <code>ufw allow from &lt;mgmt-net/24&gt; to any port 22 proto tcp</code> <strong>first</strong>, then <code>ufw enable</code>, and confirm a new connection from a second terminal while keeping the existing session open. Add inference API ports (8000, 8888, and so on) explicitly when opening them to the LAN</td></tr>
+<tr><td>unattended-upgrades</td><td>automatic package lists and upgrades, <code>Automatic-Reboot "false"</code>, <code>Remove-Unused-Kernel-Packages "true"</code></td><td>A reboot in the middle of inference is unacceptable, so automatic reboot is off</td></tr>
+<tr><td>Timezone / Wi-Fi</td><td><code>timedatectl set-timezone</code> / <code>nmcli radio wifi off</code></td><td>Factory state is UTC. Turn Wi-Fi off after confirming the wired connection</td></tr>
+<tr><td>persistenced / journald</td><td>enabled / persistent</td><td>factory defaults, unchanged</td></tr>
+</tbody></table>
+
+<h2 id="s2">2. Recommended settings</h2>
+<p>Everything from here on is optional; the machine works without it. But if you are going to run a GB10 for a long time without a separate cooling fan, power and heat deserve a thought at least once, and the numbers below are material for that decision.</p>
+
+<h3>2.1 GPU clock cap: power −40-50%, LLM decode −5%, video generation +7-17%</h3>
+<p>The GB10 has no wattage power limit (<code>nvidia-smi -pl</code>). The only control is the clock cap (<code>-lgc</code>). The two charts below are the result of sweeping from 1400MHz to unlimited in 200MHz steps. Decode is memory-bandwidth bound, so lowering the clock barely reduces token speed, while power and temperature climb steeply with the clock.</p>
+<div class="chart" id="c-ds"></div>
+<p class="fcap">Figure 2. LLM decode (DeepSeek V4 Flash Q2, llama.cpp, median of 3 runs of 256 tokens), tok/s (solid) and power under load (dashed) per cap. 2000MHz gives 16.7 tok/s at 22W, unlimited 17.5 tok/s at 45W. At 2600 and above the measured SM clock stays at ~2495MHz, so the results are the same.</p>
+<div class="chart" id="c-h3"></div>
+<p class="fcap">Figure 3. Video generation (MiniMax-H3, 20 steps), total time (solid) and power under load (dashed) per cap. 2000MHz: 103s, 50W, 66°C. 2200: 97s, 65W, 73°C. 2400 and above: about 96s, 85W, 80°C or more. For work that is mostly GPU compute, the time gain ends at 2200-2400.</p>
+<table><thead><tr><th>Cap</th><th>Use</th><th class="n">LLM decode</th><th class="n">Video generation</th></tr></thead><tbody>
+<tr><td>2200</td><td>Speed first</td><td class="n">17.1 tok/s, 28W, 57°C</td><td class="n">97s, 65W, 73°C</td></tr>
+<tr class="hi"><td>2000</td><td>Balanced (recommended value)</td><td class="n">16.7 tok/s, 22W, 55°C</td><td class="n">103s, 50W, 66°C</td></tr>
+<tr><td>1800</td><td>Midsummer, poor ventilation</td><td class="n">16.2 tok/s, 19W, 53°C</td><td class="n">107s, 41W, 61°C</td></tr>
+<tr><td>1400-1600</td><td>Long runs, low heat</td><td class="n">15.0-15.7 tok/s, 15-17W, 49-51°C</td><td class="n">113-125s, 28-33W</td></tr>
+</tbody></table>
+<pre><code># /etc/systemd/system/gpu-clock-cap.service
+# After writing: systemctl daemon-reload &amp;&amp; systemctl enable --now gpu-clock-cap   (to turn off: systemctl stop)
+[Unit]
+Description=GPU clock cap 300-2000MHz
+After=multi-user.target
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/nvidia-smi -lgc 300,2000
+ExecStop=/usr/bin/nvidia-smi -rgc
+[Install]
+WantedBy=multi-user.target</code></pre>
+<p>Setting 2000 actually gives about 1989MHz, snapped to an internal step. One thing to remember: this cap is a benchmark condition. When recording performance numbers, record the clock condition with them, and check the actual clock under load with <code>nvidia-smi --query-gpu=clocks.sm</code>. All the numbers in the recipes below were taken with this cap in place.</p>
+
+<h3>2.2 CPU performance-core cap: why limit the CPU?</h3>
+<p>The CPU cap exists for a different reason than the GPU cap. The starting point was "why is the CPU hot during LLM inference?" When we ran decode with vLLM (TP=2) across two connected GB10s, the GPU sat around 70°C while <strong>three or four performance cores were pinned at 100% and pushed the SoC temperature to 96°C.</strong> The cause was vLLM's default of spinning while its inter-process message queue waits for a new message (2.3 below). That fix lives on the software side, and the problem can come back when the engine or image changes. So we also put a <strong>performance-core clock cap on the host as a safety net</strong>. A single-node TP=1 setup has none of the spinning in 2.3, so this cap is insurance for when another engine or configuration overdrives the CPU, and it is optional.</p>
+<p>The GB10's 20 cores are 10 performance cores (up to 3.9GHz) and 10 efficiency cores (2.8GHz). Looking at the temperature change per zone when the performance cores are capped at 2.8GHz, the same as the efficiency cores, the drop shrinks with distance from the performance cores, which shows they are the heat source.</p>
+<div class="chart" id="c-cpu"></div>
+<p class="fcap">Figure 4. Temperature change under load (°C) with the performance cores capped 3.9 → 2.8GHz. Performance cores −14, uncore/memory −3.7, GPU −1.7, NVMe 0. SoC overall −9. Single-stream speed was unchanged; 8 concurrent streams −5%.</p>
+<pre><code># /etc/systemd/system/cpu-clock-cap.service: cap only the performance cores (max 3.9GHz) at 2.8GHz
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/bash -c 'for p in /sys/devices/system/cpu/cpufreq/policy*; do \
+  m=$(cat $p/cpuinfo_max_freq); \
+  if [ "$m" -gt 2808000 ]; then echo 2808000 &gt; $p/scaling_max_freq; fi; done'
+ExecStop=/usr/bin/bash -c 'for p in /sys/devices/system/cpu/cpufreq/policy*; do \
+  cat $p/cpuinfo_max_freq &gt; $p/scaling_max_freq; done'
+[Install]
+WantedBy=multi-user.target</code></pre>
+<p><code>/sys/devices/system/cpu/cpufreq/boost</code> defaults to 0 on this platform, so there is nothing to touch there. In short, the GPU cap is a ceiling on power and heat, and the CPU cap is a safety net for when software starts overdriving the CPU. For both, know not just the number but the reason it is there, so you can lift it at the right time later.</p>
+
+<h3>2.3 vLLM spin patch: when connecting two or more nodes</h3>
+<div class="note">Scope first: this spinning happens only in vLLM's multiprocess executor (<code>mp</code> executor). <strong>It does not apply when running TP=1 on one node</strong> (the worker lives in the same process, so there is no queue at all). This is about connecting two or more nodes, or explicitly passing <code>--distributed-executor-backend=mp</code>.</div>
+<p>vLLM's <code>shm_broadcast.py</code> has a default that spins for 1 second (<code>busy_loop_s=1</code>) while waiting on the message queue before it goes to sleep. The interval between decode steps is far shorter than 1 second, so in practice it is always spinning. On an ordinary server with dozens of cores, wasting 3-4 cores goes unnoticed, but on the GB10, where CPU and GPU sit in one package, that heat becomes SoC temperature directly. We captured stacks with py-spy and changed the default to 2ms; the combined CPU of the vLLM processes dropped from 333% to 89% and the SoC temperature fell 11°C. The investigation is in the <a href="../vllm-spin-wait-gb10-en/">original article</a>, and the controlled reproduction in the <a href="../vllm-spin-wait-gb10-repro-en/">follow-up experiment</a>.</p>
+<div class="chart" id="c-spin"></div>
+<p class="fcap">Figure 5. Spin default (1 second) vs the 2ms patch. Left: combined CPU usage of the vLLM processes (%). Right: SoC temperature under load (°C, node without an external fan). In the reproduction, the default reached 85°C after 90 seconds of load, 90°C at 2 minutes 18 seconds, and a peak of 95°C; the patch peaked at 85°C.</p>
+<pre><code># Inside the container/virtualenv, before starting vLLM (adjust the path to your install location)
+sed -i 's/busy_loop_s: float = [0-9.]*/busy_loop_s: float = 0.002/' \
+  $(python -c 'import vllm,os;print(os.path.dirname(vllm.__file__))')/distributed/device_communicators/shm_broadcast.py
+grep -n 'busy_loop_s' $(python -c 'import vllm,os;print(os.path.dirname(vllm.__file__))')/distributed/device_communicators/shm_broadcast.py
+# The changed line should show up. If the pattern is missing, sed silently does nothing.
+# If your build exposes it as an environment variable (VLLM_MQ_SPIN_SECONDS and the like), use that instead.</code></pre>
+<p>One honest caveat. In a later re-verification, single-stream decode was about 2-6% slower with the patch: 38.7 tok/s vs 40.9 default (within run-to-run variance, but the direction was consistent; no difference at 4 concurrent streams, and the CPU reduction reproduced as before). So we treat this patch as <strong>"a switch to flip when heat is the problem"</strong>. No external cooling and it is summer? On. Single-stream speed matters most? Off. The CPU cap in 2.2 stays in place regardless of that choice.</p>
+
+<h3>2.4 Tailscale: SSH from outside the house too</h3>
+<p>Once an inference server is set up there is little reason to sit at it, and most access is SSH from somewhere else. Putting Tailscale on it instead of router port forwarding lets you connect by the same name from anywhere. The later parts of this article were also done from outside the house over the tailnet.</p>
+<pre><code>curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up                      # log in at the printed URL (or create an auth key in the admin console and pass it with --authkey)
+tailscale ip -4                   # this machine's tailnet address
+ufw allow in on tailscale0        # if the firewall is on, allow the tailnet interface as a whole</code></pre>
+<p>With MagicDNS on, <code>ssh &lt;hostname&gt;</code> is all it takes. The inference API can be opened over the same path, so for services used outside the LAN it is simpler to open them only over the tailnet than to add LAN rules to ufw.</p>
+
+<h2 id="s3">3. Troubleshooting: problems we hit and misinformation</h2>
+<table><thead><tr><th style="width:34%">Symptom</th><th>Cause / fix</th></tr></thead><tbody>
+<tr><td><code>docker.service</code> fails after reboot: <code>error creating buildkit instance: invalid database</code></td><td>The buildkit local DB shipped in the factory image (created 2025-09) was corrupt. It is only build cache, so <code>systemctl stop docker.socket docker; mv /var/lib/docker/buildkit /var/lib/docker/buildkit.bak; systemctl start docker</code>. Unrelated to images or containers. Then register the nvidia runtime with <code>nvidia-ctk runtime configure --runtime=docker</code>.</td></tr>
+<tr><td><code>nvidia-smi</code> right after the driver install: Driver/library version mismatch</td><td>The old kernel module is still loaded while only the libraries are new. Resolved by a reboot. Do not run GPU jobs before rebooting.</td></tr>
+<tr><td>On 595, <code>nvidia-smi --query-gpu=clocks.applications.graphics</code> and <code>display_mode</code> return strings</td><td>"Requested functionality has been deprecated". Health-check scripts that do numeric comparisons will break. Read <code>clocks.sm</code> or handle the string as an exception.</td></tr>
+<tr><td>GPU clock stays at 400-950MHz under load, power ~10W, all throttle flags Not Active</td><td>PD firmware low-clock lock (1.3). Neither a reboot nor <code>nvidia-smi -rgc</code> clears it: shut down → unplug the power cable → press the power button to drain → reconnect after 1 minute. Distinguish it from an intentional cap (about 1989MHz).</td></tr>
+<tr><td>Boot parameters disappeared after <code>apt autoremove</code></td><td>Platform packages that were dependencies of the metapackage were removed with it (1.1). After a large purge, compare <code>/proc/cmdline</code> and <code>/etc/default/grub.d/</code> with a reference machine.</td></tr>
+<tr><td>200G ConnectX-7 missing from <code>lspci</code></td><td>The NIC is not exposed unless a cable is plugged in (managed by the hotplug package). Not a driver problem.</td></tr>
+<tr><td>Files left in <code>/tmp</code> vanished after a reboot</td><td>Ubuntu clears <code>/tmp</code> at boot. Move staging files to home before rebooting.</td></tr>
+<tr><td>Waited for a remote script to finish with <code>pgrep -f scriptname</code> and it stayed "running" forever</td><td>The waiting side's ssh command line contains the same string, so it matches itself. Use a bracket pattern like <code>pgrep -f "[d]ownload.sh"</code>. <code>pkill -f</code> kills itself for the same reason.</td></tr>
+<tr><td>When a model server takes more than 90% of memory, a userspace OOM daemon may kill it first</td><td>Check whether a daemon like earlyoom is active (<code>systemctl is-active earlyoom</code>). Some recipes that intentionally fill memory with a large model tell you to turn earlyoom off.</td></tr>
+</tbody></table>
+
+<div class="infobox"><div class="ib-title">Misinformation: "disabling Display in UEFI frees memory"</div>
+<p>In the single-node recipe community, advice is circulating that "the desktop/display takes 7GiB of UMA, so disable the Display item in UEFI". On inspection, the GX10 firmware (GX10DGX.0105) does have items like Display, iGPU, and iGPU Memory Carveout, but they are all hidden (<code>SuppressIf</code>) and do not appear in the setup screen, and they are not in NVIDIA's official UEFI guide either. What the firmware actually takes is fixed at about 3.9GiB (including the 3.0GiB carveout), as in the infobox in 1.1, and the 7GiB in question is userspace GPU allocations by GNOME/Xorg and the like, so <strong>it comes back when you switch to server mode.</strong> There is nothing to do in the firmware, and editing the hidden variables directly is unverified, so we do not recommend it.</p></div>
+
+<h3>200G ConnectX-7: not visible, or linked but not working, or slow</h3>
+<p>The 200G ports used to join two or more nodes confused us at four stages. The symptoms and fixes for each stage are listed in order. All of it actually happened on our machines.</p>
+<ol>
+<li><strong>No cable, no device.</strong> Not a single ConnectX-7 line in <code>lspci</code>. The driver (<code>mlx5_core</code>) is loaded. This is normal behavior managed by the hotplug package, and the device appears once a cable is plugged in.</li>
+<li><strong>With a cable in, one port shows up as two interfaces.</strong> Two differently named interfaces such as <code>enp1s0f0np0</code> and <code>enP2p1s0f0np0</code> are the same physical port (a socket-direct configuration exposed on two PCIe roots). <code>cat /sys/class/net/*/phys_switch_id</code> shows the same value for all four interfaces, and only <code>phys_port_name</code> differs (p0 or p1). Do not bond them; <strong>give the two interfaces IPs in different subnets</strong> (NVIDIA's guide does the same). That lets NCCL split traffic across both paths so the bandwidth adds up. At this stage the link and RoCE state are ACTIVE, and it only looks like "it won't come up" only because there is no IP.
+<pre><code>nmcli con add type ethernet con-name ic200g   ifname enp1s0f0np0   ipv4.method manual ipv4.addresses &lt;rail-A&gt;/24 ipv4.never-default yes 802-3-ethernet.mtu 9000
+nmcli con add type ethernet con-name ic200g-b ifname enP2p1s0f0np0 ipv4.method manual ipv4.addresses &lt;rail-B&gt;/24 ipv4.never-default yes 802-3-ethernet.mtu 9000
+# The peer machine uses the same two subnets. In the firewall, allow all four port names (so it survives moving the cable to the other cage)
+for i in enp1s0f0np0 enp1s0f1np1 enP2p1s0f0np0 enP2p1s0f1np1; do ufw allow in on $i; done</code></pre></li>
+<li><strong>Every indicator is normal but throughput is 1/8.</strong> Link 200000Mb/s, RoCE 4X×50G, PCIe Gen5 x4, zero error counters, jumbo frames pass, yet both <code>ib_write_bw</code> and <code>iperf3</code> stall around 13Gb/s (normal is about 98Gb/s per path, 196Gb/s combined). If two processes on the same device split it 6.9+6.9, you are hitting a device ceiling, and if two interfaces within one machine sending to each other also give 13, the cable and the peer machine are ruled out. <strong>A reboot does not fix it. Shut down both machines, unplug the power cables, press the power button to drain, and reconnect after 1 minute</strong>; that cleared it (13.3 → 108Gb/s, 196Gb/s over both paths). It held through several normal reboots afterwards. This looks like the same family of power-side issue as the PD firmware low-clock lock.</li>
+<li><strong>Moving the cable to the other cage breaks the configuration.</strong> The NetworkManager profile has the port MAC baked in, so activation fails with <code>permanent MAC address doesn't match</code>. Clear the MAC lock with <code>nmcli con mod ic200g 802-3-ethernet.mac-address "" connection.interface-name &lt;new interface&gt;</code> and bind by name again. Firewall rules are also by port name, so open all four as above.</li>
+</ol>
+<p>Two things to remember when diagnosing. ufw allows ICMP by default, so you can get a state where <strong>ping works but TCP does not</strong> (<code>ib_write_bw</code> says "Couldn't connect" while ping is fine). And on the GB10 there are reports of <code>ib_write_bw</code> reading low while NCCL is fine, so make the final call with NCCL (nccl-tests). <code>GPU_DIRECT_RDMA_SUPPORTED=False</code> in the NCCL log is normal on the GB10.</p>
+
+<h2 id="s4">4. Recipes to run right away on one node: only what we verified ourselves</h2>
+<p>Two recipes you can follow verbatim on a single node once setup is done. Both were measured with the GPU cap above (1989MHz) in place.</p>
+
+<h3>4.1 ollama + Qwen3.8-27B (GGUF Q4_K_M): first token within 10 minutes</h3>
+<p>The fastest functional check. Install ollama with the official script, download <code>Qwen3.8-27B-Q4_K_M.gguf</code> (19GB) from <code>ggml-org/Qwen3.8-27B-GGUF</code> on Hugging Face, and register it with a Modelfile. One trap: in this environment ollama's default context came out as 262144 (check with <code>ollama ps</code>), so even a small model can take tens of GB of KV cache. Set <code>num_ctx</code> explicitly in the Modelfile.</p>
+<pre><code>curl -fsSL https://ollama.com/install.sh | sh
+pip install -U huggingface_hub          # hf CLI
+hf download ggml-org/Qwen3.8-27B-GGUF Qwen3.8-27B-Q4_K_M.gguf --local-dir ~/models/qwen3.8-27b
+cat &gt; Modelfile &lt;&lt;EOF
+FROM /home/$USER/models/qwen3.8-27b/Qwen3.8-27B-Q4_K_M.gguf
+PARAMETER num_ctx 32768
+EOF
+ollama create qwen3.8-27b-q4km -f Modelfile     # about 1 minute (blob copy)
+ollama run qwen3.8-27b-q4km --verbose "Introduce yourself in one sentence"</code></pre>
+<table><thead><tr><th>Measurement</th><th class="n">Value</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Load</td><td class="n">100% GPU, 20GB</td><td><code>ollama ps</code>. First load 43 seconds (cold page cache), resident afterwards</td></tr>
+<tr><td>Decode</td><td class="n">11.5-11.8 tok/s</td><td>For a 27B dense Q4 at 19GB, the ceiling from the GB10's memory bandwidth (273GB/s) is about 14 tok/s, so this is in the normal range</td></tr>
+<tr><td>Prompt evaluation</td><td class="n">290 tok/s</td><td>The first request took 36 seconds as warm-up, 0.3 seconds from the second on</td></tr>
+<tr><td>GPU during generation</td><td class="n">95%, 1989MHz, 25W, 57°C</td><td>GPU cap applied</td></tr>
+</tbody></table>
+
+<h3>4.2 DeepSeek V4 Flash on one node: the MiaAI recipe (EXL3 3.0bpw, REAP K216)</h3>
+<p>The original FP8 (166.9GB) does not fit on one node. <a href="https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark">MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark</a> serves <code>0xSero/deepseek-v4-flash-0731-spark</code> with SparkInfer kernels and DSpark speculative decoding. This checkpoint is a 106.9GB build that keeps 216 of the 256 experts (REAP) and is quantized to EXL3 3.0bpw. So be aware that this is a pruned, 3bpw variant, not "the original DeepSeek V4 Flash".</p>
+<pre><code># Prerequisites: docker + compose v2, nvidia runtime registered (nvidia-ctk runtime configure --runtime=docker), user in the docker group
+git clone https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark mia-one &amp;&amp; cd mia-one
+./download.sh            # image pull → 107GB from HF → TP4→TP1 coalesce → checksum. ~200GB of disk, 30 minutes to several hours depending on your connection
+systemctl stop earlyoom ollama   # required by the recipe (the server intentionally takes 94% of memory) and also stops the ollama instance from 4.1. Confirm available ≥114.3GiB in free -h
+./start.sh --no-wait     # defaults: MAX_MODEL_LEN 384000, MAX_NUM_SEQS 1, KV_RECORD=stock432, DSpark speculative decoding
+curl -s -o /dev/null -w '%{http_code}\n' localhost:8888/health   # 200 means ready. Took 552 seconds on this machine</code></pre>
+<p>This is where server mode paid off. Available memory at launch was 117.4GiB (the recipe README's host: 114.5), so the <strong>KV pool came out at 510,778 tokens</strong>. That is 16% more than the README's best of 439,622.</p>
+<div class="chart" id="c-mia"></div>
+<p class="fcap">Figure 6. Prefill speed by prompt length (tok/s, no prefix cache). ~1,000 tok/s from 32k to 100k, 843 tok/s at 330k. Needle-in-a-haystack tests at the same lengths (finding a hidden passphrase) were all exactly correct at 64k, 200k, and 330k, with 0 preemptions.</p>
+<table><thead><tr><th>Measurement</th><th class="n">Value</th><th class="n">README claim</th></tr></thead><tbody>
+<tr><td>Launch (/health 200)</td><td class="n">552s</td><td class="n">-</td></tr>
+<tr><td>Decode, single stream (thinking off)</td><td class="n">36-37 tok/s (512 tok ×3), 38-44 tok/s (acceptance-test code generation)</td><td class="n">44-47 (330k context, structured)</td></tr>
+<tr><td>Prefill 32k / 100k</td><td class="n">1,091 / 1,024 tok/s</td><td class="n">~1,024</td></tr>
+<tr><td>Needle 64k / 200k / 330k</td><td class="n">all correct</td><td class="n">320k/370k correct</td></tr>
+<tr><td>Recipe's own acceptance test (<code>acceptance_c1.py</code>)</td><td class="n">all pass</td><td class="n">gate ≥35 tok/s</td></tr>
+</tbody></table>
+<p>Only decode came in at 80-95% of the README, but we had the GPU cap (1989MHz) on and the conditions differed from the README's (330k context, structured output). We suspect EXL3 trellis decode is compute-heavy enough to be sensitive to the clock, but we did not run an A/B with the cap lifted. The first structured-output (JSON schema) request took 28 seconds for 23 tokens, which is a one-time grammar compilation cost; it is normal from the second request on. If you have two or more nodes, there is a <a href="../deepseek-v4-flash-2x-dgx-spark/">separate article</a> (Korean) on running the original FP8 with TP=2.</p>
+
+<h2 id="s5">5. One-screen checklist</h2>
+<ol>
+<li>Initial setup as guided on screen → <code>ip -br a</code>, <code>systemctl status ssh</code> → <code>ssh-copy-id</code> from the workstation</li>
+<li>Initial state check (0.1): PCI, network, USB, NVMe, thermal zones, firmware, kernel errors. Physically verify the 200G ports with cables plugged in</li>
+<li><code>timedatectl set-timezone</code>, <code>apt-get update</code></li>
+<li><code>apt-mark manual</code> on the platform packages (meta Depends + installed <code>nvidia-spark-*</code> and the like)</li>
+<li>Base packages: ufw, unattended-upgrades, build-essential, python3-dev, jq, htop, and so on</li>
+<li>unattended-upgrades configuration (automatic reboot off), sshd key only, ufw default deny, docker group</li>
+<li>(Recommended) enable the two clock cap units (GPU 300,2000 / CPU performance cores 2.8GHz), Tailscale</li>
+<li>Driver 595 (after simulation), multi-user, purge/autoremove (gated), grub comparison, PD FW staged, security updates</li>
+<li>Move temporary files to home and reboot → verify: driver version, clocks, <code>/proc/cmdline</code>, PD firmware 0x516, 0 failed units, docker OK</li>
+<li>Confirm operation with one recipe (4.1 is the fastest)</li>
+</ol>
+<p class="fcap">Recorded 2026-08-21 to 2026-08-22. Hardware: ASUS Ascent GX10 (NVIDIA GB10, 128GB). Other GB10 products may differ in firmware and image. Firmware GX10DGX.0105, Ubuntu 24.04.4, kernel 6.17.0-1031-nvidia, driver 595.84. The clock cap sweep and spin experiment numbers were measured on the two existing machines of the same model (see the linked articles). Environment-dependent items such as network configuration, addresses, and hostnames are omitted.</p>
+</div>
+<script src="../vendor/d3.v7.min.js"></script>
+<script>
+(function(){
+const INK="#1c1c1c",HI="#7a4a3a",BLU="#3b6ea5",SOFT="#5b5b57",FAINT="#b7b5ad",RULE="#e4e2da";
+function svgIn(id,W,H){return d3.select("#"+id).append("svg").attr("viewBox",[0,0,W,H]).attr("width",W).attr("height",H);}
+// Figure 1: memory bars
+(function(){
+  const W=640,H=132,M={l:190,r:70,t:14,b:26};
+  const data=[{k:"Desktop host (README, at launch)",v:114.5},{k:"Server mode (at launch)",v:117.4},{k:"Server mode (idle)",v:119.0}];
+  const svg=svgIn("c-mem",W,H);
+  const x=d3.scaleLinear().domain([0,121.6]).range([M.l,W-M.r]);
+  const y=d3.scaleBand().domain(data.map(d=>d.k)).range([M.t,H-M.b]).padding(.3);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`).call(d3.axisBottom(x).ticks(6).tickFormat(d=>d+"G"));
+  svg.selectAll("rect.bg").data(data).join("rect").attr("x",x(0)).attr("y",d=>y(d.k)).attr("width",x(121.6)-x(0)).attr("height",y.bandwidth()).attr("fill","#f3f2ec");
+  svg.selectAll("rect.v").data(data).join("rect").attr("x",x(0)).attr("y",d=>y(d.k)).attr("width",d=>x(d.v)-x(0)).attr("height",y.bandwidth()).attr("fill",(d,i)=>i?HI:FAINT).attr("opacity",(d,i)=>i==1?.7:1);
+  svg.selectAll("text.k").data(data).join("text").attr("x",M.l-8).attr("y",d=>y(d.k)+y.bandwidth()/2+4).attr("text-anchor","end").attr("font-size",11).attr("fill",SOFT).text(d=>d.k);
+  svg.selectAll("text.v").data(data).join("text").attr("x",d=>x(d.v)+5).attr("y",d=>y(d.k)+y.bandwidth()/2+4).attr("font-size",11).attr("font-weight",700).attr("fill",INK).text(d=>d.v.toFixed(1)+"GiB available");
+  svg.append("text").attr("x",x(121.6)).attr("y",M.t-3).attr("text-anchor","end").attr("font-size",9.5).attr("fill",FAINT).text("MemTotal 121.6GiB");
+})();
+// Shared: dual-axis line chart (categorical x)
+function dual(id,labels,s1,s2,o){
+  const W=640,H=260,M={l:46,r:50,t:16,b:34};
+  const svg=svgIn(id,W,H);
+  const x=d3.scalePoint().domain(labels).range([M.l,W-M.r]).padding(.4);
+  const y1=d3.scaleLinear().domain(o.d1).nice().range([H-M.b,M.t]);
+  const y2=d3.scaleLinear().domain(o.d2).nice().range([H-M.b,M.t]);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`).call(d3.axisBottom(x));
+  svg.append("g").attr("class","axis").attr("transform",`translate(${M.l},0)`).call(d3.axisLeft(y1).ticks(5));
+  svg.append("g").attr("class","axis").attr("transform",`translate(${W-M.r},0)`).call(d3.axisRight(y2).ticks(5));
+  svg.append("text").attr("class","axlab").attr("x",M.l).attr("y",M.t-5).text(o.l1);
+  svg.append("text").attr("class","axlab").attr("x",W-M.r).attr("y",M.t-5).attr("text-anchor","end").text(o.l2);
+  svg.append("text").attr("class","axlab").attr("x",W/2).attr("y",H-2).attr("text-anchor","middle").text("Clock cap (MHz)");
+  const l1=d3.line().x((d,i)=>x(labels[i])).y(d=>y1(d)), l2=d3.line().x((d,i)=>x(labels[i])).y(d=>y2(d));
+  svg.append("path").attr("d",l1(s1)).attr("fill","none").attr("stroke",HI).attr("stroke-width",2.2);
+  svg.append("path").attr("d",l2(s2)).attr("fill","none").attr("stroke",BLU).attr("stroke-width",1.8).attr("stroke-dasharray","5,4");
+  svg.selectAll("circle.a").data(s1).join("circle").attr("cx",(d,i)=>x(labels[i])).attr("cy",d=>y1(d)).attr("r",3.2).attr("fill",HI).append("title").text((d,i)=>`${labels[i]}: ${o.l1} ${d}`);
+  svg.selectAll("circle.b").data(s2).join("circle").attr("cx",(d,i)=>x(labels[i])).attr("cy",d=>y2(d)).attr("r",3).attr("fill",BLU).append("title").text((d,i)=>`${labels[i]}: ${o.l2} ${d}`);
+  if(o.mark){const i=labels.indexOf(o.mark);svg.append("line").attr("x1",x(o.mark)).attr("x2",x(o.mark)).attr("y1",M.t).attr("y2",H-M.b).attr("stroke",FAINT).attr("stroke-dasharray","2,3");svg.append("text").attr("x",x(o.mark)+4).attr("y",M.t+10).attr("font-size",9.5).attr("fill",SOFT).text("recommended");}
+  const lg=svg.append("g").attr("transform",`translate(${M.l+8},${H-M.b-14})`);
+  lg.append("line").attr("x1",0).attr("x2",20).attr("y1",0).attr("y2",0).attr("stroke",HI).attr("stroke-width",2.2);lg.append("text").attr("x",24).attr("y",3.5).attr("font-size",9.5).attr("fill",SOFT).text(o.l1);
+  lg.append("line").attr("x1",110).attr("x2",130).attr("y1",0).attr("y2",0).attr("stroke",BLU).attr("stroke-width",1.8).attr("stroke-dasharray","5,4");lg.append("text").attr("x",134).attr("y",3.5).attr("font-size",9.5).attr("fill",SOFT).text(o.l2);
+}
+const CAPS=["1400","1600","1800","2000","2200","2400","2600","2800","3000","unlimited"];
+dual("c-ds",CAPS,[14.99,15.73,16.24,16.67,17.05,17.37,17.47,17.43,17.45,17.47],[14.7,16.8,19.0,22.3,27.6,34.0,43.8,44.3,44.8,44.8],{d1:[13,18],d2:[0,50],l1:"Decode (tok/s)",l2:"Power (W)",mark:"2000"});
+dual("c-h3",CAPS,[125.3,113.3,107.3,102.7,97.2,96.8,95.3,97.0,95.2,96.1],[28.3,33.4,40.7,50.3,64.5,83.4,86.9,86.7,86.3,86.3],{d1:[80,130],d2:[0,95],l1:"Total time (s)",l2:"Power (W)",mark:"2000"});
+// Figure 4: CPU Δ°C per zone
+(function(){
+  const W=640,H=170,M={l:150,r:40,t:14,b:26};
+  const data=[{k:"Perf. cores (heat source)",v:-14},{k:"SoC overall",v:-9},{k:"Uncore/memory",v:-3.7},{k:"GPU",v:-1.7},{k:"NVMe",v:0}];
+  const svg=svgIn("c-cpu",W,H);
+  const x=d3.scaleLinear().domain([-15,0]).range([M.l,W-M.r]);
+  const y=d3.scaleBand().domain(data.map(d=>d.k)).range([M.t,H-M.b]).padding(.3);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`).call(d3.axisBottom(x).ticks(6).tickFormat(d=>d+"°"));
+  svg.selectAll("rect").data(data).join("rect").attr("x",d=>x(d.v)).attr("y",d=>y(d.k)).attr("width",d=>x(0)-x(d.v)).attr("height",y.bandwidth()).attr("fill",(d,i)=>i==0?HI:(i==1?"#a67b6c":FAINT));
+  svg.selectAll("text.k").data(data).join("text").attr("x",M.l-8).attr("y",d=>y(d.k)+y.bandwidth()/2+4).attr("text-anchor","end").attr("font-size",11).attr("fill",SOFT).text(d=>d.k);
+  svg.selectAll("text.v").data(data).join("text").attr("x",d=>x(d.v)-5).attr("y",d=>y(d.k)+y.bandwidth()/2+4).attr("text-anchor","end").attr("font-size",11).attr("font-weight",700).attr("fill",INK).text(d=>d.v===0?"0":d.v+"°C");
+})();
+// Figure 5: spin before/after (two groups)
+(function(){
+  const W=640,H=200,M={l:40,r:20,t:22,b:30};
+  const svg=svgIn("c-spin",W,H);
+  const groups=[{t:"vLLM CPU usage, combined (%)",a:333.6,b:88.7,max:400,fmt:v=>v+"%"},{t:"SoC temperature under load (°C)",a:77,b:66,max:100,fmt:v=>v+"°C"}];
+  const gw=(W-M.l-M.r)/2;
+  groups.forEach((g,gi)=>{
+    const x0=M.l+gi*gw+20, bw=52;
+    const y=d3.scaleLinear().domain([0,g.max]).range([H-M.b,M.t]);
+    svg.append("text").attr("x",x0+gw/2-20).attr("y",M.t-8).attr("text-anchor","middle").attr("font-size",11).attr("fill",SOFT).text(g.t);
+    [["Default 1s",g.a,FAINT],["2ms patch",g.b,HI]].forEach((b,i)=>{
+      const bx=x0+gw/2-20-bw-10+i*(bw+20);
+      svg.append("rect").attr("x",bx).attr("y",y(b[1])).attr("width",bw).attr("height",y(0)-y(b[1])).attr("fill",b[2]);
+      svg.append("text").attr("x",bx+bw/2).attr("y",y(b[1])-5).attr("text-anchor","middle").attr("font-size",11).attr("font-weight",700).attr("fill",INK).text(g.fmt(b[1]));
+      svg.append("text").attr("x",bx+bw/2).attr("y",H-M.b+14).attr("text-anchor","middle").attr("font-size",10).attr("fill",SOFT).text(b[0]);
+    });
+    svg.append("line").attr("x1",x0-10).attr("x2",x0+gw-30).attr("y1",y(0)).attr("y2",y(0)).attr("stroke",RULE);
+  });
+})();
+// Figure 6: MiaAI prefill tok/s vs length
+(function(){
+  const W=640,H=240,M={l:50,r:24,t:16,b:36};
+  const data=[{n:8015,v:739},{n:32049,v:1091},{n:63932,v:1065},{n:100013,v:1024},{n:200036,v:930},{n:330060,v:843}];
+  const svg=svgIn("c-mia",W,H);
+  const x=d3.scaleLinear().domain([0,340000]).range([M.l,W-M.r]);
+  const y=d3.scaleLinear().domain([600,1150]).range([H-M.b,M.t]);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`).call(d3.axisBottom(x).ticks(7).tickFormat(d=>d/1000+"k"));
+  svg.append("g").attr("class","axis").attr("transform",`translate(${M.l},0)`).call(d3.axisLeft(y).ticks(5));
+  svg.append("text").attr("class","axlab").attr("x",M.l).attr("y",M.t-5).text("Prefill (tok/s)");
+  svg.append("text").attr("class","axlab").attr("x",W/2).attr("y",H-3).attr("text-anchor","middle").text("Prompt length (tokens)");
+  svg.append("path").attr("d",d3.line().x(d=>x(d.n)).y(d=>y(d.v))(data)).attr("fill","none").attr("stroke",HI).attr("stroke-width",2.2);
+  svg.selectAll("circle").data(data).join("circle").attr("cx",d=>x(d.n)).attr("cy",d=>y(d.v)).attr("r",3.6).attr("fill",HI).append("title").text(d=>`${d.n.toLocaleString()} tok → ${d.v} tok/s`);
+  svg.selectAll("text.v").data(data).join("text").attr("x",d=>x(d.n)).attr("y",d=>y(d.v)-9).attr("text-anchor","middle").attr("font-size",10).attr("fill",INK).text(d=>d.v);
+  svg.append("line").attr("x1",x(0)).attr("x2",x(340000)).attr("y1",y(1024)).attr("y2",y(1024)).attr("stroke",FAINT).attr("stroke-dasharray","3,4");
+  svg.append("text").attr("x",x(340000)).attr("y",y(1024)-4).attr("text-anchor","end").attr("font-size",9.5).attr("fill",SOFT).text("README ~1,024 tok/s");
+})();
+})();
+</script></body></html>

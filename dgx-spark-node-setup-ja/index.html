@@ -1,0 +1,427 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ASUS Ascent GX10(DGX Spark) 1台を推論サーバーとしてセットアップする: 必須設定、推奨設定、トラブルシューティング、すぐ試せるレシピ</title><meta name="description" content="ASUS Ascent GX10(GB10)を工場出荷状態から推論サーバーへ。必須: プラットフォームパッケージを守りながらサーバーモードへ転換、ドライバ595、PDファームウェア、セキュリティの基本値。推奨: GPUクロック上限(スイープ実測グラフ)、CPU性能コア上限、vLLMスピンパッチ。初期状態の点検、200G ConnectX-7のトラブルシューティング、1台で直接検証したレシピ(ollama Qwen3.8-27B、DeepSeek V4 Flash EXL3)まで。"><meta property="og:title" content="ASUS Ascent GX10(DGX Spark) 1台を推論サーバーとしてセットアップする"><meta property="og:description" content="必須設定、推奨設定(電力とスピンパッチ、実測グラフ)、トラブルシューティング、1台で実際に試したレシピ"><meta property="og:type" content="article"><meta property="og:url" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup-ja/"><meta property="og:image" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup-ja/og.png"><meta name="twitter:card" content="summary_large_image"><style>
+:root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--box:#f3f2ec;--hi:#7a4a3a;--blu:#3b6ea5}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+ font-family:"Noto Sans JP","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+ font-size:18px;line-height:1.72;word-break:normal;overflow-wrap:anywhere}
+.doc{max-width:44em;margin:0 auto;padding:4rem 1.4rem 7rem}
+.kicker{font-size:.82rem;font-weight:700;letter-spacing:.06em;color:var(--hi);margin:0 0 1rem}
+h1{font-size:1.75rem;font-weight:800;line-height:1.34;letter-spacing:-.01em;margin:0 0 1.3rem}
+h2{font-size:1.2rem;font-weight:800;margin:3rem 0 .7rem;padding-top:.75rem;border-top:2px solid var(--ink)}
+h3{font-size:1.04rem;font-weight:700;margin:1.9rem 0 .5rem}
+p{margin:0 0 .95rem}
+.lede{background:var(--box);border-radius:5px;padding:1rem 1.15rem .3rem;margin:0 0 1.6rem}
+.lede p{font-size:.95rem}
+ul,ol{margin:.4rem 0 1.1rem;padding-left:1.15rem} li{margin:.45rem 0}
+table{width:100%;border-collapse:collapse;font-size:.85rem;line-height:1.5;margin:0 0 1.1rem}
+th,td{text-align:left;padding:.48rem .6rem .48rem 0;vertical-align:top}
+thead th{border-bottom:1px solid var(--ink);font-size:.79rem;font-weight:700}
+tbody tr+tr td{border-top:1px solid var(--rule)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.hi td{font-weight:700}
+td small{color:var(--soft);font-size:.85em}
+.fcap{font-size:.83rem;color:var(--soft);margin:.2rem 0 1.6rem}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.axis line,.axis path{stroke:var(--rule)}
+.axis text{fill:var(--faint);font-size:10px}
+.axlab{fill:var(--soft);font-size:10.5px}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8em;color:#46443f;background:#efeee7;
+ padding:0 .25em;border-radius:2px}
+pre{background:#f3f2ec;border-radius:4px;padding:.85rem 1rem;overflow-x:auto;font-size:.8rem;line-height:1.6;margin:0 0 1.1rem}
+pre code{background:none;padding:0;font-size:1em}
+a{color:var(--hi)}
+.toc{font-size:.9rem;background:var(--box);border-radius:5px;padding:.8rem 1.1rem;margin:0 0 1.6rem}
+.toc ol{margin:.2rem 0 0;padding-left:1.2rem}
+.toc li{margin:.15rem 0}
+.note{border-left:3px solid var(--hi);padding:.2rem 0 .2rem .9rem;margin:0 0 1.1rem;font-size:.93rem;color:var(--soft)}
+.warn{background:#f7efe9;border:1px solid #e6cfc3;border-radius:5px;padding:.85rem 1.1rem .1rem;margin:0 0 1.6rem;font-size:.92rem}
+.warn b{color:var(--hi)}
+.infobox{background:var(--box);border:1px solid var(--rule);border-radius:5px;padding:.9rem 1.1rem .2rem;margin:1.4rem 0 1.2rem;font-size:.92rem}
+.infobox .ib-title{font-weight:700;margin:0 0 .5rem;color:var(--hi)}
+@media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.1rem 5rem}}
+</style></head><body><div class="doc">
+<div class="kicker">ASUS Ascent GX10 (NVIDIA GB10) セットアップガイド</div>
+<h1>ASUS Ascent GX10(DGX Spark) 1台を推論サーバーとしてセットアップする: 必須設定、推奨設定、トラブルシューティング、すぐ試せるレシピ</h1>
+<p class="fcap" style="margin:0 0 1.4rem">関連記事: <a href="../gb10-clock-cap/">GB10にクロック上限をかける方法 → (韓国語)</a> / <a href="../vllm-spin-wait-gb10-en/">LLM推論で最も熱いのはGPUではなかった → (英語)</a> / <a href="../deepseek-v4-flash-2x-dgx-spark/">DGX Spark 2台でDeepSeek V4 Flashを動かす → (韓国語)</a></p>
+<p class="fcap" style="margin:0 0 1.4rem"><a href="../dgx-spark-node-setup/">한국어 원문 →</a> / <a href="../dgx-spark-node-setup-en/">English →</a></p>
+
+<p>ASUS Ascent GX10(NVIDIA GB10、DGX Spark製品群)を3台目として導入するにあたり、工場出荷状態のマシンを推論サーバーに仕立てる手順を最初から踏み直した。この記事の対象は<strong>ASUS Ascent GX10</strong>だ。NVIDIA DGX Sparkや他メーカーのGB10機でも似ている可能性は高いが、ファームウェア、標準イメージ、パッケージ構成は製品によって異なりうるので、そのまま従う前に各自の機器で確認してほしい。先の2台で数週間かけて一つずつ突き止めたことを今回は一度に適用し、その過程で遭遇した問題も一緒に書く。この記事はその手順を四つのかたまりに分ける。必ずやるべきこと、やるとよいこと、遭遇した問題、そしてセットアップの終わった1台ですぐ試せるレシピだ。自宅ネットワーク固有の設定(VLAN、アドレス、スイッチ)は省いた。</p>
+
+<div class="warn"><p><b>注意。</b> この記事には、ファームウェアのアップグレード、ドライバの入れ替え、デスクトップパッケージの削除、ファイアウォール設定のように、元に戻しにくい、あるいはリモート接続を切断しかねないシステム変更が含まれる。コマンドを実行する前に、各自の機器とバージョンで何が変わるかを自分で確認し、自己責任で進めてほしい。数値は私たちの機器での実測であり、保証ではない。</p></div>
+
+<div class="toc"><strong>目次</strong>
+<ol>
+<li><a href="#s0">はじめに: 画面の案内どおりに、その後はSSHで</a></li>
+<li><a href="#s1">必須設定</a>: サーバーモード、ドライバ595、PDファームウェア、セキュリティの基本値</li>
+<li><a href="#s2">推奨設定</a>: GPUクロック上限、CPU性能コア上限、vLLMスピンパッチ、Tailscale</li>
+<li><a href="#s3">トラブルシューティング</a>: 遭遇した問題、よくある誤解、200G ConnectX-7</li>
+<li><a href="#s4">1台ですぐ試せるレシピ</a>: ollama Qwen3.8-27B、DeepSeek V4 Flash EXL3</li>
+<li><a href="#s5">一画面チェックリスト</a></li>
+</ol></div>
+
+<h2 id="s0">0. はじめに: 画面の案内どおりに、その後はSSHで</h2>
+<p>初回起動時に出る設定画面(アカウント、キーボード、ネットワーク)は案内どおりに済ませればよい。特に選ぶものはない。そこから先はモニターとキーボードを片付けてSSHで作業するほうが楽だ。この記事の残りの手順もすべてSSHで行った。コーディングエージェント(例: Claude Code)にSSH接続権限を与えて一緒に進めるやり方を勧める。以下の手順はほとんどが点検と照合の繰り返しなので、エージェントに向いている。</p>
+<pre><code># DGX Spark側 (初回のみ、ローカル端末で)
+ip -br a                       # 有線IPの確認
+systemctl status ssh           # SSHサーバーの動作確認 (なければ sudo apt install openssh-server)
+
+# 作業PC側
+ssh-copy-id user@&lt;spark-ip&gt;     # 公開鍵をコピー。以後はパスワードなしで接続
+ssh user@&lt;spark-ip&gt;</code></pre>
+<p>工場出荷状態はこうだった。ドライバとファームウェアのバージョンはマシンごとに異なりうるので、まず確認する。</p>
+<table><thead><tr><th>項目</th><th>工場出荷状態 (2026-08入荷分)</th><th>この記事の目標</th></tr></thead><tbody>
+<tr><td>OS / カーネル</td><td>Ubuntu 24.04.4 / 6.17.0-1031-nvidia</td><td>そのまま</td></tr>
+<tr><td>デフォルトターゲット</td><td>graphical (GNOME、gdm3、snap 13個、設定ウィザードアプリ)</td><td>multi-user</td></tr>
+<tr><td>GPUドライバ</td><td>580.173.02</td><td><strong>595.84</strong></td></tr>
+<tr><td>USB-C PDファームウェア</td><td>0x1</td><td><strong>0x516</strong></td></tr>
+<tr><td>クロック</td><td>GPU最大3003MHz、CPU性能コア3.9GHz (制限なし)</td><td>(推奨) GPU 2000MHz、性能コア2.8GHz</td></tr>
+<tr><td>SSH / ファイアウォール</td><td>パスワードログイン許可 / ファイアウォール無効</td><td>鍵のみ / デフォルト拒否</td></tr>
+<tr><td>セキュリティ更新</td><td>自動化なし、15件待機</td><td>自動適用、自動再起動なし</td></tr>
+</tbody></table>
+
+<h3>0.1 初期状態の点検: ポートとデバイスがすべて認識されているか</h3>
+<p>セットアップを始める前に、そして終わった後にもう一度、OSから見えるデバイス一覧を期待値と照合する。1行ずつ実行してもよいし、まとめてスクリプトで回してもよい。</p>
+<pre><code>lspci | grep -E 'ConnectX|NVIDIA|Non-Volatile|Realtek|MEDIATEK'   # PCIデバイス
+ip -br link                                                        # ネットワークインターフェース
+ethtool enP7s7 | grep -E 'Speed|Link detected'                     # 10G RJ45
+for d in /sys/class/net/en*np*; do echo $(basename $d) $(cat $d/operstate) $(cat $d/speed); done   # 200G
+ls /sys/bus/usb/devices | grep -c '^usb'; lsusb                    # USBルートハブ数とデバイス
+lsblk -d -o NAME,SIZE,MODEL | grep nvme                            # NVMe
+nproc; free -g | grep Mem; nvidia-smi -L                           # CPU、メモリ、GPU
+nvidia-smi --query-gpu=driver_version,clocks.sm --format=csv       # ドライバ、クロック
+for z in /sys/class/thermal/thermal_zone*; do printf '%s=%s°C ' $(cat $z/device/path | sed 's/.*\.//') $(( $(cat $z/temp)/1000 )); done; echo   # 温度ゾーン7個
+fwupdmgr get-devices | grep 'Current version'                      # EC、SoC FW、PD、NVMeファームウェア
+sudo dmesg --level=err,crit | grep -v -i tpm | tail                # カーネルエラー
+systemctl list-units --state=failed                                # 失敗したユニット</code></pre>
+<table><thead><tr><th>項目</th><th>GX10で期待する値 (3台とも同一だった)</th></tr></thead><tbody>
+<tr><td>PCIデバイス</td><td>NVIDIA VGA(GB10) 1、NVMe(Phison) 1、Realtek 8127 10G 1、MediaTek 7925 Wi-Fi 1、<strong>ConnectX-7 4個(ケーブルが挿さっているときのみ)</strong></td></tr>
+<tr><td>ネットワークインターフェース</td><td><code>enP7s7</code>(10G RJ45) UP 10000Mb/s、<code>wlP9s9</code>(Wi-Fi)、200Gは <code>enp1s0f0np0</code>、<code>enp1s0f1np1</code>、<code>enP2p1s0f0np0</code>、<code>enP2p1s0f1np1</code> の4個(物理ポートは2個、各ポートがPCIeファンクション2個として見える)。ケーブルの挿さったポートは <code>up 200000</code></td></tr>
+<tr><td>USB</td><td>ルートハブ12個(USB 2.0 6 + 3.0 6)、内蔵デバイスとしてWi-Fi/BTコンボ1個</td></tr>
+<tr><td>ストレージ</td><td>NVMe 1個(出荷構成により1TBまたは4TB)</td></tr>
+<tr><td>CPU / メモリ / GPU</td><td>20コア / MemTotal 121GiB / GPU 0: NVIDIA GB10</td></tr>
+<tr><td>温度ゾーン</td><td>7個: TSOC、TS0E、TS0P、TS1E、TS1P、TGPU、TUNC。アイドル42~50°C</td></tr>
+<tr><td>ファームウェア</td><td>EC、SoC FW(UEFI)、USB-C PD、NVMeのバージョンが列挙される。PDが0x1なら1.3へ</td></tr>
+<tr><td>カーネルエラー / 失敗ユニット</td><td><code>nvidia-fs: warning: error retrieving numa node</code> は無害。それ以外のエラー0、失敗ユニット0</td></tr>
+</tbody></table>
+<p><strong>物理的にも確認しよう。</strong> OSにデバイスが見えることと、ポートが実際に動作することは別だ。特に200G QSFPの2ポートはケーブルがないとPCIデバイス自体が見えないため、DACケーブルを実際に挿して両方のケージでリンクが上がるか(<code>operstate up</code>、<code>speed 200000</code>)を見る必要がある。USB-Cポートはそれぞれデバイスを挿して <code>lsusb</code> に出るか、RJ45はリンクLEDと <code>ethtool</code> の10000Mb/s、HDMIはモニターで一度ずつ。マシンを設置場所に固定する前、交換が可能な期間内にやっておくのがよい。私たちは3台目を200Gポートにケーブルを挿さないまま受け入れてしまい、「PCIに見えない」のを故障だとしばらく疑った(3章)。</p>
+
+<h2 id="s1">1. 必須設定</h2>
+
+<h3>1.1 サーバーモードへの切り替え: プラットフォームパッケージを守りながら</h3>
+<p>工場イメージはGNOMEデスクトップだ。推論サーバーとして使うなら取り除いたほうがよい。GB10はCPUとGPUが128GiBのメモリプール一つを分け合うが、デスクトップが動いているとそのプールから数GiBを占有する。単一ノードレシピのREADMEはデスクトップの載ったホストのレシピ起動時の利用可能メモリを約114.5GiBと書いているが、サーバーモードに変えたこのノードは同じレシピの起動時に<strong>117.4GiB</strong>、アイドル状態では119.0GiBだった。同じマシンで前後を測ったわけではないので厳密な比較ではないが、3~4.5GiBの差は大きなモデルを載せるときそのままKVキャッシュの余裕になる。</p>
+<div class="chart" id="c-mem"></div>
+<p class="fcap">図1. 利用可能メモリ(MemTotal 121.6GiB基準)。デスクトップホスト(レシピREADME、起動時) ~114.5GiB、このノードのサーバーモードは起動時117.4GiB、アイドル119.0GiB。</p>
+<div class="infobox"><div class="ib-title">なぜ128GiBではなく121GiBに見えるのか (単位の整理、実測)</div>
+<p>この記事のメモリの数字はすべて二進単位のGiB(2<sup>30</sup>バイト)だ。<code>free -g</code> と <code>/proc/meminfo</code> が使う単位であり、製品表記の「128GB」も実際には128GiB(十進137.4GB)だ。DMIが報告するメモリアドレス範囲0x80000000~0x207FFFFFFFがちょうど2<sup>37</sup>バイト = 128GiBであり、そこから以下の順に差し引かれる(すべてこのマシンで読んだ値)。</p>
+<table><thead><tr><th>段階</th><th class="n">サイズ</th><th>内容</th></tr></thead><tbody>
+<tr><td>物理LPDDR5X</td><td class="n">128.00GiB</td><td>CPUとGPUが共用する単一プール (LPDDR5 8533MT/s、dmidecode)</td></tr>
+<tr><td>メモリマップにない区間</td><td class="n">−0.37GiB</td><td>UEFIがカーネルに渡すメモリマップ(memblock 127.63GiB)にそもそも含まれないDRAM区間。ファームウェア側が使っていると見られるが、用途は公開されていない</td></tr>
+<tr><td>マップにあるがreserved</td><td class="n">−3.55GiB</td><td>ディスプレイ/iGPUの予約がここに入る。NVIDIAのリリースノート(2026年7月)は「Display Reserved Memory」をBIOSで2GB(既定)か4GBに選べると記し、旧ファームウェア(大きい予約)の機体はMemTotal約119.7GiB、現行は121.6〜121.7GiBと報告されている。私たちの121.63GiBは現行側だ。私たちのASUSファームウェアでは大きい2領域が2616MiB + 460MiB = 3076MiBで、起動時フレームバッファ(BOOTFB)がその中にあり、3章で見た非表示項目「iGPU Memory Carveout」の値24(×128MiB = 3072MiB)と一致する。ただしその項目の単位は文書化されておらず、最小値も24なのでこれ以上は減らせない。残りの約0.55GiBはUEFIランタイム、ACPI、TPMなど。差し引き後のSystem RAMは124.08GiB</td></tr>
+<tr><td>カーネル自体の固定割り当て</td><td class="n">−2.45GiB</td><td>4KiBページ32,526,926個のpage構造体(64Bずつ = 1.94GiB) + カーネルイメージ、initramfs、percpuなど0.5GiB。ここまで引くと<strong>MemTotal 121.63GiB</strong>、<code>free -g</code> の121。CMA 128MiBはこの中に含まれる</td></tr>
+<tr><td>アイドル時のシステム使用</td><td class="n">−2.6GiB</td><td>サービス、スラブ(GPUドライバのUVMを含む)、ページキャッシュは除く。サーバーモードのアイドルで<strong>MemAvailable 119.0GiB</strong>。デスクトップが動いているとここからさらに数GiBが引かれる</td></tr>
+</tbody></table>
+<p>つまり「128GBのうち121GBしか見えない」のは故障ではなく正常で、モデルを載せるときの基準にすべきなのはMemTotalではなく<strong>MemAvailable</strong>だ。100MiBが惜しいサイズのモデルを載せるなら、手を入れられるのは実質ひとつ、page構造体1.94GiBを減らす<strong>64KiBページカーネル</strong>だ(NVIDIAが<code>linux-image-nvidia-64k-hwe-24.04</code>として提供、構造体が約1/16になり1.8GiBほど回収できる)。ただしNVIDIAのDGX OSカーネル表はSparkに64Kでないカーネルを使っており、595ドライバには4GiB以上を一度に固定マッピングする経路(ディスクKVオフロードなど)で既知の不具合(open-gpu-kernel-modules #1269)があるため、使うワークロードで先に検証し、4Kの起動エントリを残しておくこと。ディスプレイ予約はBIOSに項目があっても既定値(2GB、あるいは私たちのファームウェアの24)が最小値なので減らせず、CMA(128MiB)はムーバブルページとしてそのまま使われるので減らしても得はなく、crashkernelはすでに0だ。</p></div>
+
+<p>問題はデスクトップを消すコマンド自体ではなく、その後の <code>apt autoremove --purge</code> だ。2台目をセットアップしたとき、このコマンドが<strong>NVIDIAプラットフォームパッケージ14個を丸ごと持っていった</strong>ことがある。これらのパッケージは <code>dgx-spark-ota-update-meta</code> というメタパッケージの依存関係としてしか参照されていないので、メタパッケージがsnapdと一緒に抜けた瞬間に「誰も必要としないパッケージ」になる。ブートパラメータを入れてくれるスニペット2個(<code>nvidia-spark-initcall-bl</code>、<code>nvidia-spark-grub-pci</code>)が一緒に消え、再インストールと <code>update-grub</code>、再起動で元に戻した。</p>
+<p>今回は三段階で防いだ。消す前にプラットフォームパッケージを手動インストールとしてマークし、消すコマンドはまずシミュレーションで回して削除リストにドライバ、CUDA、プラットフォームパッケージが混ざれば止まるようにし、終わった後にブートパラメータを照合する。</p>
+<pre><code># 以下、1章と2章のコマンドはrootシェル(sudo -i)基準
+
+# 1) 保護: メタパッケージの依存パッケージ(snap関連を除く) + インストール済みのNVIDIA/DGX/docker/CUDAパッケージを手動インストールとしてマーク
+apt-cache depends dgx-spark-ota-update-meta | awk '/Depends:/{print $2}' | grep -v snaps | xargs apt-mark manual
+apt-mark manual $(dpkg -l | awk '/^ii/{print $2}' | grep -E '^(nvidia-|dgx-|docker|containerd|cuda|lldpd)')
+# (基準マシンがあれば、そちらの `apt-mark showmanual` リストと照合して足りないものを追加する)
+
+# 2) 切り替え + シミュレーションゲート (保護対象が削除リストに混ざれば止まる)
+systemctl set-default multi-user.target
+CAND="ubuntu-desktop ubuntu-desktop-minimal gdm3 gnome-shell xorg xwayland gnome-control-center \
+      libreoffice-core network-manager-gnome snapd nvidia-desktop-default-snaps nvidia-system-station \
+      dgxstation-desktop dgx-oobe-desktop dgx-spark-ota-update-meta ubuntu-server-minimal"
+PURGE=""; for p in $CAND; do dpkg -s "$p" &gt;/dev/null 2&gt;&amp;1 &amp;&amp; PURGE="$PURGE $p"; done   # インストール済みのものだけ
+apt-get -s purge $PURGE | grep ^Remv | grep -E 'nvidia-driver|linux-modules-nvidia|cuda|docker|nvidia-spark' \
+  &amp;&amp; { echo "保護対象を含む、中断"; exit 1; }
+apt-get purge -y $PURGE
+apt-get -s autoremove --purge | grep ^Remv | grep -E 'nvidia-|dgx-|lldpd|docker|cuda' \
+  &amp;&amp; { echo "保護対象を含む、中断"; exit 1; }
+apt-get autoremove --purge -y
+rm -rf /snap /var/snap /var/lib/snapd /home/*/snap
+
+# 3) 照合 (再起動後にももう一度)
+update-grub
+grep -o 'initcall_blacklist=[^ ]*\|pci=pcie_bus_safe\|iommu.passthrough=[0-9]' /boot/grub/grub.cfg | sort -u</code></pre>
+<p>OTAメタパッケージは復活させない。復活させると <code>nvidia-desktop-default-snaps</code> を通じてsnapdが戻ってきてサーバーモードが壊れる。メタパッケージの仕事は「次のリリースでNVIDIAが追加するパッケージを引き込むこと」なので、ときどき <code>Depends</code> リストとインストール状態を照合し、足りないものだけ個別にインストールすればよい。個別のプラットフォームパッケージは <code>apt upgrade</code> で正常に更新される。</p>
+
+<h3>1.2 ドライバ 580 → 595</h3>
+<p>変える理由は速度ではなく不具合だ。580.173.02ではKVキャッシュをディスクにオフロードする経路でGPUエラー(<code>Xid 13</code>)が再現し、595.84に上げると同じコードで消えた。新しいマシンも最初から595に合わせる。</p>
+<pre><code>apt-get -s install nvidia-driver-595-open linux-modules-nvidia-595-open-nvidia-hwe-24.04 | grep -E '^(Inst|Remv)'
+# 削除(Remv)行がすべて580系であることを確認する。そうでなければ止める
+apt-get -s install nvidia-driver-595-open linux-modules-nvidia-595-open-nvidia-hwe-24.04 \
+  | grep ^Remv | grep -v 580 &amp;&amp; { echo "580以外の削除項目あり、中断"; exit 1; }
+apt-get install -y nvidia-driver-595-open linux-modules-nvidia-595-open-nvidia-hwe-24.04</code></pre>
+<p><code>linux-modules-nvidia-595-open-nvidia-hwe-24.04</code> は、いま実行中のカーネルに合うビルド済みモジュールパッケージを引き込む(ここでは <code>…-6.17.0-1031-nvidia</code>)。DKMSビルドが不要で、マシンごとにカーネルが違ってもそれぞれ合うものを受け取る。インストール直後は再起動するまで <code>nvidia-smi</code> が「Driver/library version mismatch」を出すが、これは正常だ。戻すには <code>apt-cache policy nvidia-driver-580-open</code> でバージョンを確認したうえで <code>apt-get install nvidia-driver-580-open=&lt;バージョン&gt; linux-modules-nvidia-580-open-nvidia-hwe-24.04</code>。</p>
+
+<h3>1.3 USB-C PDファームウェア</h3>
+<p>GB10製品群の全般で報告されている現象がある。最大負荷でもクロックが400~950MHzにとどまって性能が1/3に落ちるのに、スロットルフラグはすべてNot Activeだ。USB-C PDコントローラのファームウェアが電源ネゴシエーションを誤り、SoCが自らクロックを下げてロックするケースとして知られており、再起動では解けず、電源ケーブルを抜いて放電しないと解けない。予防はPDファームウェアを最新にすることだ。このマシンのPDファームウェアは0x1で、LVFSに0x516(緊急度High)が上がっていた。</p>
+<pre><code>fwupdmgr refresh --force
+fwupdmgr get-updates                  # "GX10 USB-C PD FW Controller Update" 0x516
+fwupdmgr update -y --no-reboot-check  # カプセルが /boot/efi/EFI/ubuntu/fw/ に準備される
+# 再起動 (約2分) → fwupdmgr get-devices で 0x00000516 を確認</code></pre>
+<p>ドライバの入れ替え、サーバーモードへの切り替え、ファームウェアの適用を1回の再起動で処理した。同じ経路でUEFI(「GX10 SoC FW」)とECファームウェアも配信される。</p>
+
+<h3>1.4 セキュリティと更新の基本値</h3>
+<table><thead><tr><th>項目</th><th>設定</th><th>メモ</th></tr></thead><tbody>
+<tr><td>sshd</td><td><code>PasswordAuthentication no</code>、<code>KbdInteractiveAuthentication no</code>、<code>PermitRootLogin prohibit-password</code></td><td><code>~/.ssh/authorized_keys</code> に鍵が入っていることを確認したうえで <code>sshd -t &amp;&amp; systemctl reload ssh</code></td></tr>
+<tr><td>ufw</td><td>incoming deny / outgoing allow / routed deny。SSHは管理ネットワークからのみ、サービスポートは必要なときに1行ずつ</td><td>SSHで作業中なら <code>ufw allow from &lt;管理ネットワーク/24&gt; to any port 22 proto tcp</code> を<strong>先に</strong>入れてから <code>ufw enable</code> し、既存セッションは開いたまま新しい端末で接続を確認する。推論APIポート(8000、8888など)をLANに開くときも明示的に追加する</td></tr>
+<tr><td>unattended-upgrades</td><td>パッケージリストの更新とアップグレードを自動化、<code>Automatic-Reboot "false"</code>、<code>Remove-Unused-Kernel-Packages "true"</code></td><td>推論中に再起動されては困るので自動再起動は切る</td></tr>
+<tr><td>タイムゾーン / Wi-Fi</td><td><code>timedatectl set-timezone</code> / <code>nmcli radio wifi off</code></td><td>工場出荷状態はUTC。Wi-Fiは有線接続を確認してから切る</td></tr>
+<tr><td>persistenced / journald</td><td>enabled / persistent</td><td>工場デフォルトのまま</td></tr>
+</tbody></table>
+
+<h2 id="s2">2. 推奨設定</h2>
+<p>ここからはやらなくても動く。しかし外付けの冷却ファンなしでGB10を長時間回すなら、電力と発熱を一度は考えておくのがよく、以下の数値がその判断材料だ。</p>
+
+<h3>2.1 GPUクロック上限: 電力 −40~50%、LLMデコード −5%、動画生成 +7~17%</h3>
+<p>GB10にはワット単位の電力上限(<code>nvidia-smi -pl</code>)がない。唯一の調節手段はクロック上限(<code>-lgc</code>)だ。1400MHzから無制限まで200MHz刻みでスイープした結果が以下の二つのグラフだ。デコードはメモリ帯域がボトルネックなのでクロックを下げてもトークン速度はほとんど落ちない一方、電力と温度はクロックとともに急上昇する。</p>
+<div class="chart" id="c-ds"></div>
+<p class="fcap">図2. LLMデコード(DeepSeek V4 Flash Q2、llama.cpp、256トークン3回の中央値)、上限別のtok/s(実線)と負荷時電力(点線)。2000MHzは16.7 tok/sで22W、無制限は17.5 tok/sで45W。2600以上はSMの実測クロックが~2495MHzにとどまり結果が同じ。</p>
+<div class="chart" id="c-h3"></div>
+<p class="fcap">図3. 動画生成(MiniMax-H3、20 step)、上限別の総時間(実線)と負荷時電力(点線)。2000MHzは103s、50W、66°C。2200は97s、65W、73°C。2400以上は約96s、85W、80°C以上。GPU演算が大半の作業では時間の利得が2200~2400で頭打ちになる。</p>
+<table><thead><tr><th>上限</th><th>用途</th><th class="n">LLMデコード</th><th class="n">動画生成</th></tr></thead><tbody>
+<tr><td>2200</td><td>速度優先</td><td class="n">17.1 tok/s、28W、57°C</td><td class="n">97s、65W、73°C</td></tr>
+<tr class="hi"><td>2000</td><td>バランス (推奨値)</td><td class="n">16.7 tok/s、22W、55°C</td><td class="n">103s、50W、66°C</td></tr>
+<tr><td>1800</td><td>真夏、換気の悪い日</td><td class="n">16.2 tok/s、19W、53°C</td><td class="n">107s、41W、61°C</td></tr>
+<tr><td>1400~1600</td><td>長時間、低発熱</td><td class="n">15.0~15.7 tok/s、15~17W、49~51°C</td><td class="n">113~125s、28~33W</td></tr>
+</tbody></table>
+<pre><code># /etc/systemd/system/gpu-clock-cap.service
+# 作成後: systemctl daemon-reload &amp;&amp; systemctl enable --now gpu-clock-cap   (止めるには systemctl stop)
+[Unit]
+Description=GPU clock cap 300-2000MHz
+After=multi-user.target
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/nvidia-smi -lgc 300,2000
+ExecStop=/usr/bin/nvidia-smi -rgc
+[Install]
+WantedBy=multi-user.target</code></pre>
+<p>2000を指定すると実際には内部ステップに合わせて約1989MHzになる。一つだけ覚えておけばよい。この上限はベンチマーク条件だ。性能数値を書くときはクロック条件を併記し、負荷中に <code>nvidia-smi --query-gpu=clocks.sm</code> で実際のクロックを確認する。以下のレシピの数字はすべてこの上限がかかった状態の値だ。</p>
+
+<h3>2.2 CPU性能コア上限: なぜCPUを制限するのか</h3>
+<p>CPU上限はGPUとは理由が異なる。出発点は「LLM推論中なのになぜCPUが熱いのか」だった。GB10を2台つないでvLLM(TP=2)でデコードを回したところ、GPUは70°C前後なのに<strong>性能コア3~4個が100%に張り付いたままSoC温度を96°Cまで押し上げた。</strong>原因はvLLMのプロセス間メッセージキューが新しいメッセージを待つ間スピンするデフォルト値だった(下の2.3)。その修正はソフトウェア側の対処にすぎず、エンジンやイメージが変われば問題はまた再発しうる。だから<strong>ホスト側の安全網として性能コアのクロック上限</strong>も一緒にかける。1台でTP=1で回す構成には2.3のスピン自体がないので、この上限は別のエンジンや構成がCPUを過剰に回したときのための保険であり、任意だ。</p>
+<p>GB10の20コアは性能コア10個(最大3.9GHz)と効率コア10個(2.8GHz)だ。性能コアを効率コアと同じ2.8GHzに制限したときの温度変化をゾーン別に見ると、性能コアから遠ざかるほど低下幅が小さくなり、熱源が性能コアであることがわかる。</p>
+<div class="chart" id="c-cpu"></div>
+<p class="fcap">図4. 性能コア 3.9 → 2.8GHz の上限適用時、負荷中の温度変化(°C)。性能コア −14、アンコア/メモリ −3.7、GPU −1.7、NVMe 0。SoC総合は −9。単一ストリームの速度は変化なし、同時8ストリームで −5%。</p>
+<pre><code># /etc/systemd/system/cpu-clock-cap.service: 性能コア(最大3.9GHz)だけ2.8GHzに
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/bash -c 'for p in /sys/devices/system/cpu/cpufreq/policy*; do \
+  m=$(cat $p/cpuinfo_max_freq); \
+  if [ "$m" -gt 2808000 ]; then echo 2808000 &gt; $p/scaling_max_freq; fi; done'
+ExecStop=/usr/bin/bash -c 'for p in /sys/devices/system/cpu/cpufreq/policy*; do \
+  cat $p/cpuinfo_max_freq &gt; $p/scaling_max_freq; done'
+[Install]
+WantedBy=multi-user.target</code></pre>
+<p><code>/sys/devices/system/cpu/cpufreq/boost</code> はこのプラットフォームではデフォルト0なので、別途触る必要はない。まとめると、GPU上限は電力と発熱の上限であり、CPU上限はソフトウェアがCPUを過剰に回し始めたときの安全網だ。どちらも数字だけでなくかける理由まで把握しておけば、後で適切なタイミングで外せる。</p>
+
+<h3>2.3 vLLMスピンパッチ: 2台以上つなぐとき</h3>
+<div class="note">まず適用範囲から: このスピンはvLLMのマルチプロセスエグゼキューター(<code>mp</code> executor)でのみ起きる。<strong>1台でTP=1で回す場合は該当しない</strong>(ワーカーが同じプロセス内にあり、キュー自体がない)。2台以上をつなぐか、<code>--distributed-executor-backend=mp</code> を明示したときの話だ。</div>
+<p>vLLMの <code>shm_broadcast.py</code> には、メッセージキューを待つとき1秒間(<code>busy_loop_s=1</code>)スピンしてからようやくスリープするデフォルト値がある。デコードのステップ間隔は1秒よりはるかに短いので、事実上つねにスピンしていることになる。コアが数十個ある一般的なサーバーでは3~4コアの浪費は目立たないが、CPUとGPUが一つのパッケージに入っているGB10ではその熱がそのままSoC温度になる。py-spyでスタックを取ってデフォルト値を2msに変えたところ、vLLMプロセスのCPU合計が333%から89%に減り、SoC温度は11°C下がった。調査の経緯は<a href="../vllm-spin-wait-gb10-en/">元記事 (英語)</a>に、条件を揃えた再現実験は<a href="../vllm-spin-wait-gb10-repro-en/">後続実験 (英語)</a>にある。</p>
+<div class="chart" id="c-spin"></div>
+<p class="fcap">図5. スピンのデフォルト(1秒)と2msパッチ。左: vLLMプロセスのCPU使用量合計(%)。右: 負荷中のSoC温度(°C、外部ファンのないノード)。再現実験ではデフォルトが負荷開始90秒で85°C、2分18秒で90°C、ピークは95°Cに達し、パッチはピーク85°Cだった。</p>
+<pre><code># コンテナ/仮想環境の中、vLLM起動前 (パスはインストール場所に合わせる)
+sed -i 's/busy_loop_s: float = [0-9.]*/busy_loop_s: float = 0.002/' \
+  $(python -c 'import vllm,os;print(os.path.dirname(vllm.__file__))')/distributed/device_communicators/shm_broadcast.py
+grep -n 'busy_loop_s' $(python -c 'import vllm,os;print(os.path.dirname(vllm.__file__))')/distributed/device_communicators/shm_broadcast.py
+# 変わった行が見えるはず。パターンがなければsedは黙って何もしない。
+# ビルドによって環境変数(VLLM_MQ_SPIN_SECONDSなど)で公開されている場合はそちらを使う。</code></pre>
+<p>一つ正直に断っておきたい。後日の再検証では、単一ストリームのデコードがデフォルト40.9に対しパッチ38.7 tok/sと約2~6%遅かった(反復のばらつきの範囲内だが傾向は一貫していた。同時4ストリームでは差なし、CPU減少はそのまま再現)。そこで私たちはこのパッチを<strong>「発熱が問題のときに入れるスイッチ」</strong>として位置づけている。外部冷却がなく夏なら入れ、単一ストリームの速度が優先なら切る、という具合だ。2.2のCPU上限はその選択とは無関係にかけておく。</p>
+
+<h3>2.4 Tailscale: 家の外からもSSH</h3>
+<p>推論サーバーは一度セットアップすればその前に座って作業することは少なく、ほとんどは別の場所からSSHで入る。ルーターのポートフォワーディングの代わりにTailscaleを入れておけば、どこからでも同じ名前でつながる。この記事の後半の作業も家の外からtailnetで行った。</p>
+<pre><code>curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up                      # 表示されたURLでログイン (管理コンソールでauth keyを作って --authkey で渡してもよい)
+tailscale ip -4                   # このマシンのtailnetアドレス
+ufw allow in on tailscale0        # ファイアウォールを有効にしたなら、tailnetインターフェースは丸ごと許可</code></pre>
+<p>MagicDNSを有効にしておけば <code>ssh &lt;ホスト名&gt;</code> だけでつながる。推論APIも同じ経路で開けるので、LANの外で使うサービスはufwにLANルールを追加する代わりにtailnetだけに開けておくほうが単純だ。</p>
+
+<h2 id="s3">3. トラブルシューティング: 遭遇した問題とよくある誤解</h2>
+<table><thead><tr><th style="width:34%">症状</th><th>原因 / 対処</th></tr></thead><tbody>
+<tr><td>再起動後に <code>docker.service</code> が失敗: <code>error creating buildkit instance: invalid database</code></td><td>工場イメージに入っていたbuildkitのローカルDB(2025-09作成)が破損していた。ビルドキャッシュに過ぎないので <code>systemctl stop docker.socket docker; mv /var/lib/docker/buildkit /var/lib/docker/buildkit.bak; systemctl start docker</code>。イメージやコンテナとは無関係だ。続けて <code>nvidia-ctk runtime configure --runtime=docker</code> でnvidiaランタイムを登録しておく。</td></tr>
+<tr><td>ドライバインストール直後の <code>nvidia-smi</code>: Driver/library version mismatch</td><td>カーネルモジュールは旧バージョンがロードされたままでライブラリだけ新しい。再起動すれば解消。再起動前にGPUを使う作業を回さないこと。</td></tr>
+<tr><td>595で <code>nvidia-smi --query-gpu=clocks.applications.graphics</code>、<code>display_mode</code> が文字列を返す</td><td>「Requested functionality has been deprecated」。点検スクリプトが数値比較をすると壊れる。<code>clocks.sm</code> を見るか、文字列を例外処理する。</td></tr>
+<tr><td>負荷中にGPUクロックが400~950MHzにとどまり電力~10W、スロットルフラグはすべてNot Active</td><td>PDファームウェアによる低クロック固着(1.3)。再起動や <code>nvidia-smi -rgc</code> では解けず、シャットダウン → 電源ケーブルを抜く → 電源ボタンで放電 → 1分後に再接続。意図的にかけた上限(約1989MHz)と区別すること。</td></tr>
+<tr><td><code>apt autoremove</code> の後にブートパラメータが消えた</td><td>メタパッケージの依存パッケージだったプラットフォームパッケージが一緒に削除された(1.1)。大きなpurgeの後は <code>/proc/cmdline</code> と <code>/etc/default/grub.d/</code> を基準マシンと照合する。</td></tr>
+<tr><td>200G ConnectX-7が <code>lspci</code> にない</td><td>ケーブルが挿さっていないとNICが現れない(ホットプラグパッケージが管理)。ドライバの問題ではない。</td></tr>
+<tr><td>再起動したら <code>/tmp</code> に置いたファイルが消えた</td><td>Ubuntuは起動時に <code>/tmp</code> を空にする。再起動前にステージングファイルはホームへ。</td></tr>
+<tr><td>リモートスクリプトの終了を <code>pgrep -f スクリプト名</code> で待ったが永遠に「実行中」</td><td>待つ側のsshコマンドラインに同じ文字列があり、自分自身を捕まえる。<code>pgrep -f "[d]ownload.sh"</code> のように角括弧でくくるパターンを使う。<code>pkill -f</code> も同じ理由で自分自身を殺す。</td></tr>
+<tr><td>モデルサーバーがメモリを90%超占有すると、ユーザースペースのOOMデーモンが先に殺すことがある</td><td>earlyoomのようなデーモンが有効か確認する(<code>systemctl is-active earlyoom</code>)。大きなモデルをメモリぎりぎりまで意図的に載せるレシピの中には、earlyoomを切るよう案内しているものもある。</td></tr>
+</tbody></table>
+
+<div class="infobox"><div class="ib-title">よくある誤解: 「UEFIでDisplayを切るとメモリが増える」</div>
+<p>単一ノードレシピの周辺では「デスクトップ/ディスプレイがUMA 7GiBを占めるので、UEFIのDisplay項目を切れ」という助言が出回っている。確認したところ、GX10ファームウェア(GX10DGX.0105)にDisplay、iGPU、iGPU Memory Carveoutといった項目はあるものの、すべて非表示(<code>SuppressIf</code>)扱いで設定画面には出ず、NVIDIA公式のUEFIガイドにもない。ファームウェアが実際に取り分けるのは1.1のインフォボックスのとおり約3.9GiB(carveout 3.0GiBを含む)で固定されており、問題の7GiBはGNOME/XorgのようなユーザースペースによるGPU割り当てなので、<strong>サーバーモードに変えれば戻ってくる。</strong>ファームウェア側で手を入れることはなく、非表示の変数を直接いじるのは検証されていないので勧めない。</p></div>
+
+<h3>200G ConnectX-7: 見えない、リンクは上がるのに通らない、遅い</h3>
+<p>2台以上を束ねるときに使う200Gポートは、三つの段階で人を惑わせた。各段階の症状と解決を順に書く。すべて私たちのマシンで実際に遭遇したものだ。</p>
+<ol>
+<li><strong>ケーブルがないとデバイスがない。</strong> <code>lspci</code> にConnectX-7が1行も出ない。ドライバ(<code>mlx5_core</code>)はロードされている。ホットプラグパッケージが管理する正常な動作で、ケーブルを挿せば現れる。</li>
+<li><strong>ケーブルを挿すとポート1個がインターフェース2個として見える。</strong> <code>enp1s0f0np0</code> と <code>enP2p1s0f0np0</code> のように名前の違う二つのインターフェースが同じ物理ポートだ(PCIeルート2個にそれぞれ見えるsocket-direct構成)。<code>cat /sys/class/net/*/phys_switch_id</code> で見ると四つのインターフェースが同じ値で、<code>phys_port_name</code> だけp0/p1の二つだ。ボンディングせず、<strong>二つのインターフェースにそれぞれ別サブネットのIPを与える</strong>(NVIDIAのガイドも同じ方式)。そうすることでNCCLが二つの経路を使い分け、帯域が合算される。リンクとRoCEの状態はACTIVEなのにIPがないだけで「上がってこない」ように見えるのがこの段階だ。
+<pre><code>nmcli con add type ethernet con-name ic200g   ifname enp1s0f0np0   ipv4.method manual ipv4.addresses &lt;rail-A&gt;/24 ipv4.never-default yes 802-3-ethernet.mtu 9000
+nmcli con add type ethernet con-name ic200g-b ifname enP2p1s0f0np0 ipv4.method manual ipv4.addresses &lt;rail-B&gt;/24 ipv4.never-default yes 802-3-ethernet.mtu 9000
+# 相手のマシンも同じ二つのサブネットで。ファイアウォールはポート名4個をすべて許可しておく(ケーブルを別のケージに移しても壊れないように)
+for i in enp1s0f0np0 enp1s0f1np1 enP2p1s0f0np0 enP2p1s0f1np1; do ufw allow in on $i; done</code></pre></li>
+<li><strong>すべての指標が正常なのにスループットだけ1/8だ。</strong> リンク200000Mb/s、RoCE 4X×50G、PCIe Gen5 x4、エラーカウンタ0、ジャンボフレーム通過なのに <code>ib_write_bw</code> も <code>iperf3</code> も13Gb/s付近で止まる(正常は経路あたり約98、合算196Gb/s)。同じデバイスでプロセス2個を回して6.9+6.9に分け合うならデバイス側の上限に当たっているということで、1台の中で二つのインターフェース間で流しても13ならケーブルと相手マシンの容疑は晴れる。<strong>再起動では解けない。2台をシャットダウンして電源ケーブルを抜き、電源ボタンを押して放電し、1分後に再接続</strong>すると解けた(13.3 → 108Gb/s、2経路合計196Gb/s)。以後、通常の再起動を何度しても維持された。PDファームウェアの低クロック固着と同系統の電源側の現象と見られる。</li>
+<li><strong>ケーブルを別のケージに移すと設定が壊れる。</strong> NetworkManagerが作ったプロファイルにポートのMACが埋め込まれており、<code>permanent MAC address doesn't match</code> で有効化が失敗する。<code>nmcli con mod ic200g 802-3-ethernet.mac-address "" connection.interface-name &lt;新しいインターフェース&gt;</code> でMACの固定を解除し、インターフェース名で紐付け直す。ファイアウォールルールもポート名基準なので、上のように4個すべて開けておく。</li>
+</ol>
+<p>切り分けの際は二つ覚えておきたい。ufwはICMPをデフォルト許可するので、<strong>pingは通るのにTCPが通らない</strong>状態が生じる(<code>ib_write_bw</code> が「Couldn't connect」なのにpingは通る)。そしてGB10では <code>ib_write_bw</code> が低く出てもNCCLは正常という事例が報告されているので、最終判定はNCCL(nccl-tests)で行う。NCCLログの <code>GPU_DIRECT_RDMA_SUPPORTED=False</code> はGB10では正常だ。</p>
+
+<h2 id="s4">4. 1台ですぐ試せるレシピ: 直接検証したものだけ</h2>
+<p>セットアップの終わった1台でそのまま再現できるレシピを二つ挙げる。どちらも上のGPU上限(1989MHz)がかかった状態で測った。</p>
+
+<h3>4.1 ollama + Qwen3.8-27B (GGUF Q4_K_M): 10分以内に最初のトークン</h3>
+<p>最速の動作確認。公式インストールスクリプトでollamaを入れ、Hugging Faceの <code>ggml-org/Qwen3.8-27B-GGUF</code> から <code>Qwen3.8-27B-Q4_K_M.gguf</code>(19GB)を取得してModelfileで登録する。一つ落とし穴がある。この環境ではollamaのデフォルトコンテキストが262144になっており(<code>ollama ps</code> で確認)、小さなモデルでもKVキャッシュで数十GBを占めうる。Modelfileに <code>num_ctx</code> を明示する。</p>
+<pre><code>curl -fsSL https://ollama.com/install.sh | sh
+pip install -U huggingface_hub          # hf CLI
+hf download ggml-org/Qwen3.8-27B-GGUF Qwen3.8-27B-Q4_K_M.gguf --local-dir ~/models/qwen3.8-27b
+cat &gt; Modelfile &lt;&lt;EOF
+FROM /home/$USER/models/qwen3.8-27b/Qwen3.8-27B-Q4_K_M.gguf
+PARAMETER num_ctx 32768
+EOF
+ollama create qwen3.8-27b-q4km -f Modelfile     # 約1分 (blobコピー)
+ollama run qwen3.8-27b-q4km --verbose "一文で自己紹介して"</code></pre>
+<table><thead><tr><th>測定</th><th class="n">値</th><th>メモ</th></tr></thead><tbody>
+<tr><td>ロード</td><td class="n">100% GPU、20GB</td><td><code>ollama ps</code>。初回ロード43秒(コールドページキャッシュ)、以後は常駐</td></tr>
+<tr><td>デコード</td><td class="n">11.5~11.8 tok/s</td><td>27B dense Q4 19GBはGB10のメモリ帯域(273GB/s)基準で上限が約14 tok/sなので正常範囲</td></tr>
+<tr><td>プロンプト評価</td><td class="n">290 tok/s</td><td>最初のリクエストはウォームアップで36秒かかり、2回目から0.3秒</td></tr>
+<tr><td>生成中のGPU</td><td class="n">95%、1989MHz、25W、57°C</td><td>GPU上限適用状態</td></tr>
+</tbody></table>
+
+<h3>4.2 DeepSeek V4 Flashを1台で: MiaAIレシピ (EXL3 3.0bpw、REAP K216)</h3>
+<p>オリジナルのFP8(166.9GB)は1台に入らない。<a href="https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark">MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark</a> は <code>0xSero/deepseek-v4-flash-0731-spark</code> をSparkInferカーネルとDSpark投機的デコードでサービングする。このチェックポイントはエキスパート256個のうち216個を残し(REAP)、EXL3 3.0bpwで量子化した106.9GBのビルドだ。したがって「オリジナルのDeepSeek V4 Flash」ではなくプルーニング+3bpw版であることは知ったうえで使う。</p>
+<pre><code># 前提: docker + compose v2、nvidiaランタイム登録(nvidia-ctk runtime configure --runtime=docker)、ユーザーがdockerグループ
+git clone https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark mia-one &amp;&amp; cd mia-one
+./download.sh            # イメージpull → HF 107GB → TP4→TP1再結合 → チェックサム。ディスク~200GB、回線次第で30分~数時間
+systemctl stop earlyoom ollama   # レシピの要求(サーバーがメモリの94%を意図的に占有する) + 4.1のollamaも落とす。free -h で利用可能 ≥ 114.3GiB を確認
+./start.sh --no-wait     # デフォルト: MAX_MODEL_LEN 384000、MAX_NUM_SEQS 1、KV_RECORD=stock432、DSpark投機的デコード
+curl -s -o /dev/null -w '%{http_code}\n' localhost:8888/health   # 200なら準備完了。このマシンでは552秒かかった</code></pre>
+<p>サーバーモードの恩恵をここで受けた。起動時の利用可能メモリが117.4GiB(レシピREADMEのホストは114.5)なので、<strong>KVプールが510,778トークン</strong>で確保された。README最高値の439,622より16%大きい。</p>
+<div class="chart" id="c-mia"></div>
+<p class="fcap">図6. プロンプト長別のプリフィル速度(tok/s、プレフィックスキャッシュなし)。32k~100kで~1,000 tok/s、330kで843 tok/s。同じ長さのニードルテスト(隠しておいた合言葉を探し出す)は64k、200k、330kすべて正確に当て、プリエンプション(preemption)は0だった。</p>
+<table><thead><tr><th>測定</th><th class="n">値</th><th class="n">READMEの主張</th></tr></thead><tbody>
+<tr><td>起動 (/health 200)</td><td class="n">552s</td><td class="n">-</td></tr>
+<tr><td>デコード 単一ストリーム (thinking off)</td><td class="n">36~37 (512 tok ×3)、38~44 (受け入れテストのコード生成)</td><td class="n">44~47 (330kコンテキスト、structured)</td></tr>
+<tr><td>プリフィル 32k / 100k</td><td class="n">1,091 / 1,024 tok/s</td><td class="n">~1,024</td></tr>
+<tr><td>ニードル 64k / 200k / 330k</td><td class="n">すべて正確</td><td class="n">320k/370k 正確</td></tr>
+<tr><td>レシピ自体の受け入れテスト(<code>acceptance_c1.py</code>)</td><td class="n">すべてpass</td><td class="n">ゲート ≥35 tok/s</td></tr>
+</tbody></table>
+<p>デコードだけREADMEの80~95%水準だったが、私たちはGPU上限(1989MHz)をかけた状態であり、README側の条件(330kコンテキスト、structured出力)とも異なっていた。EXL3トレリスデコードは演算の比重が大きいのでクロックの影響を受けるだろうという推測はあるが、上限を外したA/Bはしていない。最初の構造化出力(JSONスキーマ)リクエストは23トークンに28秒かかるが、文法のコンパイルが最初の一度だけかかるコストなので2回目からは正常だ。2台以上あるなら、オリジナルFP8をTP=2で載せる<a href="../deepseek-v4-flash-2x-dgx-spark/">別記事 (韓国語)</a>がある。</p>
+
+<h2 id="s5">5. 一画面チェックリスト</h2>
+<ol>
+<li>画面の案内どおりに初期設定 → <code>ip -br a</code>、<code>systemctl status ssh</code> → 作業PCから <code>ssh-copy-id</code></li>
+<li>初期状態の点検(0.1): PCI、ネットワーク、USB、NVMe、温度ゾーン、ファームウェア、カーネルエラー。200Gポートはケーブルを挿して物理確認</li>
+<li><code>timedatectl set-timezone</code>、<code>apt-get update</code></li>
+<li>プラットフォームパッケージを <code>apt-mark manual</code> (メタのDepends + インストール済みの <code>nvidia-spark-*</code> など)</li>
+<li>ufw、unattended-upgrades、build-essential、python3-dev、jq、htopなど基本パッケージ</li>
+<li>unattended設定(自動再起動off)、sshd鍵のみ、ufwデフォルト拒否、dockerグループ</li>
+<li>(推奨) クロック上限ユニット2個をenable (GPU 300,2000 / CPU性能コア2.8GHz)、Tailscale</li>
+<li>ドライバ595(シミュレーション後)、multi-user、purge/autoremove(ゲート)、grub照合、PD FW準備、セキュリティ更新</li>
+<li>一時ファイルをホームに移して再起動 → 検証: ドライババージョン、クロック、<code>/proc/cmdline</code>、PDファームウェア0x516、failedユニット0、docker正常</li>
+<li>レシピ一つで動作確認 (4.1が最速)</li>
+</ol>
+<p class="fcap">記録: 2026-08-21~22。機器: ASUS Ascent GX10 (NVIDIA GB10、128GB)。他のGB10製品はファームウェアとイメージが異なる可能性がある。ファームウェアGX10DGX.0105、Ubuntu 24.04.4、カーネル6.17.0-1031-nvidia、ドライバ595.84。クロック上限スイープとスピン実験の数値は同機種の既存2台で測った(各リンク参照)。ネットワーク構成、アドレス、ホスト名など環境依存の項目は省いた。</p>
+</div>
+<script src="../vendor/d3.v7.min.js"></script>
+<script>
+(function(){
+const INK="#1c1c1c",HI="#7a4a3a",BLU="#3b6ea5",SOFT="#5b5b57",FAINT="#b7b5ad",RULE="#e4e2da";
+function svgIn(id,W,H){return d3.select("#"+id).append("svg").attr("viewBox",[0,0,W,H]).attr("width",W).attr("height",H);}
+// 図1: メモリバー
+(function(){
+  const W=640,H=132,M={l:190,r:70,t:14,b:26};
+  const data=[{k:"デスクトップホスト (README、起動時)",v:114.5},{k:"サーバーモード (起動時)",v:117.4},{k:"サーバーモード (アイドル)",v:119.0}];
+  const svg=svgIn("c-mem",W,H);
+  const x=d3.scaleLinear().domain([0,121.6]).range([M.l,W-M.r]);
+  const y=d3.scaleBand().domain(data.map(d=>d.k)).range([M.t,H-M.b]).padding(.3);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`).call(d3.axisBottom(x).ticks(6).tickFormat(d=>d+"G"));
+  svg.selectAll("rect.bg").data(data).join("rect").attr("x",x(0)).attr("y",d=>y(d.k)).attr("width",x(121.6)-x(0)).attr("height",y.bandwidth()).attr("fill","#f3f2ec");
+  svg.selectAll("rect.v").data(data).join("rect").attr("x",x(0)).attr("y",d=>y(d.k)).attr("width",d=>x(d.v)-x(0)).attr("height",y.bandwidth()).attr("fill",(d,i)=>i?HI:FAINT).attr("opacity",(d,i)=>i==1?.7:1);
+  svg.selectAll("text.k").data(data).join("text").attr("x",M.l-8).attr("y",d=>y(d.k)+y.bandwidth()/2+4).attr("text-anchor","end").attr("font-size",11).attr("fill",SOFT).text(d=>d.k);
+  svg.selectAll("text.v").data(data).join("text").attr("x",d=>x(d.v)+5).attr("y",d=>y(d.k)+y.bandwidth()/2+4).attr("font-size",11).attr("font-weight",700).attr("fill",INK).text(d=>d.v.toFixed(1)+"GiB 利用可能");
+  svg.append("text").attr("x",x(121.6)).attr("y",M.t-3).attr("text-anchor","end").attr("font-size",9.5).attr("fill",FAINT).text("MemTotal 121.6GiB");
+})();
+// 共用: 二軸ライン (xカテゴリ)
+function dual(id,labels,s1,s2,o){
+  const W=640,H=260,M={l:46,r:50,t:16,b:34};
+  const svg=svgIn(id,W,H);
+  const x=d3.scalePoint().domain(labels).range([M.l,W-M.r]).padding(.4);
+  const y1=d3.scaleLinear().domain(o.d1).nice().range([H-M.b,M.t]);
+  const y2=d3.scaleLinear().domain(o.d2).nice().range([H-M.b,M.t]);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`).call(d3.axisBottom(x));
+  svg.append("g").attr("class","axis").attr("transform",`translate(${M.l},0)`).call(d3.axisLeft(y1).ticks(5));
+  svg.append("g").attr("class","axis").attr("transform",`translate(${W-M.r},0)`).call(d3.axisRight(y2).ticks(5));
+  svg.append("text").attr("class","axlab").attr("x",M.l).attr("y",M.t-5).text(o.l1);
+  svg.append("text").attr("class","axlab").attr("x",W-M.r).attr("y",M.t-5).attr("text-anchor","end").text(o.l2);
+  svg.append("text").attr("class","axlab").attr("x",W/2).attr("y",H-2).attr("text-anchor","middle").text("クロック上限 (MHz)");
+  const l1=d3.line().x((d,i)=>x(labels[i])).y(d=>y1(d)), l2=d3.line().x((d,i)=>x(labels[i])).y(d=>y2(d));
+  svg.append("path").attr("d",l1(s1)).attr("fill","none").attr("stroke",HI).attr("stroke-width",2.2);
+  svg.append("path").attr("d",l2(s2)).attr("fill","none").attr("stroke",BLU).attr("stroke-width",1.8).attr("stroke-dasharray","5,4");
+  svg.selectAll("circle.a").data(s1).join("circle").attr("cx",(d,i)=>x(labels[i])).attr("cy",d=>y1(d)).attr("r",3.2).attr("fill",HI).append("title").text((d,i)=>`${labels[i]}: ${o.l1} ${d}`);
+  svg.selectAll("circle.b").data(s2).join("circle").attr("cx",(d,i)=>x(labels[i])).attr("cy",d=>y2(d)).attr("r",3).attr("fill",BLU).append("title").text((d,i)=>`${labels[i]}: ${o.l2} ${d}`);
+  if(o.mark){const i=labels.indexOf(o.mark);svg.append("line").attr("x1",x(o.mark)).attr("x2",x(o.mark)).attr("y1",M.t).attr("y2",H-M.b).attr("stroke",FAINT).attr("stroke-dasharray","2,3");svg.append("text").attr("x",x(o.mark)+4).attr("y",M.t+10).attr("font-size",9.5).attr("fill",SOFT).text("推奨値");}
+  const lg=svg.append("g").attr("transform",`translate(${M.l+8},${H-M.b-14})`);
+  lg.append("line").attr("x1",0).attr("x2",20).attr("y1",0).attr("y2",0).attr("stroke",HI).attr("stroke-width",2.2);lg.append("text").attr("x",24).attr("y",3.5).attr("font-size",9.5).attr("fill",SOFT).text(o.l1);
+  lg.append("line").attr("x1",110).attr("x2",130).attr("y1",0).attr("y2",0).attr("stroke",BLU).attr("stroke-width",1.8).attr("stroke-dasharray","5,4");lg.append("text").attr("x",134).attr("y",3.5).attr("font-size",9.5).attr("fill",SOFT).text(o.l2);
+}
+const CAPS=["1400","1600","1800","2000","2200","2400","2600","2800","3000","無制限"];
+dual("c-ds",CAPS,[14.99,15.73,16.24,16.67,17.05,17.37,17.47,17.43,17.45,17.47],[14.7,16.8,19.0,22.3,27.6,34.0,43.8,44.3,44.8,44.8],{d1:[13,18],d2:[0,50],l1:"デコード tok/s",l2:"電力 W",mark:"2000"});
+dual("c-h3",CAPS,[125.3,113.3,107.3,102.7,97.2,96.8,95.3,97.0,95.2,96.1],[28.3,33.4,40.7,50.3,64.5,83.4,86.9,86.7,86.3,86.3],{d1:[80,130],d2:[0,95],l1:"総時間 s",l2:"電力 W",mark:"2000"});
+// 図4: CPUゾーン別 Δ°C
+(function(){
+  const W=640,H=170,M={l:150,r:40,t:14,b:26};
+  const data=[{k:"性能コア (熱源)",v:-14},{k:"SoC総合",v:-9},{k:"アンコア/メモリ",v:-3.7},{k:"GPU",v:-1.7},{k:"NVMe",v:0}];
+  const svg=svgIn("c-cpu",W,H);
+  const x=d3.scaleLinear().domain([-15,0]).range([M.l,W-M.r]);
+  const y=d3.scaleBand().domain(data.map(d=>d.k)).range([M.t,H-M.b]).padding(.3);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`).call(d3.axisBottom(x).ticks(6).tickFormat(d=>d+"°"));
+  svg.selectAll("rect").data(data).join("rect").attr("x",d=>x(d.v)).attr("y",d=>y(d.k)).attr("width",d=>x(0)-x(d.v)).attr("height",y.bandwidth()).attr("fill",(d,i)=>i==0?HI:(i==1?"#a67b6c":FAINT));
+  svg.selectAll("text.k").data(data).join("text").attr("x",M.l-8).attr("y",d=>y(d.k)+y.bandwidth()/2+4).attr("text-anchor","end").attr("font-size",11).attr("fill",SOFT).text(d=>d.k);
+  svg.selectAll("text.v").data(data).join("text").attr("x",d=>x(d.v)-5).attr("y",d=>y(d.k)+y.bandwidth()/2+4).attr("text-anchor","end").attr("font-size",11).attr("font-weight",700).attr("fill",INK).text(d=>d.v===0?"0":d.v+"°C");
+})();
+// 図5: スピン前後 (2グループ)
+(function(){
+  const W=640,H=200,M={l:40,r:20,t:22,b:30};
+  const svg=svgIn("c-spin",W,H);
+  const groups=[{t:"vLLM CPU使用量合計 (%)",a:333.6,b:88.7,max:400,fmt:v=>v+"%"},{t:"SoC温度、負荷中 (°C)",a:77,b:66,max:100,fmt:v=>v+"°C"}];
+  const gw=(W-M.l-M.r)/2;
+  groups.forEach((g,gi)=>{
+    const x0=M.l+gi*gw+20, bw=52;
+    const y=d3.scaleLinear().domain([0,g.max]).range([H-M.b,M.t]);
+    svg.append("text").attr("x",x0+gw/2-20).attr("y",M.t-8).attr("text-anchor","middle").attr("font-size",11).attr("fill",SOFT).text(g.t);
+    [["デフォルト 1秒",g.a,FAINT],["2msパッチ",g.b,HI]].forEach((b,i)=>{
+      const bx=x0+gw/2-20-bw-10+i*(bw+20);
+      svg.append("rect").attr("x",bx).attr("y",y(b[1])).attr("width",bw).attr("height",y(0)-y(b[1])).attr("fill",b[2]);
+      svg.append("text").attr("x",bx+bw/2).attr("y",y(b[1])-5).attr("text-anchor","middle").attr("font-size",11).attr("font-weight",700).attr("fill",INK).text(g.fmt(b[1]));
+      svg.append("text").attr("x",bx+bw/2).attr("y",H-M.b+14).attr("text-anchor","middle").attr("font-size",10).attr("fill",SOFT).text(b[0]);
+    });
+    svg.append("line").attr("x1",x0-10).attr("x2",x0+gw-30).attr("y1",y(0)).attr("y2",y(0)).attr("stroke",RULE);
+  });
+})();
+// 図6: MiaAI プリフィル tok/s vs 長さ
+(function(){
+  const W=640,H=240,M={l:50,r:24,t:16,b:36};
+  const data=[{n:8015,v:739},{n:32049,v:1091},{n:63932,v:1065},{n:100013,v:1024},{n:200036,v:930},{n:330060,v:843}];
+  const svg=svgIn("c-mia",W,H);
+  const x=d3.scaleLinear().domain([0,340000]).range([M.l,W-M.r]);
+  const y=d3.scaleLinear().domain([600,1150]).range([H-M.b,M.t]);
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`).call(d3.axisBottom(x).ticks(7).tickFormat(d=>d/1000+"k"));
+  svg.append("g").attr("class","axis").attr("transform",`translate(${M.l},0)`).call(d3.axisLeft(y).ticks(5));
+  svg.append("text").attr("class","axlab").attr("x",M.l).attr("y",M.t-5).text("プリフィル tok/s");
+  svg.append("text").attr("class","axlab").attr("x",W/2).attr("y",H-3).attr("text-anchor","middle").text("プロンプト長 (トークン)");
+  svg.append("path").attr("d",d3.line().x(d=>x(d.n)).y(d=>y(d.v))(data)).attr("fill","none").attr("stroke",HI).attr("stroke-width",2.2);
+  svg.selectAll("circle").data(data).join("circle").attr("cx",d=>x(d.n)).attr("cy",d=>y(d.v)).attr("r",3.6).attr("fill",HI).append("title").text(d=>`${d.n.toLocaleString()} tok → ${d.v} tok/s`);
+  svg.selectAll("text.v").data(data).join("text").attr("x",d=>x(d.n)).attr("y",d=>y(d.v)-9).attr("text-anchor","middle").attr("font-size",10).attr("fill",INK).text(d=>d.v);
+  svg.append("line").attr("x1",x(0)).attr("x2",x(340000)).attr("y1",y(1024)).attr("y2",y(1024)).attr("stroke",FAINT).attr("stroke-dasharray","3,4");
+  svg.append("text").attr("x",x(340000)).attr("y",y(1024)-4).attr("text-anchor","end").attr("font-size",9.5).attr("fill",SOFT).text("README ~1,024 tok/s");
+})();
+})();
+</script></body></html>

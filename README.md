@@ -12,6 +12,8 @@
 | 날짜 | 산출물 | 설명 |
 |---|---|---|
 | 2026-08-22 | [dgx-spark-node-setup](./dgx-spark-node-setup/) | ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로: 필수(서버 모드, 드라이버 595, PD FW, 보안) / 추천(GPU와 CPU 클럭 상한 스윕 그래프, vLLM 스핀 패치) / 트러블슈팅 / 직접 검증한 레시피(ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3) |
+| 2026-08-22 | [dgx-spark-node-setup-en](./dgx-spark-node-setup-en/) | 위 글의 영어판 (English) |
+| 2026-08-22 | [dgx-spark-node-setup-ja](./dgx-spark-node-setup-ja/) | 위 글의 일본어판 (日本語) |
 | 2026-08-11 | [deepseek-v4-flash-2x-dgx-spark](./deepseek-v4-flash-2x-dgx-spark/) | DGX Spark 2노드에 DeepSeek V4 Flash 0731 원본 FP8(166.9GB)을 vLLM TP=2로 서빙한 실측: 컨텍스트·클럭 무관한 디코드, 전성비 최적점, 95케이스 벤치 |
 | 2026-08-10 | [10gbe-transfer-bottlenecks](./10gbe-transfer-bottlenecks/) | 디스크는 800MB/s인데 rsync는 230: 사라진 70%를 ssh 암호화·직렬 처리·커널 소켓 버퍼·readahead 힌트로 분해 (단독 A/B 검증) |
 | 2026-08-10 | [gb10-gpu-clock-cap](./gb10-gpu-clock-cap/) | GB10 전력 상한: -pl 없음, nvidia-smi -lgc 클럭 캡으로 70W→40W 실측 + systemd 영속 + PD 고착 버그 구분 |

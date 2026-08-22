@@ -22,6 +22,32 @@
       <category>레시피</category>
     </item>
     <item>
+      <title>Setting up a single ASUS Ascent GX10 (DGX Spark) as an inference server: essentials, recommended settings, troubleshooting, and recipes to try</title>
+      <link>https://nacyot.github.io/artifacts/dgx-spark-node-setup-en/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/dgx-spark-node-setup-en/</guid>
+      <pubDate>Sat, 22 Aug 2026 00:00:00 +0000</pubDate>
+      <description><![CDATA[ASUS Ascent GX10 (GB10) from factory state to inference server. Essentials: server mode while keeping the platform packages, driver 595, PD firmware, security defaults. Recommended: GPU clock cap (measured sweep charts), CPU performance-core cap, vLLM spin patch. Initial-state checks, 200G ConnectX-7 troubleshooting, and recipes verified on a single node (ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3).]]></description>
+      <category>DGX Spark</category>
+      <category>GB10</category>
+      <category>셋업</category>
+      <category>vLLM</category>
+      <category>레시피</category>
+      <category>English</category>
+    </item>
+    <item>
+      <title>ASUS Ascent GX10(DGX Spark) 1台を推論サーバーとしてセットアップする: 必須設定、推奨設定、トラブルシューティング、すぐ試せるレシピ</title>
+      <link>https://nacyot.github.io/artifacts/dgx-spark-node-setup-ja/</link>
+      <guid isPermaLink="true">https://nacyot.github.io/artifacts/dgx-spark-node-setup-ja/</guid>
+      <pubDate>Sat, 22 Aug 2026 00:00:00 +0000</pubDate>
+      <description><![CDATA[ASUS Ascent GX10(GB10)を工場出荷状態から推論サーバーへ。必須: プラットフォームパッケージを守るサーバーモード切り替え、ドライバ595、PDファームウェア、セキュリティ基本値。推奨: GPUクロック上限(実測スイープグラフ)、CPU性能コア上限、vLLMスピンパッチ。初期状態の点検、200G ConnectX-7のトラブルシューティング、1台で検証したレシピ(ollama Qwen3.8-27B、DeepSeek V4 Flash EXL3)。]]></description>
+      <category>DGX Spark</category>
+      <category>GB10</category>
+      <category>셋업</category>
+      <category>vLLM</category>
+      <category>레시피</category>
+      <category>日本語</category>
+    </item>
+    <item>
       <title>재현 실험: vLLM 스핀 대기 발열, 부하 3분 만에 90°C</title>
       <link>https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-repro/</link>
       <guid isPermaLink="true">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-repro/</guid>

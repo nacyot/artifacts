@@ -43,6 +43,7 @@ a{color:var(--hi)}
 <div class="kicker">ASUS Ascent GX10 (NVIDIA GB10) 세팅 가이드</div>
 <h1>ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기: 필수 설정, 추천 설정, 트러블슈팅, 바로 돌려볼 레시피</h1>
 <p class="fcap" style="margin:0 0 1.4rem">관련 글: <a href="../gb10-clock-cap/">GB10 클럭 상한 거는 법 →</a> / <a href="../vllm-spin-wait-gb10/">LLM 추론에서 가장 뜨거운 것은 GPU가 아니었다 →</a> / <a href="../deepseek-v4-flash-2x-dgx-spark/">DGX Spark 2대로 DeepSeek V4 Flash 돌리기 →</a></p>
+<p class="fcap" style="margin:0 0 1.4rem"><a href="../dgx-spark-node-setup-en/">In English →</a> / <a href="../dgx-spark-node-setup-ja/">日本語 →</a></p>
 
 <p>ASUS Ascent GX10(NVIDIA GB10, DGX Spark 제품군)을 세 대째 들이면서, 공장 상태의 기계를 추론 서버로 만드는 절차를 처음부터 다시 밟았다. 이 글의 대상은 <strong>ASUS Ascent GX10</strong>이다. NVIDIA DGX Spark나 다른 제조사의 GB10 기기도 비슷할 가능성이 높지만, 펌웨어, 기본 이미지, 패키지 구성은 제품에 따라 다를 수 있으니 그대로 따라 하기 전에 각자 장비에서 확인해야 한다. 앞의 두 대에서 몇 주에 걸쳐 하나씩 알아낸 것들을 이번에는 한 번에 적용했고, 그 과정에서 겪은 문제도 같이 적는다. 이 글은 그 절차를 네 덩어리로 나눈다. 꼭 해야 하는 것, 하면 좋은 것, 겪은 문제, 그리고 세팅이 끝난 한 대에서 바로 돌려볼 수 있는 레시피다. 집 네트워크에만 해당하는 설정(VLAN, 주소, 스위치)은 뺐다.</p>
 
@@ -110,15 +111,16 @@ systemctl list-units --state=failed                                # 실패한 �
 <p>공장 이미지는 GNOME 데스크탑이다. 추론 서버로 쓸 거라면 걷어내는 편이 좋다. GB10은 CPU와 GPU가 128GiB 메모리 풀 하나를 나눠 쓰는데, 데스크탑이 떠 있으면 그 풀에서 수 GiB를 차지한다. 단일 노드 레시피의 README는 데스크탑이 올라간 호스트의 기동 시 가용 메모리를 약 114.5GiB로 적고 있는데, 서버 모드로 바꾼 이 노드는 같은 레시피 기동 시 <strong>117.4GiB</strong>, 유휴 상태에서는 119.0GiB였다. 같은 기계에서 전후를 잰 것은 아니라 엄밀한 비교는 아니지만, 3~4.5GiB 차이는 큰 모델을 올릴 때 그대로 KV 캐시 여유가 된다.</p>
 <div class="chart" id="c-mem"></div>
 <p class="fcap">그림 1. 가용 메모리(MemTotal 121.6GiB 기준). 데스크탑 호스트(레시피 README, 기동 시) ~114.5GiB, 이 노드 서버 모드는 기동 시 117.4GiB, 유휴 119.0GiB.</p>
-<div class="infobox"><div class="ib-title">왜 128GiB가 아니라 121GiB로 보이나 (단위 정리)</div>
-<p>이 글의 메모리 숫자는 전부 이진 단위 GiB(2<sup>30</sup>바이트)다. <code>free -g</code>와 <code>/proc/meminfo</code>가 쓰는 단위이고, 제품 표기 "128GB"도 실제로는 128GiB(십진으로 137.4GB)다. 커널이 보고한 총량 133,828,484KiB에 커널 기동 전에 펌웨어가 떼어 둔 389,244KiB를 더하면 정확히 134,217,728KiB, 즉 128GiB가 나온다. 거기서 아래 순서로 빠진다.</p>
+<div class="infobox"><div class="ib-title">왜 128GiB가 아니라 121GiB로 보이나 (단위 정리, 실측)</div>
+<p>이 글의 메모리 숫자는 전부 이진 단위 GiB(2<sup>30</sup>바이트)다. <code>free -g</code>와 <code>/proc/meminfo</code>가 쓰는 단위이고, 제품 표기 "128GB"도 실제로는 128GiB(십진 137.4GB)다. DMI가 보고하는 메모리 주소 범위 0x80000000~0x207FFFFFFF가 정확히 2<sup>37</sup>바이트 = 128GiB이고, 거기서 아래 순서로 빠진다(모두 이 기계에서 읽은 값).</p>
 <table><thead><tr><th>단계</th><th class="n">크기</th><th>내용</th></tr></thead><tbody>
-<tr><td>물리 LPDDR5X</td><td class="n">128.0GiB</td><td>CPU와 GPU가 함께 쓰는 단일 풀</td></tr>
-<tr><td>펌웨어와 GPU 예약</td><td class="n">−3.9GiB</td><td>커널에 넘기기 전에 숨기는 영역 0.4GiB + 메모리 맵의 reserved 영역 3.5GiB(iGPU carveout 약 3.0GiB 추정 포함). 남는 RAM 124.1GiB</td></tr>
-<tr><td>커널 자체 고정 할당</td><td class="n">−2.5GiB</td><td>4KiB 페이지 3,250만 개의 page 구조체(64B씩, 약 2.0GiB), 커널 이미지, initramfs 등. 여기까지 빼면 <strong>MemTotal 121.6GiB</strong>, <code>free -g</code>의 121</td></tr>
-<tr><td>유휴 시스템 사용</td><td class="n">−2.6GiB</td><td>서비스, 슬랩, GPU 드라이버. 서버 모드 유휴 <strong>MemAvailable 119.0GiB</strong>. 데스크탑이 떠 있으면 여기서 몇 GiB가 더 빠진다</td></tr>
+<tr><td>물리 LPDDR5X</td><td class="n">128.00GiB</td><td>CPU와 GPU가 함께 쓰는 단일 풀 (LPDDR5 8533MT/s, dmidecode)</td></tr>
+<tr><td>맵에 없는 구간</td><td class="n">−0.37GiB</td><td>UEFI가 커널에 넘긴 메모리 맵(memblock 127.63GiB)에 아예 없는 DRAM 구간. 펌웨어 쪽이 쓰는 것으로 보이지만 용도는 공개돼 있지 않다</td></tr>
+<tr><td>맵에 있지만 reserved</td><td class="n">−3.55GiB</td><td>디스플레이/iGPU 예약이 여기 들어 있다. NVIDIA 릴리스 노트(2026년 7월)는 "Display Reserved Memory"를 BIOS에서 2GB(기본) 또는 4GB로 고를 수 있다고 적고, 구형 펌웨어(큰 예약) 기기는 MemTotal 약 119.7GiB, 현행은 121.6~121.7GiB로 보고된다. 우리 121.63GiB는 현행 쪽이다. 우리 ASUS 펌웨어에서는 큰 두 영역이 2616MiB + 460MiB = 3076MiB이고 부팅 프레임버퍼(BOOTFB)가 그 안에 있는데, 3장에서 본 숨김 항목 "iGPU Memory Carveout"의 값 24(×128MiB = 3072MiB)와 맞아떨어진다. 다만 그 항목의 단위는 문서화돼 있지 않고, 최솟값도 24라 더 줄일 수는 없다. 나머지 약 0.55GiB는 UEFI 런타임, ACPI, TPM 등. 남는 System RAM 124.08GiB</td></tr>
+<tr><td>커널 자체 고정 할당</td><td class="n">−2.45GiB</td><td>4KiB 페이지 32,526,926개의 page 구조체(64B씩 = 1.94GiB) + 커널 이미지, initramfs, percpu 등 0.5GiB. 여기까지 빼면 <strong>MemTotal 121.63GiB</strong>, <code>free -g</code>의 121. CMA 128MiB는 이 안에 들어 있다</td></tr>
+<tr><td>유휴 시스템 사용</td><td class="n">−2.6GiB</td><td>서비스, 슬랩(GPU 드라이버 UVM 포함), 페이지캐시 제외. 서버 모드 유휴 <strong>MemAvailable 119.0GiB</strong>. 데스크탑이 떠 있으면 여기서 몇 GiB가 더 빠진다</td></tr>
 </tbody></table>
-<p>그러니 "128GB 중 121GB만 보인다"는 고장이 아니라 정상이고, 모델을 올릴 때 기준으로 삼을 수는 MemTotal 121.6GiB보다 <strong>MemAvailable</strong>이다.</p></div>
+<p>"128GB 중 121GB만 보인다"는 고장이 아니라 정상이고, 모델을 올릴 때 기준으로 삼을 수는 MemTotal보다 <strong>MemAvailable</strong>이다. 100MiB가 아쉬운 크기의 모델을 올린다면 손댈 수 있는 곳은 사실상 하나, page 구조체 1.94GiB를 줄이는 <strong>64KiB 페이지 커널</strong>이다(NVIDIA가 <code>linux-image-nvidia-64k-hwe-24.04</code>로 제공, 구조체가 약 1/16로 줄어 1.8GiB 남짓 회수). 다만 NVIDIA의 DGX OS 커널 표는 Spark에 64K가 아닌 커널을 쓰고, 595 드라이버에는 4GiB 이상을 한 번에 고정 매핑하는 경로(디스크 KV 오프로딩 같은)에 알려진 결함(open-gpu-kernel-modules #1269)이 있어, 쓰는 워크로드로 먼저 검증하고 4K 부팅 항목을 남겨 둬야 한다. 디스플레이 예약은 BIOS 항목이 있어도 기본값(2GB, 우리 펌웨어에서는 24)이 최솟값이라 더 못 줄이고, CMA(128MiB)는 이동 가능한 페이지로 그대로 쓰이므로 줄여도 이득이 없으며, crashkernel은 이미 0이다.</p></div>
 
 <p>문제는 데스크탑을 지우는 명령 자체가 아니라 그 뒤의 <code>apt autoremove --purge</code>다. 두 번째 기계를 세팅할 때 이 명령이 <strong>NVIDIA 플랫폼 패키지 14개를 통째로 걷어간</strong> 적이 있다. 이 패키지들은 <code>dgx-spark-ota-update-meta</code>라는 메타패키지의 의존 패키지로만 잡혀 있어서, 메타패키지가 snapd와 함께 빠지는 순간 "아무도 필요로 하지 않는 패키지"가 된다. 부팅 파라미터를 넣어 주는 스니펫 두 개(<code>nvidia-spark-initcall-bl</code>, <code>nvidia-spark-grub-pci</code>)가 같이 사라졌고, 재설치와 <code>update-grub</code>, 재부팅으로 되돌렸다.</p>
 <p>이번에는 세 단계로 막았다. 지우기 전에 플랫폼 패키지를 수동 설치로 표시하고, 지우는 명령은 먼저 시뮬레이션으로 돌려 제거 목록에 드라이버, CUDA, 플랫폼 패키지가 섞이면 멈추게 하고, 끝난 뒤 부팅 파라미터를 대조한다.</p>
@@ -256,10 +258,10 @@ ufw allow in on tailscale0        # 방화벽을 켰다면 tailnet 인터페이�
 </tbody></table>
 
 <div class="infobox"><div class="ib-title">잘못 알려진 정보: "UEFI에서 Display를 끄면 메모리가 는다"</div>
-<p>단일 노드 레시피 쪽에서 "데스크탑/디스플레이가 UMA 7GiB를 차지하니 UEFI의 Display 항목을 끄라"는 조언이 돈다. 확인 결과 GX10 펌웨어(GX10DGX.0105)에 Display, iGPU, iGPU Memory Carveout 같은 항목이 있긴 하지만 전부 숨김(<code>SuppressIf</code>) 처리라 설정 화면에 나오지 않고, NVIDIA 공식 UEFI 가이드에도 없다. 그 7GiB는 펌웨어 예약이 아니라 GNOME/Xorg 같은 유저스페이스의 GPU 할당이라 <strong>서버 모드로 바꾸면 돌아온다.</strong> 펌웨어에서 할 일은 없고, 숨김 변수를 직접 고치는 것은 검증되지 않았으니 권하지 않는다.</p></div>
+<p>단일 노드 레시피 쪽에서 "데스크탑/디스플레이가 UMA 7GiB를 차지하니 UEFI의 Display 항목을 끄라"는 조언이 돈다. 확인 결과 GX10 펌웨어(GX10DGX.0105)에 Display, iGPU, iGPU Memory Carveout 같은 항목이 있긴 하지만 전부 숨김(<code>SuppressIf</code>) 처리라 설정 화면에 나오지 않고, NVIDIA 공식 UEFI 가이드에도 없다. 펌웨어가 실제로 떼는 것은 1.1의 인포박스처럼 약 3.9GiB(carveout 3.0GiB 포함)로 고정돼 있고, 문제의 7GiB는 GNOME/Xorg 같은 유저스페이스의 GPU 할당이라 <strong>서버 모드로 바꾸면 돌아온다.</strong> 펌웨어에서 할 일은 없고, 숨김 변수를 직접 고치는 것은 검증되지 않았으니 권하지 않는다.</p></div>
 
 <h3>200G ConnectX-7: 안 보이거나, 링크는 뜨는데 안 되거나, 느리거나</h3>
-<p>두 대 이상을 묶을 때 쓰는 200G 포트는 세 단계에서 사람을 헷갈리게 했다. 각 단계의 증상과 해결을 순서대로 적는다. 전부 우리 기계에서 실제로 겪은 것이다.</p>
+<p>두 대 이상을 묶을 때 쓰는 200G 포트는 네 단계에서 사람을 헷갈리게 했다. 각 단계의 증상과 해결을 순서대로 적는다. 전부 우리 기계에서 실제로 겪은 것이다.</p>
 <ol>
 <li><strong>케이블이 없으면 장치가 없다.</strong> <code>lspci</code>에 ConnectX-7이 한 줄도 안 나온다. 드라이버(<code>mlx5_core</code>)는 로드돼 있다. 핫플러그 패키지가 관리하는 정상 동작이라, 케이블을 꽂으면 나타난다.</li>
 <li><strong>케이블을 꽂으면 포트 하나가 인터페이스 두 개로 보인다.</strong> <code>enp1s0f0np0</code>과 <code>enP2p1s0f0np0</code>처럼 이름이 다른 두 인터페이스가 같은 물리 포트다(PCIe 루트 두 개에 각각 노출되는 socket-direct 구성). <code>cat /sys/class/net/*/phys_switch_id</code>로 보면 네 인터페이스가 같은 값이고 <code>phys_port_name</code>만 p0/p1 둘이다. 본딩하지 말고 <strong>두 인터페이스에 각각 다른 서브넷의 IP를 준다</strong>(NVIDIA 가이드도 같은 방식). 그래야 NCCL이 두 경로를 나눠 써서 대역폭이 합산된다. 링크와 RoCE 상태가 ACTIVE인데 IP만 없어서 "안 올라온다"로 보이는 단계가 이것이다.
