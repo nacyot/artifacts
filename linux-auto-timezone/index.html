@@ -1,15 +1,15 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="macOS는 주변 WiFi로 위치를 잡아 시간대를 자동으로 바꾼다. 그 방식(Google Geolocation API)을 리눅스에서 그대로 만들어 봤더니 서울에서 건물 단위로 맞았지만 정작 중국에서는 WiFi 데이터가 없어 실패했다. 그래서 IP 지오로 되돌리되, tailscale exit node를 켜 둔 채로도 ip rule로 조회만 실회선에 태워 진짜 위치를 얻고, 네트워크 이벤트에 반응하며 재부팅에도 살아남는 systemd user 서비스로 자동화한다. 주변 AP 제조사로 나라를 가려내는 보완책과 실측 데이터까지.">
-<link rel="canonical" href="https://nacyot.github.io/artifacts/linux-auto-timezone/">
-<link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
+<link rel="canonical" href="https://artifacts.nacyot.com/linux-auto-timezone/">
+<link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://artifacts.nacyot.com/feed.xml">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="nacyot / artifacts">
 <meta property="og:locale" content="ko_KR">
-<meta property="og:url" content="https://nacyot.github.io/artifacts/linux-auto-timezone/">
+<meta property="og:url" content="https://artifacts.nacyot.com/linux-auto-timezone/">
 <meta property="og:title" content="리눅스 노트북이 여행지 시간대를 스스로 맞추게 만들기">
 <meta property="og:description" content="macOS는 WiFi로 위치를 잡는다. 그 방식을 리눅스에서 만들어 보고, 왜 IP 지오로 되돌렸는지. exit node를 켜 둔 채로도 ip rule로 진짜 위치를 얻고 systemd 서비스로 자동화한다. 주변 AP 제조사로 나라를 가려내는 보완책과 실측 데이터.">
-<meta property="og:image" content="https://nacyot.github.io/artifacts/linux-auto-timezone/og.png">
+<meta property="og:image" content="https://artifacts.nacyot.com/linux-auto-timezone/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -17,7 +17,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="리눅스 노트북이 여행지 시간대를 스스로 맞추게 만들기">
 <meta name="twitter:description" content="macOS는 WiFi로 위치를 잡는다. 그 방식을 리눅스에서 만들어 보고 왜 IP 지오로 되돌렸는지. exit node를 켜 둔 채로도 진짜 위치를 얻고 systemd 서비스로 자동화한다.">
-<meta name="twitter:image" content="https://nacyot.github.io/artifacts/linux-auto-timezone/og.png">
+<meta name="twitter:image" content="https://artifacts.nacyot.com/linux-auto-timezone/og.png">
 <meta name="twitter:image:alt" content="리눅스 자동 시간대">
 <title>리눅스 노트북 자동 시간대</title>
 <style>

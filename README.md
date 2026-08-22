@@ -1,11 +1,12 @@
 # artifacts
 
-공개해도 되는 작업 산출물 모음. 실측 정리·리서치·시각화를 정적 HTML로 담고 GitHub Pages로 서빙한다.
+공개해도 되는 작업 산출물 모음. 실측 정리, 리서치, 시각화를 정적 HTML로 담는다.
+서빙은 홈랩 k8s의 nginx가 하고, Cloudflare Tunnel로 나가 Cloudflare가 CDN 역할을 한다.
 
 개인 식별 정보(시리얼·자격증명·집 네트워크 주소·호스트명)는 제거한 것만 올린다.
 
-- 사이트: https://nacyot.github.io/artifacts/
-- RSS: https://nacyot.github.io/artifacts/feed.xml
+- 사이트: https://artifacts.nacyot.com/
+- RSS: https://artifacts.nacyot.com/feed.xml
 
 ## 목록 (최신순)
 
@@ -33,5 +34,7 @@
 └── <slug>/index.html             각 산출물
 ```
 
-정적 파일뿐이라 빌드 단계는 없다. `main` 브랜치 루트를 그대로 Pages가 서빙한다.
+정적 파일뿐이라 빌드 단계는 없다. `main` 브랜치 루트를 그대로 서빙한다.
+푸시하면 홈랩의 git-sync 사이드카가 30초 안에 당겨 간다. 배포 파이프라인은 homelab 리포
+`k8s/apps/artifacts/` 에 있고, 갱신을 바로 보이게 하려면 Cloudflare 캐시를 퍼지한다.
 새 글을 올리면 `index.html` 목록 맨 위와 `feed.xml` `<item>` 맨 위에 같은 순서로 추가한다.

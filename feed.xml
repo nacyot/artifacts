@@ -2,17 +2,20 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>nacyot / artifacts</title>
-    <link>https://nacyot.github.io/artifacts/</link>
+    <link>https://artifacts.nacyot.com/</link>
     <description>공개해도 되는 작업 산출물 모음 — 실측 정리, 리서치, 시각화.</description>
     <language>ko</language>
     <lastBuildDate>Sat, 22 Aug 2026 00:00:00 +0000</lastBuildDate>
-    <atom:link href="https://nacyot.github.io/artifacts/feed.xml" rel="self" type="application/rss+xml"/>
+    <atom:link href="https://artifacts.nacyot.com/feed.xml" rel="self" type="application/rss+xml"/>
 
     <!-- newest first -->
+    <!-- guid 는 이전 도메인(nacyot.github.io/artifacts) 값을 그대로 유지한다.
+         URL 만 바뀌었을 뿐 같은 글이므로, guid 를 바꾸면 구독자 리더가 전건을 새 글로 다시 띄운다.
+         새 글부터는 artifacts.nacyot.com 기준 guid 를 쓴다. -->
     <item>
       <title>ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기: 필수 설정, 추천 설정, 트러블슈팅, 바로 돌려볼 레시피</title>
-      <link>https://nacyot.github.io/artifacts/dgx-spark-node-setup/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/dgx-spark-node-setup/</guid>
+      <link>https://artifacts.nacyot.com/dgx-spark-node-setup/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/dgx-spark-node-setup/</guid>
       <pubDate>Sat, 22 Aug 2026 00:00:00 +0000</pubDate>
       <description><![CDATA[ASUS Ascent GX10(GB10) 공장 상태에서 추론 서버까지. 필수: 플랫폼 패키지를 지키며 서버 모드 전환, 드라이버 595, PD 펌웨어, 보안 기본값. 추천: GPU 클럭 상한(스윕 실측 그래프), CPU 성능코어 상한, vLLM 스핀 패치. 초기 상태 점검, 200G ConnectX-7 트러블슈팅, 한 대에서 직접 검증한 레시피(ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3)까지.]]></description>
       <category>DGX Spark</category>
@@ -23,8 +26,8 @@
     </item>
     <item>
       <title>Setting up a single ASUS Ascent GX10 (DGX Spark) as an inference server: essentials, recommended settings, troubleshooting, and recipes to try</title>
-      <link>https://nacyot.github.io/artifacts/dgx-spark-node-setup-en/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/dgx-spark-node-setup-en/</guid>
+      <link>https://artifacts.nacyot.com/dgx-spark-node-setup-en/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/dgx-spark-node-setup-en/</guid>
       <pubDate>Sat, 22 Aug 2026 00:00:00 +0000</pubDate>
       <description><![CDATA[ASUS Ascent GX10 (GB10) from factory state to inference server. Essentials: server mode while keeping the platform packages, driver 595, PD firmware, security defaults. Recommended: GPU clock cap (measured sweep charts), CPU performance-core cap, vLLM spin patch. Initial-state checks, 200G ConnectX-7 troubleshooting, and recipes verified on a single node (ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3).]]></description>
       <category>DGX Spark</category>
@@ -36,8 +39,8 @@
     </item>
     <item>
       <title>ASUS Ascent GX10(DGX Spark) 1台を推論サーバーとしてセットアップする: 必須設定、推奨設定、トラブルシューティング、すぐ試せるレシピ</title>
-      <link>https://nacyot.github.io/artifacts/dgx-spark-node-setup-ja/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/dgx-spark-node-setup-ja/</guid>
+      <link>https://artifacts.nacyot.com/dgx-spark-node-setup-ja/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/dgx-spark-node-setup-ja/</guid>
       <pubDate>Sat, 22 Aug 2026 00:00:00 +0000</pubDate>
       <description><![CDATA[ASUS Ascent GX10(GB10)を工場出荷状態から推論サーバーへ。必須: プラットフォームパッケージを守るサーバーモード切り替え、ドライバ595、PDファームウェア、セキュリティ基本値。推奨: GPUクロック上限(実測スイープグラフ)、CPU性能コア上限、vLLMスピンパッチ。初期状態の点検、200G ConnectX-7のトラブルシューティング、1台で検証したレシピ(ollama Qwen3.8-27B、DeepSeek V4 Flash EXL3)。]]></description>
       <category>DGX Spark</category>
@@ -49,8 +52,8 @@
     </item>
     <item>
       <title>재현 실험: vLLM 스핀 대기 발열, 부하 3분 만에 90°C</title>
-      <link>https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-repro/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-repro/</guid>
+      <link>https://artifacts.nacyot.com/vllm-spin-wait-gb10-repro/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-repro/</guid>
       <pubDate>Tue, 18 Aug 2026 00:00:00 +0000</pubDate>
       <description><![CDATA[스핀 대기 기사 후속 재현. 조작변수를 스핀 하나로 통제하고 팬리스·CPU 언캡 조건에서 A/B — stock은 부하 90초에 85°C, 2.3분에 90°C, 피크 95°C. 2ms 패치는 같은 부하에서 −9°C. 동시 부하 성능 손실은 재현되지 않았고 스로틀 개입도 배제. 전 구간 온도 기록과 재현 명령 공개.]]></description>
       <category>DGX Spark</category>
@@ -60,8 +63,8 @@
     </item>
     <item>
       <title>Reproduction: vLLM's spin-wait heat, 90°C within 3 minutes of load</title>
-      <link>https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-repro-en/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-repro-en/</guid>
+      <link>https://artifacts.nacyot.com/vllm-spin-wait-gb10-repro-en/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-repro-en/</guid>
       <pubDate>Tue, 18 Aug 2026 00:00:00 +0000</pubDate>
       <description><![CDATA[Controlled A/B rerun of the spin-wait finding: fanless and uncapped, stock hits 85°C in 90 seconds and peaks at 95°C; the 2ms patch runs 9°C cooler. No concurrent-load throughput loss, throttling ruled out by clock readings. Full temperature timeline and reproduction steps included.]]></description>
       <category>DGX Spark</category>
@@ -71,8 +74,8 @@
     </item>
     <item>
       <title>Why vLLM pegs four CPU cores at 100% on the DGX Spark — and the one-line fix</title>
-      <link>https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-en/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-en/</guid>
+      <link>https://artifacts.nacyot.com/vllm-spin-wait-gb10-en/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10-en/</guid>
       <pubDate>Mon, 17 Aug 2026 00:00:00 +0000</pubDate>
       <description><![CDATA[On GB10 machines (DGX Spark, ASUS Ascent GX10), vLLM keeps 3–4 performance cores spinning at 100% during LLM inference. Traced with py-spy to one default (busy_loop_s); a one-line change cuts CPU 333%→89% and the SoC by 11°C with zero performance loss. English rework of the Korean write-up.]]></description>
       <category>DGX Spark</category>
@@ -83,8 +86,8 @@
     </item>
     <item>
       <title>같은 장비에서 동시 처리량 35%를 더 얻었다 — 그리고 얻지 못한 것들</title>
-      <link>https://nacyot.github.io/artifacts/dgx-spark-2node-decode-tuning/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/dgx-spark-2node-decode-tuning/</guid>
+      <link>https://artifacts.nacyot.com/dgx-spark-2node-decode-tuning/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/dgx-spark-2node-decode-tuning/</guid>
       <pubDate>Wed, 12 Aug 2026 00:00:00 +0000</pubDate>
       <description><![CDATA[DGX Spark 2노드 DeepSeek V4 Flash 0731을 추론 켠 조건에서 재측정. max_num_seqs 6→8이 동시 8건 +35%, 기동 워밍업이 첫 토큰 3.5초→0.38초. 커뮤니티의 80 tok/s는 추론을 끈 숫자였고, 열 상한을 정하는 것은 GPU가 아니라 동기화 대기로 도는 CPU 성능코어였다. 15회 재기동 반복 측정과 d3 인터랙티브.]]></description>
       <category>DGX Spark</category>
@@ -96,8 +99,8 @@
     </item>
     <item>
       <title>LLM 추론에서 가장 뜨거운 것은 GPU가 아니었다</title>
-      <link>https://nacyot.github.io/artifacts/vllm-spin-wait-gb10/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10/</guid>
+      <link>https://artifacts.nacyot.com/vllm-spin-wait-gb10/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/vllm-spin-wait-gb10/</guid>
       <pubDate>Wed, 12 Aug 2026 00:00:00 +0000</pubDate>
       <description><![CDATA[GB10 2노드 vLLM 서빙에서 SoC 96°C의 열원을 추적하니 GPU가 아니라 대기 루프를 도는 CPU 성능코어였다. py-spy로 vLLM 기본값 한 줄까지 내려가 수정 — CPU 333%→89%, SoC 최고 97→73°C, 성능 손실 없음.]]></description>
       <category>DGX Spark</category>
@@ -108,8 +111,8 @@
     </item>
     <item>
       <title>DGX Spark 2대에 DeepSeek V4 Flash 0731을 올리다</title>
-      <link>https://nacyot.github.io/artifacts/deepseek-v4-flash-2x-dgx-spark/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/deepseek-v4-flash-2x-dgx-spark/</guid>
+      <link>https://artifacts.nacyot.com/deepseek-v4-flash-2x-dgx-spark/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/deepseek-v4-flash-2x-dgx-spark/</guid>
       <pubDate>Mon, 11 Aug 2026 00:00:00 +0000</pubDate>
       <description><![CDATA[DGX Spark(GB10) 2노드에 166.9GB 원본 FP8을 vLLM TP=2로. 디코드는 컨텍스트(256→512k)도 클럭(2000→2800MHz)도 거의 타지 않고, 프리필만 2400MHz에서 포화한다. 전성비는 최저 클럭이 두 배 앞선다. 95개 케이스 벤치와 d3 인터랙티브.]]></description>
       <category>DGX Spark</category>
@@ -120,8 +123,8 @@
     </item>
     <item>
       <title>10G 전송을 151MB/s에서 872MB/s로: 병목을 한 겹씩 벗겨낸 기록</title>
-      <link>https://nacyot.github.io/artifacts/10gbe-transfer-bottlenecks/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/10gbe-transfer-bottlenecks/</guid>
+      <link>https://artifacts.nacyot.com/10gbe-transfer-bottlenecks/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/10gbe-transfer-bottlenecks/</guid>
       <pubDate>Mon, 10 Aug 2026 12:00:00 +0000</pubDate>
       <description><![CDATA[10GbE 홈랩에서 하드웨어가 낼 수 있는 속도와 표준 도구가 실제로 내는 속도의 격차를 계층별로 분해했다. ssh 암호화, 직렬 처리, 커널 소켓 버퍼 기본값, 디스크 readahead 힌트. 단독 A/B로 각각의 몫을 검증.]]></description>
       <category>10GbE</category>
@@ -131,8 +134,8 @@
     </item>
     <item>
       <title>GB10 전력 상한 거는 법</title>
-      <link>https://nacyot.github.io/artifacts/gb10-clock-cap/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/gb10-clock-cap/</guid>
+      <link>https://artifacts.nacyot.com/gb10-clock-cap/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/gb10-clock-cap/</guid>
       <pubDate>Sun, 10 Aug 2026 00:00:00 +0000</pubDate>
       <description><![CDATA[GB10에는 와트 단위 전력 한도 조정이 없다. 유일한 손잡이는 nvidia-smi -lgc(클럭 상한). 동일 부하에서 전력을 70W대→40W대(약 40%)로 줄인 실측, systemd oneshot 영속 적용, 그리고 PD 펌웨어 저클럭 고착 버그와의 구분법.]]></description>
       <category>GB10</category>
@@ -142,8 +145,8 @@
     </item>
     <item>
       <title>Dvorak에서 두벌식이 깨지는 이유: 리눅스 입력 스택을 패치한 기록</title>
-      <link>https://nacyot.github.io/artifacts/dvorak-dubeolsik/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/dvorak-dubeolsik/</guid>
+      <link>https://artifacts.nacyot.com/dvorak-dubeolsik/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/dvorak-dubeolsik/</guid>
       <pubDate>Tue, 28 Jul 2026 12:00:00 +0000</pubDate>
       <description><![CDATA[영문 Dvorak + 한글 두벌식 조합은 Windows와 macOS 모두 공식 지원이 없고, 각 OS의 서드파티 우회(날개셋 DLL 교체, 구름 입력기)에는 미묘한 문제가 남는다. 리눅스에서는 입력 스택의 모든 계층이 오픈소스라 libhangul과 fcitx5-hangul에 소스 패치를 만들어 근본 해결할 수 있었다. 실패한 우회 세 번, 패치 후 실사용에서 드러난 문장부호 누수 두 차례, DBus 자동 활성화가 환경변수 없이 fcitx5를 띄우던 함정까지 타임라인으로 정리하고, 키보드 배열 그림으로 Dvorak→자모 매핑을 보여준다. 패치와 스크립트는 github.com/nacyot/libhangul-dvorak에 공개.]]></description>
       <category>Linux</category>
@@ -153,8 +156,8 @@
     </item>
     <item>
       <title>Opus 5가 출시됐지만, 로컬의 “최신” 클로드 코드에는 4.8밖에 보이지 않았다</title>
-      <link>https://nacyot.github.io/artifacts/claude-code-install-pitfalls/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/claude-code-install-pitfalls/</guid>
+      <link>https://artifacts.nacyot.com/claude-code-install-pitfalls/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/claude-code-install-pitfalls/</guid>
       <pubDate>Sat, 25 Jul 2026 12:00:00 +0000</pubDate>
       <description><![CDATA[claude update는 "up to date"라는데 모델 목록에는 4.8까지만 있었다. 범인은 stable 채널(2.1.212)에 묶여 있던 CLI였다. Opus 5를 쓰려면 필요한 버전(2.1.220, latest 채널)부터 채널 확인과 변경(claude doctor, autoUpdatesChannel, install.sh 인자), PATH 순서로 갈리는 중복 설치와 mise shim 잔재 정리까지. 모든 출력은 docker 컨테이너 실측이고, 모델 가용성처럼 계정에 의존해 재현 못 한 부분은 그렇게 명시했다.]]></description>
       <category>Claude Code</category>
@@ -163,8 +166,8 @@
     </item>
     <item>
       <title>Omarchy 화면 매뉴얼: 보이는 것들의 이름과 구조</title>
-      <link>https://nacyot.github.io/artifacts/omarchy-manual/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/omarchy-manual/</guid>
+      <link>https://artifacts.nacyot.com/omarchy-manual/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/omarchy-manual/</guid>
       <pubDate>Thu, 23 Jul 2026 12:00:00 +0000</pubDate>
       <description><![CDATA[Omarchy(4.0 alpha) 기본 화면의 요소들을 정식 이름, 그리는 프로그램, 설정 파일, 바꾸는 명령 네 가지로 정리한 매뉴얼. 클릭해 보는 화면 지도와 레이어 구조, Waybar 모듈 해부, 런처(Walker)와 메뉴 체계, 테마 시스템, omarchy CLI, 설정이 흐르는 세 층, 코딩 에이전트로 고치는 법까지.]]></description>
       <category>Omarchy</category>
@@ -173,8 +176,8 @@
     </item>
     <item>
       <title>리눅스 노트북이 여행지 시간대를 스스로 맞추게 만들기</title>
-      <link>https://nacyot.github.io/artifacts/linux-auto-timezone/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/linux-auto-timezone/</guid>
+      <link>https://artifacts.nacyot.com/linux-auto-timezone/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/linux-auto-timezone/</guid>
       <pubDate>Mon, 20 Jul 2026 13:00:00 +0000</pubDate>
       <description><![CDATA[macOS는 주변 WiFi로 위치를 잡아 시간대를 바꾼다. 그 방식(Google Geolocation API)을 리눅스에서 그대로 만들어 서울의 건물을 20m 오차로 짚었지만, 정작 중국에선 WiFi 데이터가 없어 실패했다. 그래서 IP 지오로 되돌리되 tailscale exit node는 ip rule 우선순위 5100 한 줄로 우회하고, nmcli 이벤트에 반응하며 재부팅에도 살아남는 systemd user 서비스로 자동화했다. 주변 AP 제조사·국가코드로 나라를 가려내는 보완책과 실측 데이터까지.]]></description>
       <category>Linux</category>
@@ -183,8 +186,8 @@
     </item>
     <item>
       <title>중국 여행 중 tailscale 최적화: 국제망은 exit로, 중국 서비스는 중국 회선으로</title>
-      <link>https://nacyot.github.io/artifacts/tailscale-china-travel/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/tailscale-china-travel/</guid>
+      <link>https://artifacts.nacyot.com/tailscale-china-travel/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/tailscale-china-travel/</guid>
       <pubDate>Mon, 20 Jul 2026 12:00:00 +0000</pubDate>
       <description><![CDATA[중국에선 Claude Code·구글이 로컬망으로 안 열린다. 로밍이나 eSIM이 빠르면 그걸로 나가면 되고, 느리면 중국 회선을 tailscale exit node로 우회해 국제망에 나간다. 반대로 다중뎬핑·메이퇀 같은 중국 서비스는 중국 회선이 낫다. 그 유연한 라우팅을 축으로, 무선→유선→서울 exit 3단계로 Claude Code 원격 작업을 안정화한 실측. v6 블랙홀 진단, 지리 아닌 경로로 exit 고르기, fast.com/speedtest.cn 대비, 공개 경험담 대조.]]></description>
       <category>Tailscale</category>
@@ -193,8 +196,8 @@
     </item>
     <item>
       <title>맥북 스피커가 지지직거린다: Asahi Linux에서 스피커 길들이기</title>
-      <link>https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/</guid>
+      <link>https://artifacts.nacyot.com/asahi-macbook-speaker-crackle/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/asahi-macbook-speaker-crackle/</guid>
       <pubDate>Wed, 15 Jul 2026 12:00:00 +0000</pubDate>
       <description><![CDATA[M1 Max 맥북을 Asahi Linux로 쓸 때 내장 스피커가 복잡한 음악에서 크래클·끊김을 낸다. 하드웨어가 아니라 세 겹의 소프트웨어 문제(DSP 프로파일, 효율코어 스케줄링, 스트림 전환)였다. 원인과 처방, 실측 드롭아웃 파형(48.8초에 4번, 21.3ms), 되돌린 시도들, macOS가 멀쩡한 이유.]]></description>
       <category>Asahi</category>
@@ -203,8 +206,8 @@
     </item>
     <item>
       <title>브라우저 한 개만 미국으로: Tailscale exit node를 앱 단위로 쪼개기</title>
-      <link>https://nacyot.github.io/artifacts/tailscale-per-app-exit-node/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/tailscale-per-app-exit-node/</guid>
+      <link>https://artifacts.nacyot.com/tailscale-per-app-exit-node/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/tailscale-per-app-exit-node/</guid>
       <pubDate>Wed, 15 Jul 2026 00:00:00 +0000</pubDate>
       <description><![CDATA[Tailscale exit node는 켜는 순간 기기 인터넷을 통째로 가져간다. 유저스페이스 SOCKS5 프록시로 특정 앱(브라우저) 하나만 exit node로 내보내고 나머지는 그대로 두는 법. 구축·검증·fail-closed 분석.]]></description>
       <category>Tailscale</category>
@@ -213,8 +216,8 @@
     </item>
     <item>
       <title>Asahi M1 Max 외장 2대 — 막힌 지점과 접은 이유</title>
-      <link>https://nacyot.github.io/artifacts/displaylink-asahi-m1/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/displaylink-asahi-m1/</guid>
+      <link>https://artifacts.nacyot.com/displaylink-asahi-m1/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/displaylink-asahi-m1/</guid>
       <pubDate>Fri, 10 Jul 2026 00:00:00 +0000</pubDate>
       <description><![CDATA[stock Asahi M1 Max에서 외장 2대를 열어 본 실측. USB-C DP는 드라이버(atcphy)에서 끊기고, DisplayLink 우회는 듀얼 4K@60까지 되지만 CPU 부하로 채택하지 않았다. 실사용은 본체 HDMI 1대.]]></description>
       <category>Asahi</category>
@@ -224,8 +227,8 @@
 
     <item>
       <title>Bambu Lab P1S — UI 없이 프로토콜로 어디까지 되나</title>
-      <link>https://nacyot.github.io/artifacts/bambu-p1s-scripting/</link>
-      <guid isPermaLink="true">https://nacyot.github.io/artifacts/bambu-p1s-scripting/</guid>
+      <link>https://artifacts.nacyot.com/bambu-p1s-scripting/</link>
+      <guid isPermaLink="false">https://nacyot.github.io/artifacts/bambu-p1s-scripting/</guid>
       <pubDate>Sat, 05 Jul 2026 00:00:00 +0000</pubDate>
       <description><![CDATA[3D 프린터를 앱 없이 MQTT·FTPS 프로토콜만으로 제어한 실측 정리. 프린터는 UI 기기가 아니라 네트워크 API를 노출하는 IoT 장치라는 관점 + d3.js 시각화.]]></description>
       <category>3D printing</category>

@@ -1,15 +1,15 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="영문 Dvorak + 한글 두벌식 조합은 Windows·macOS 공식 지원이 없다. 리눅스에서는 libhangul과 fcitx5-hangul에 소스 패치를 만들어 근본 해결했다. 실패한 우회 세 번과 실사용에서 발견한 부작용, 문장부호 누수까지 타임라인으로 정리하고 d3 인터랙티브 키보드로 시연.">
-<link rel="canonical" href="https://nacyot.github.io/artifacts/dvorak-dubeolsik/">
-<link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://nacyot.github.io/artifacts/feed.xml">
+<link rel="canonical" href="https://artifacts.nacyot.com/dvorak-dubeolsik/">
+<link rel="alternate" type="application/rss+xml" title="nacyot / artifacts" href="https://artifacts.nacyot.com/feed.xml">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="nacyot / artifacts">
 <meta property="og:locale" content="ko_KR">
-<meta property="og:url" content="https://nacyot.github.io/artifacts/dvorak-dubeolsik/">
+<meta property="og:url" content="https://artifacts.nacyot.com/dvorak-dubeolsik/">
 <meta property="og:title" content="Dvorak에서 두벌식이 깨지는 이유: 리눅스 입력 스택을 패치한 기록">
 <meta property="og:description" content="Windows·macOS에 공식 지원이 없는 두벌식+Dvorak 조합. libhangul·fcitx5-hangul 소스 패치로 근본 해결하고, 왜 깨지는지를 인터랙티브 키보드로 보여준다.">
-<meta property="og:image" content="https://nacyot.github.io/artifacts/dvorak-dubeolsik/og.png">
+<meta property="og:image" content="https://artifacts.nacyot.com/dvorak-dubeolsik/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -17,7 +17,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Dvorak에서 두벌식이 깨지는 이유: 리눅스 입력 스택을 패치한 기록">
 <meta name="twitter:description" content="Windows·macOS에 공식 지원이 없는 두벌식+Dvorak 조합을 libhangul·fcitx5-hangul 소스 패치로 근본 해결한 기록. d3 인터랙티브 시연 포함.">
-<meta name="twitter:image" content="https://nacyot.github.io/artifacts/dvorak-dubeolsik/og.png">
+<meta name="twitter:image" content="https://artifacts.nacyot.com/dvorak-dubeolsik/og.png">
 <meta name="twitter:image:alt" content="Dvorak에서 두벌식이 깨지는 이유">
 
 <title>Dvorak에서 두벌식이 깨지는 이유: 리눅스 입력 스택을 패치한 기록</title>
@@ -78,7 +78,7 @@
   #kbd-static{display:none}
   @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.2rem 5rem}}
 </style></head><body><div class="doc">
-<p class="backlink"><a href="https://nacyot.github.io/artifacts/">← artifacts 목록으로</a></p>
+<p class="backlink"><a href="https://artifacts.nacyot.com/">← artifacts 목록으로</a></p>
 
 <h1>Dvorak에서 두벌식이 깨지는 이유: 리눅스 입력 스택을 패치한 기록</h1>
 
