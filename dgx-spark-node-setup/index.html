@@ -38,6 +38,10 @@ a{color:var(--hi)}
 .warn b{color:var(--hi)}
 .infobox{background:var(--box);border:1px solid var(--rule);border-radius:5px;padding:.9rem 1.1rem .2rem;margin:1.4rem 0 1.2rem;font-size:.92rem}
 .infobox .ib-title{font-weight:700;margin:0 0 .5rem;color:var(--hi)}
+
+.budget td:first-child,.budget th:first-child{width:9.5em;white-space:nowrap}
+.budget td.n,.budget th.n{width:6.5em;white-space:nowrap}
+@media(max-width:640px){.budget td:first-child,.budget th:first-child{width:auto;white-space:normal}}
 @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.1rem 5rem}}
 </style></head><body><div class="doc">
 <div class="kicker">ASUS Ascent GX10 (NVIDIA GB10) 세팅 가이드</div>
@@ -112,7 +116,7 @@ systemctl list-units --state=failed                                # 실패한 �
 <p>공장 이미지는 GNOME 데스크탑이다. 추론 서버로 쓸 거라면 걷어내는 편이 좋다. GB10은 CPU와 GPU가 128GiB 메모리 풀 하나를 나눠 쓰는데, 데스크탑이 떠 있으면 그 풀에서 수 GiB를 차지한다. 단일 노드 레시피의 README는 데스크탑이 올라간 호스트의 기동 시 가용 메모리를 약 114.5GiB로 적고 있는데, 서버 모드로 바꾼 이 노드는 같은 레시피 기동 시 <strong>117.4GiB</strong>, 유휴 상태에서는 119.0GiB였다. 같은 기계에서 전후를 잰 것은 아니라 엄밀한 비교는 아니지만, 3~4.5GiB 차이는 큰 모델을 올릴 때 그대로 KV 캐시 여유가 된다.</p>
 <div class="chart" id="c-mem"></div>
 <p class="fcap">그림 1. 가용 메모리(MemTotal 121.6GiB 기준). 데스크탑 호스트(레시피 README, 기동 시) ~114.5GiB, 이 노드 서버 모드는 기동 시 117.4GiB, 유휴 119.0GiB.</p>
-<p class="fcap">128GiB 기계에서 MemTotal이 121GiB로 보이는 이유와 그 수지는 <a href="#appendix-memory">부록</a>에서 다룬다.</p>
+<p class="fcap">128GiB 기계에서 MemTotal이 121GiB로 보이는 이유와 그 내역는 <a href="#appendix-memory">부록</a>에서 다룬다.</p>
 
 
 <p>문제는 데스크탑을 지우는 명령 자체가 아니라 그 뒤의 <code>apt autoremove --purge</code>다. 두 번째 기계를 세팅할 때 이 명령이 <strong>NVIDIA 플랫폼 패키지 14개를 통째로 걷어간</strong> 적이 있다. 이 패키지들은 <code>dgx-spark-ota-update-meta</code>라는 메타패키지의 의존 패키지로만 잡혀 있어서, 메타패키지가 snapd와 함께 빠지는 순간 "아무도 필요로 하지 않는 패키지"가 된다. 부팅 파라미터를 넣어 주는 스니펫 두 개(<code>nvidia-spark-initcall-bl</code>, <code>nvidia-spark-grub-pci</code>)가 같이 사라졌고, 재설치와 <code>update-grub</code>, 재부팅으로 되돌렸다.</p>
@@ -324,7 +328,7 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:8888/health   # 200 이면 �
 <h2 id="appendix-memory">부록. 왜 128GiB가 아니라 121GiB로 보이나 (단위 정리, 실측)</h2>
 <div class="infobox">
 <p>이 글의 메모리 숫자는 전부 이진 단위 GiB(2<sup>30</sup>바이트)다. <code>free -g</code>와 <code>/proc/meminfo</code>가 쓰는 단위이고, 제품 표기 "128GB"도 실제로는 128GiB(십진 137.4GB)다. DMI가 보고하는 메모리 주소 범위 0x80000000~0x207FFFFFFF가 정확히 2<sup>37</sup>바이트 = 128GiB이고, 거기서 아래 순서로 빠진다(모두 이 기계에서 읽은 값).</p>
-<table><thead><tr><th>단계</th><th class="n">크기</th><th>내용</th></tr></thead><tbody>
+<table class="budget"><thead><tr><th>단계</th><th class="n">크기</th><th>내용</th></tr></thead><tbody>
 <tr><td>물리 LPDDR5X</td><td class="n">128.00GiB</td><td>CPU와 GPU가 함께 쓰는 단일 풀 (LPDDR5 8533MT/s, dmidecode)</td></tr>
 <tr><td>맵에 없는 구간</td><td class="n">−0.37GiB</td><td>UEFI가 커널에 넘긴 메모리 맵(memblock 127.63GiB)에 아예 없는 DRAM 구간. 펌웨어 쪽이 쓰는 것으로 보이지만 용도는 공개돼 있지 않다</td></tr>
 <tr><td>맵에 있지만 reserved</td><td class="n">−3.55GiB</td><td>디스플레이/iGPU 예약이 여기 들어 있다. NVIDIA 릴리스 노트(2026년 7월)는 "Display Reserved Memory"를 BIOS에서 2GB(기본) 또는 4GB로 고를 수 있다고 적는다(<a href="https://docs.nvidia.com/dgx/dgx-spark/release-notes.html">릴리스 노트</a>, <a href="https://forums.developer.nvidia.com/t/dgx-spark-software-updates-july-2026-release/376736">포럼 공지</a>). 우리 ASUS 펌웨어에서는 큰 두 영역이 2616MiB + 460MiB = 3076MiB이고 부팅 프레임버퍼(BOOTFB)가 그 안에 있는데, 3장에서 본 숨김 항목 "iGPU Memory Carveout"의 값 24(×128MiB = 3072MiB)와 맞아떨어진다. 다만 그 항목의 단위는 문서화돼 있지 않고, 최솟값도 24라 더 줄일 수는 없다. 나머지 약 0.55GiB는 UEFI 런타임, ACPI, TPM 등. 남는 System RAM 124.08GiB</td></tr>

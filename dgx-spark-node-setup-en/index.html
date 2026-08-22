@@ -38,6 +38,10 @@ a{color:var(--hi)}
 .warn b{color:var(--hi)}
 .infobox{background:var(--box);border:1px solid var(--rule);border-radius:5px;padding:.9rem 1.1rem .2rem;margin:1.4rem 0 1.2rem;font-size:.92rem}
 .infobox .ib-title{font-weight:700;margin:0 0 .5rem;color:var(--hi)}
+
+.budget td:first-child,.budget th:first-child{width:9.5em;white-space:nowrap}
+.budget td.n,.budget th.n{width:6.5em;white-space:nowrap}
+@media(max-width:640px){.budget td:first-child,.budget th:first-child{width:auto;white-space:normal}}
 @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.1rem 5rem}}
 </style></head><body><div class="doc">
 <div class="kicker">ASUS Ascent GX10 (NVIDIA GB10) setup guide</div>
@@ -324,7 +328,7 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:8888/health   # 200 means rea
 <h2 id="appendix-memory">Appendix. Why it shows 121GiB instead of 128GiB (units explained, measured)</h2>
 <div class="infobox">
 <p>All memory numbers in this article are binary GiB (2<sup>30</sup> bytes). That is the unit <code>free -g</code> and <code>/proc/meminfo</code> use, and the product's "128GB" is really 128GiB (137.4GB decimal). The memory address range DMI reports, 0x80000000-0x207FFFFFFF, is exactly 2<sup>37</sup> bytes = 128GiB, and it is whittled down from there in the order below (all values read on this machine).</p>
-<table><thead><tr><th>Stage</th><th class="n">Size</th><th>What</th></tr></thead><tbody>
+<table class="budget"><thead><tr><th>Stage</th><th class="n">Size</th><th>What</th></tr></thead><tbody>
 <tr><td>Physical LPDDR5X</td><td class="n">128.00GiB</td><td>Single pool shared by CPU and GPU (LPDDR5 8533MT/s, dmidecode)</td></tr>
 <tr><td>Not in the memory map</td><td class="n">−0.37GiB</td><td>DRAM that is simply absent from the memory map UEFI hands to the kernel (memblock 127.63GiB). Presumably used by firmware; its purpose is not documented</td></tr>
 <tr><td>In the map but reserved</td><td class="n">−3.55GiB</td><td>The display/iGPU reservation lives here. NVIDIA's release notes (July 2026) say the "Display Reserved Memory" can be set in the BIOS to 2GB (default) or 4GB (<a href="https://docs.nvidia.com/dgx/dgx-spark/release-notes.html">release notes</a>, <a href="https://forums.developer.nvidia.com/t/dgx-spark-software-updates-july-2026-release/376736">forum announcement</a>). On our ASUS firmware the two large regions are 2616MiB + 460MiB = 3076MiB, the boot framebuffer (BOOTFB) sits inside them, and that matches the hidden "iGPU Memory Carveout" value 24 from section 3 (times 128MiB = 3072MiB). The unit of that field is not documented, though, and its minimum is also 24, so it cannot be reduced. The remaining ~0.55GiB is UEFI runtime, ACPI, TPM and similar. System RAM left: 124.08GiB</td></tr>

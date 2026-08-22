@@ -38,6 +38,10 @@ a{color:var(--hi)}
 .warn b{color:var(--hi)}
 .infobox{background:var(--box);border:1px solid var(--rule);border-radius:5px;padding:.9rem 1.1rem .2rem;margin:1.4rem 0 1.2rem;font-size:.92rem}
 .infobox .ib-title{font-weight:700;margin:0 0 .5rem;color:var(--hi)}
+
+.budget td:first-child,.budget th:first-child{width:9.5em;white-space:nowrap}
+.budget td.n,.budget th.n{width:6.5em;white-space:nowrap}
+@media(max-width:640px){.budget td:first-child,.budget th:first-child{width:auto;white-space:normal}}
 @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.1rem 5rem}}
 </style></head><body><div class="doc">
 <div class="kicker">ASUS Ascent GX10 (NVIDIA GB10) セットアップガイド</div>
@@ -324,7 +328,7 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:8888/health   # 200なら準�
 <h2 id="appendix-memory">付録. なぜ128GiBではなく121GiBに見えるのか (単位の整理、実測)</h2>
 <div class="infobox">
 <p>この記事のメモリの数字はすべて二進単位のGiB(2<sup>30</sup>バイト)だ。<code>free -g</code> と <code>/proc/meminfo</code> が使う単位であり、製品表記の「128GB」も実際には128GiB(十進137.4GB)だ。DMIが報告するメモリアドレス範囲0x80000000~0x207FFFFFFFがちょうど2<sup>37</sup>バイト = 128GiBであり、そこから以下の順に差し引かれる(すべてこのマシンで読んだ値)。</p>
-<table><thead><tr><th>段階</th><th class="n">サイズ</th><th>内容</th></tr></thead><tbody>
+<table class="budget"><thead><tr><th>段階</th><th class="n">サイズ</th><th>内容</th></tr></thead><tbody>
 <tr><td>物理LPDDR5X</td><td class="n">128.00GiB</td><td>CPUとGPUが共用する単一プール (LPDDR5 8533MT/s、dmidecode)</td></tr>
 <tr><td>メモリマップにない区間</td><td class="n">−0.37GiB</td><td>UEFIがカーネルに渡すメモリマップ(memblock 127.63GiB)にそもそも含まれないDRAM区間。ファームウェア側が使っていると見られるが、用途は公開されていない</td></tr>
 <tr><td>マップにあるがreserved</td><td class="n">−3.55GiB</td><td>ディスプレイ/iGPUの予約がここに入る。NVIDIAのリリースノート(2026年7月)は「Display Reserved Memory」をBIOSで2GB(既定)か4GBに選べると記している(<a href="https://docs.nvidia.com/dgx/dgx-spark/release-notes.html">リリースノート</a>、<a href="https://forums.developer.nvidia.com/t/dgx-spark-software-updates-july-2026-release/376736">フォーラムの告知</a>)。私たちのASUSファームウェアでは大きい2領域が2616MiB + 460MiB = 3076MiBで、起動時フレームバッファ(BOOTFB)がその中にあり、3章で見た非表示項目「iGPU Memory Carveout」の値24(×128MiB = 3072MiB)と一致する。ただしその項目の単位は文書化されておらず、最小値も24なのでこれ以上は減らせない。残りの約0.55GiBはUEFIランタイム、ACPI、TPMなど。差し引き後のSystem RAMは124.08GiB</td></tr>
