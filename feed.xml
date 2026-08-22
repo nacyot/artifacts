@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 이 피드는 더 이상 갱신되지 않는다. 정본은 https://artifacts.nacyot.com/feed.xml 이다.
+     GitHub Pages 는 서버측 301 을 낼 수 없어서, 구독자에게 알리는 항목 하나만 남긴다. -->
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>nacyot / artifacts (주소 변경)</title>
+    <link>https://artifacts.nacyot.com/</link>
+    <description>이 피드는 https://artifacts.nacyot.com/feed.xml 으로 옮겼습니다.</description>
+    <language>ko</language>
+    <lastBuildDate>Sat, 22 Aug 2026 12:00:00 +0000</lastBuildDate>
+    <atom:link href="https://artifacts.nacyot.com/feed.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>피드 주소가 바뀌었습니다: artifacts.nacyot.com</title>
+      <link>https://artifacts.nacyot.com/feed.xml</link>
+      <guid isPermaLink="false">nacyot-artifacts-feed-moved-2026-08-22</guid>
+      <pubDate>Sat, 22 Aug 2026 12:00:00 +0000</pubDate>
+      <description><![CDATA[사이트가 artifacts.nacyot.com 으로 옮겨졌습니다. 이 피드(nacyot.github.io/artifacts/feed.xml)는 더 이상 갱신되지 않습니다. 구독 주소를 https://artifacts.nacyot.com/feed.xml 으로 바꿔 주세요.]]></description>
+    </item>
+  </channel>
+</rss>
