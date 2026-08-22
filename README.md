@@ -11,7 +11,7 @@
 
 | 날짜 | 산출물 | 설명 |
 |---|---|---|
-| 2026-08-22 | [dgx-spark-node-setup](./dgx-spark-node-setup/) | GB10(GX10) 새 노드를 기존 노드와 같은 추론 서버 베이스라인으로: 플랫폼 패키지 보호 서버모드 전환·드라이버 595·GPU/CPU 클럭 상한(vLLM 스핀)·PD 펌웨어·보안 기본값·함정 (환경 의존 네트워크 설정 제외) |
+| 2026-08-22 | [dgx-spark-node-setup](./dgx-spark-node-setup/) | DGX Spark(GB10) 한 대를 추론 서버로: 필수(서버모드·드라이버 595·PD FW·보안) / 추천(GPU·CPU 클럭 상한 스윕 그래프, vLLM 스핀 패치) / 트러블슈팅 / 직접 검증한 레시피(ollama Qwen3.8-27B, DS4F EXL3) |
 | 2026-08-11 | [deepseek-v4-flash-2x-dgx-spark](./deepseek-v4-flash-2x-dgx-spark/) | DGX Spark 2노드에 DeepSeek V4 Flash 0731 원본 FP8(166.9GB)을 vLLM TP=2로 서빙한 실측: 컨텍스트·클럭 무관한 디코드, 전성비 최적점, 95케이스 벤치 |
 | 2026-08-10 | [10gbe-transfer-bottlenecks](./10gbe-transfer-bottlenecks/) | 디스크는 800MB/s인데 rsync는 230: 사라진 70%를 ssh 암호화·직렬 처리·커널 소켓 버퍼·readahead 힌트로 분해 (단독 A/B 검증) |
 | 2026-08-10 | [gb10-gpu-clock-cap](./gb10-gpu-clock-cap/) | GB10 전력 상한: -pl 없음, nvidia-smi -lgc 클럭 캡으로 70W→40W 실측 + systemd 영속 + PD 고착 버그 구분 |
