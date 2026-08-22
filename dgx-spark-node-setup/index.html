@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기 — 필수 설정, 추천 설정, 트러블슈팅, 바로 돌려볼 레시피</title><meta name="description" content="ASUS Ascent GX10(GB10) 공장 상태에서 추론 서버까지. 필수: 플랫폼 패키지를 지키며 서버 모드 전환, 드라이버 595, PD 펌웨어, 보안 기본값. 추천: GPU 클럭 상한(스윕 실측 그래프), CPU 성능코어 상한, vLLM 스핀 패치. 트러블슈팅과 한 대에서 직접 검증한 레시피(ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3)까지."><meta property="og:title" content="ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기"><meta property="og:description" content="필수 설정 · 추천 설정(전력·스핀 패치, 실측 그래프) · 트러블슈팅 · 한 대에서 바로 돌려본 레시피"><meta property="og:type" content="article"><meta property="og:url" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup/"><meta property="og:image" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup/og.png"><meta name="twitter:card" content="summary_large_image"><style>
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기: 필수 설정, 추천 설정, 트러블슈팅, 바로 돌려볼 레시피</title><meta name="description" content="ASUS Ascent GX10(GB10) 공장 상태에서 추론 서버까지. 필수: 플랫폼 패키지를 지키며 서버 모드 전환, 드라이버 595, PD 펌웨어, 보안 기본값. 추천: GPU 클럭 상한(스윕 실측 그래프), CPU 성능코어 상한, vLLM 스핀 패치. 트러블슈팅과 한 대에서 직접 검증한 레시피(ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3)까지."><meta property="og:title" content="ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기"><meta property="og:description" content="필수 설정, 추천 설정(전력과 스핀 패치, 실측 그래프), 트러블슈팅, 한 대에서 바로 돌려본 레시피"><meta property="og:type" content="article"><meta property="og:url" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup/"><meta property="og:image" content="https://nacyot.github.io/artifacts/dgx-spark-node-setup/og.png"><meta name="twitter:card" content="summary_large_image"><style>
 :root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--box:#f3f2ec;--hi:#7a4a3a;--blu:#3b6ea5}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);
@@ -40,32 +40,32 @@ a{color:var(--hi)}
 .infobox .ib-title{font-weight:700;margin:0 0 .5rem;color:var(--hi)}
 @media(max-width:640px){body{font-size:17px}.doc{padding:2.6rem 1.1rem 5rem}}
 </style></head><body><div class="doc">
-<div class="kicker">ASUS Ascent GX10 · NVIDIA GB10 · 세팅 가이드</div>
-<h1>ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기 — 필수 설정, 추천 설정, 트러블슈팅, 바로 돌려볼 레시피</h1>
-<p class="fcap" style="margin:0 0 1.4rem">관련 글: <a href="../gb10-clock-cap/">GB10 클럭 상한 거는 법 →</a> · <a href="../vllm-spin-wait-gb10/">LLM 추론에서 가장 뜨거운 것은 GPU가 아니었다 →</a> · <a href="../deepseek-v4-flash-2x-dgx-spark/">DGX Spark 2대로 DeepSeek V4 Flash 돌리기 →</a></p>
+<div class="kicker">ASUS Ascent GX10 (NVIDIA GB10) 세팅 가이드</div>
+<h1>ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기: 필수 설정, 추천 설정, 트러블슈팅, 바로 돌려볼 레시피</h1>
+<p class="fcap" style="margin:0 0 1.4rem">관련 글: <a href="../gb10-clock-cap/">GB10 클럭 상한 거는 법 →</a> / <a href="../vllm-spin-wait-gb10/">LLM 추론에서 가장 뜨거운 것은 GPU가 아니었다 →</a> / <a href="../deepseek-v4-flash-2x-dgx-spark/">DGX Spark 2대로 DeepSeek V4 Flash 돌리기 →</a></p>
 
-<p>ASUS Ascent GX10(NVIDIA GB10, DGX Spark 제품군)을 세 대째 들이면서, 공장 상태의 기계를 추론 서버로 만드는 절차를 처음부터 다시 밟았다. 이 글의 대상은 <strong>ASUS Ascent GX10</strong>이다. NVIDIA DGX Spark나 다른 제조사의 GB10 기기도 비슷할 가능성이 높지만, 펌웨어·기본 이미지·패키지 구성은 제품에 따라 다를 수 있으니 그대로 따라 하기 전에 각자 장비에서 확인해야 한다. 앞의 두 대에서 몇 주에 걸쳐 하나씩 알아낸 것들을 이번에는 한 번에 적용했고, 그 과정에서 겪은 문제도 같이 적는다. 이 글은 그 절차를 네 덩어리로 나눈다 — 꼭 해야 하는 것, 하면 좋은 것, 겪은 문제, 그리고 세팅이 끝난 한 대에서 바로 돌려볼 수 있는 레시피. 집 네트워크에만 해당하는 설정(VLAN·주소·스위치)은 뺐다.</p>
+<p>ASUS Ascent GX10(NVIDIA GB10, DGX Spark 제품군)을 세 대째 들이면서, 공장 상태의 기계를 추론 서버로 만드는 절차를 처음부터 다시 밟았다. 이 글의 대상은 <strong>ASUS Ascent GX10</strong>이다. NVIDIA DGX Spark나 다른 제조사의 GB10 기기도 비슷할 가능성이 높지만, 펌웨어, 기본 이미지, 패키지 구성은 제품에 따라 다를 수 있으니 그대로 따라 하기 전에 각자 장비에서 확인해야 한다. 앞의 두 대에서 몇 주에 걸쳐 하나씩 알아낸 것들을 이번에는 한 번에 적용했고, 그 과정에서 겪은 문제도 같이 적는다. 이 글은 그 절차를 네 덩어리로 나눈다. 꼭 해야 하는 것, 하면 좋은 것, 겪은 문제, 그리고 세팅이 끝난 한 대에서 바로 돌려볼 수 있는 레시피다. 집 네트워크에만 해당하는 설정(VLAN, 주소, 스위치)은 뺐다.</p>
 
 <div class="warn"><p><b>주의.</b> 이 글에는 펌웨어 업그레이드, 드라이버 교체, 데스크탑 패키지 삭제, 방화벽 설정처럼 되돌리기 어렵거나 원격 접속을 끊을 수 있는 시스템 변경이 들어 있다. 명령을 실행하기 전에 각자의 장비와 버전에서 무엇이 바뀌는지 직접 확인하고, 본인 책임으로 진행하기 바란다. 수치는 우리 장비의 실측이며 보증이 아니다.</p></div>
 
 <div class="toc"><strong>차례</strong>
 <ol>
-<li><a href="#s0">시작하기 — 화면 안내대로, 그다음은 SSH로</a></li>
-<li><a href="#s1">필수 설정</a> — 서버 모드 · 드라이버 595 · PD 펌웨어 · 보안 기본값</li>
-<li><a href="#s2">추천 설정</a> — GPU 클럭 상한 · CPU 성능코어 상한 · vLLM 스핀 패치</li>
-<li><a href="#s3">트러블슈팅</a> — 겪은 문제와 잘못 알려진 정보</li>
-<li><a href="#s4">한 대에서 바로 돌려볼 레시피</a> — ollama Qwen3.8-27B · DeepSeek V4 Flash EXL3</li>
+<li><a href="#s0">시작하기: 화면 안내대로, 그다음은 SSH로</a></li>
+<li><a href="#s1">필수 설정</a>: 서버 모드, 드라이버 595, PD 펌웨어, 보안 기본값</li>
+<li><a href="#s2">추천 설정</a>: GPU 클럭 상한, CPU 성능코어 상한, vLLM 스핀 패치</li>
+<li><a href="#s3">트러블슈팅</a>: 겪은 문제와 잘못 알려진 정보</li>
+<li><a href="#s4">한 대에서 바로 돌려볼 레시피</a>: ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3</li>
 <li><a href="#s5">한 화면 체크리스트</a></li>
 </ol></div>
 
-<h2 id="s0">0. 시작하기 — 화면 안내대로, 그다음은 SSH로</h2>
-<p>처음 켜면 나오는 설정 화면(계정, 키보드, 네트워크)은 안내대로 마치면 된다. 특별히 고를 것이 없다. 그다음부터는 모니터와 키보드를 치우고 SSH로 작업하는 쪽이 편하다. 이 글의 나머지 절차도 전부 SSH로 했다. 코딩 에이전트(예: Claude Code)에 SSH 접속 권한을 주고 함께 진행하는 방식을 추천한다 — 아래 절차는 대부분 점검과 대조의 반복이라 에이전트가 잘 맞는다.</p>
+<h2 id="s0">0. 시작하기: 화면 안내대로, 그다음은 SSH로</h2>
+<p>처음 켜면 나오는 설정 화면(계정, 키보드, 네트워크)은 안내대로 마치면 된다. 특별히 고를 것이 없다. 그다음부터는 모니터와 키보드를 치우고 SSH로 작업하는 쪽이 편하다. 이 글의 나머지 절차도 전부 SSH로 했다. 코딩 에이전트(예: Claude Code)에 SSH 접속 권한을 주고 함께 진행하는 방식을 추천한다. 아래 절차는 대부분 점검과 대조의 반복이라 에이전트가 잘 맞는다.</p>
 <pre><code># DGX Spark 쪽 (처음 한 번, 로컬 터미널에서)
 ip -br a                       # 유선 IP 확인
 systemctl status ssh           # SSH 서버 동작 확인 (없으면 sudo apt install openssh-server)
 
 # 작업 PC 쪽
-ssh-copy-id user@&lt;spark-ip&gt;     # 공개키 복사 — 이후 비밀번호 없이 접속
+ssh-copy-id user@&lt;spark-ip&gt;     # 공개키 복사. 이후 비밀번호 없이 접속
 ssh user@&lt;spark-ip&gt;</code></pre>
 <p>공장 상태는 이랬다. 드라이버와 펌웨어 버전은 기계마다 다를 수 있으니 먼저 확인한다.</p>
 <table><thead><tr><th>항목</th><th>공장 상태 (2026-08 입고분)</th><th>이 글의 목표</th></tr></thead><tbody>
@@ -80,13 +80,13 @@ ssh user@&lt;spark-ip&gt;</code></pre>
 
 <h2 id="s1">1. 필수 설정</h2>
 
-<h3>1.1 서버 모드 전환 — 플랫폼 패키지를 지키면서</h3>
+<h3>1.1 서버 모드 전환: 플랫폼 패키지를 지키면서</h3>
 <p>공장 이미지는 GNOME 데스크탑이다. 추론 서버로 쓸 거라면 걷어내는 편이 좋다. GB10은 CPU와 GPU가 128GiB 메모리 풀 하나를 나눠 쓰는데, 데스크탑이 떠 있으면 그 풀에서 수 GiB를 차지한다. 단일 노드 레시피의 README는 데스크탑이 올라간 호스트의 기동 시 가용 메모리를 약 114.5GiB로 적고 있는데, 서버 모드로 바꾼 이 노드는 같은 레시피 기동 시 <strong>117.4GiB</strong>, 유휴 상태에서는 119.0GiB였다. 같은 기계에서 전후를 잰 것은 아니라 엄밀한 비교는 아니지만, 3~4.5GiB 차이는 큰 모델을 올릴 때 그대로 KV 캐시 여유가 된다.</p>
 <div class="chart" id="c-mem"></div>
-<p class="fcap">그림 1 · 가용 메모리(MemTotal 121.6GiB 기준). 데스크탑 호스트(레시피 README, 기동 시) ~114.5GiB, 이 노드 서버 모드는 기동 시 117.4GiB · 유휴 119.0GiB.</p>
+<p class="fcap">그림 1. 가용 메모리(MemTotal 121.6GiB 기준). 데스크탑 호스트(레시피 README, 기동 시) ~114.5GiB, 이 노드 서버 모드는 기동 시 117.4GiB, 유휴 119.0GiB.</p>
 <p>문제는 데스크탑을 지우는 명령 자체가 아니라 그 뒤의 <code>apt autoremove --purge</code>다. 두 번째 기계를 세팅할 때 이 명령이 <strong>NVIDIA 플랫폼 패키지 14개를 통째로 걷어간</strong> 적이 있다. 이 패키지들은 <code>dgx-spark-ota-update-meta</code>라는 메타패키지의 의존 패키지로만 잡혀 있어서, 메타패키지가 snapd와 함께 빠지는 순간 "아무도 필요로 하지 않는 패키지"가 된다. 부팅 파라미터를 넣어 주는 스니펫 두 개(<code>nvidia-spark-initcall-bl</code>, <code>nvidia-spark-grub-pci</code>)가 같이 사라졌고, 재설치와 <code>update-grub</code>, 재부팅으로 되돌렸다.</p>
-<p>이번에는 세 단계로 막았다. 지우기 전에 플랫폼 패키지를 수동 설치로 표시하고, 지우는 명령은 먼저 시뮬레이션으로 돌려 제거 목록에 드라이버·CUDA·플랫폼 패키지가 섞이면 멈추게 하고, 끝난 뒤 부팅 파라미터를 대조한다.</p>
-<pre><code># 이하 1·2장 명령은 root 셸(sudo -i) 기준
+<p>이번에는 세 단계로 막았다. 지우기 전에 플랫폼 패키지를 수동 설치로 표시하고, 지우는 명령은 먼저 시뮬레이션으로 돌려 제거 목록에 드라이버, CUDA, 플랫폼 패키지가 섞이면 멈추게 하고, 끝난 뒤 부팅 파라미터를 대조한다.</p>
+<pre><code># 이하 1, 2장 명령은 root 셸(sudo -i) 기준
 
 # 1) 보호: 메타패키지의 의존 패키지(snap 관련 제외) + 설치된 NVIDIA/DGX/docker/CUDA 패키지를 수동 설치로 표시
 apt-cache depends dgx-spark-ota-update-meta | awk '/Depends:/{print $2}' | grep -v snaps | xargs apt-mark manual
@@ -100,10 +100,10 @@ CAND="ubuntu-desktop ubuntu-desktop-minimal gdm3 gnome-shell xorg xwayland gnome
       dgxstation-desktop dgx-oobe-desktop dgx-spark-ota-update-meta ubuntu-server-minimal"
 PURGE=""; for p in $CAND; do dpkg -s "$p" &gt;/dev/null 2&gt;&amp;1 &amp;&amp; PURGE="$PURGE $p"; done   # 설치된 것만
 apt-get -s purge $PURGE | grep ^Remv | grep -E 'nvidia-driver|linux-modules-nvidia|cuda|docker|nvidia-spark' \
-  &amp;&amp; { echo "보호 대상 포함 — 중단"; exit 1; }
+  &amp;&amp; { echo "보호 대상 포함, 중단"; exit 1; }
 apt-get purge -y $PURGE
 apt-get -s autoremove --purge | grep ^Remv | grep -E 'nvidia-|dgx-|lldpd|docker|cuda' \
-  &amp;&amp; { echo "보호 대상 포함 — 중단"; exit 1; }
+  &amp;&amp; { echo "보호 대상 포함, 중단"; exit 1; }
 apt-get autoremove --purge -y
 rm -rf /snap /var/snap /var/lib/snapd /home/*/snap
 
@@ -115,9 +115,9 @@ grep -o 'initcall_blacklist=[^ ]*\|pci=pcie_bus_safe\|iommu.passthrough=[0-9]' /
 <h3>1.2 드라이버 580 → 595</h3>
 <p>바꾸는 이유는 속도가 아니라 결함이다. 580.173.02에서는 KV 캐시를 디스크로 내리는 경로에서 GPU 오류(<code>Xid 13</code>)가 재현됐고, 595.84로 올리자 같은 코드에서 사라졌다. 새 기계도 처음부터 595로 맞춘다.</p>
 <pre><code>apt-get -s install nvidia-driver-595-open linux-modules-nvidia-595-open-nvidia-hwe-24.04 | grep -E '^(Inst|Remv)'
-# 제거(Remv) 줄이 전부 580 계열인지 확인 — 아니면 멈춘다
+# 제거(Remv) 줄이 전부 580 계열인지 확인한다. 아니면 멈춘다
 apt-get -s install nvidia-driver-595-open linux-modules-nvidia-595-open-nvidia-hwe-24.04 \
-  | grep ^Remv | grep -v 580 &amp;&amp; { echo "580 외 제거 항목 — 중단"; exit 1; }
+  | grep ^Remv | grep -v 580 &amp;&amp; { echo "580 외 제거 항목, 중단"; exit 1; }
 apt-get install -y nvidia-driver-595-open linux-modules-nvidia-595-open-nvidia-hwe-24.04</code></pre>
 <p><code>linux-modules-nvidia-595-open-nvidia-hwe-24.04</code>는 지금 실행 중인 커널에 맞는 미리 빌드된 모듈 패키지를 끌어온다(여기선 <code>…-6.17.0-1031-nvidia</code>). DKMS 빌드가 필요 없고, 기계마다 커널이 달라도 각자 맞는 것을 받는다. 설치 직후에는 재부팅 전까지 <code>nvidia-smi</code>가 "Driver/library version mismatch"를 내는데, 이는 정상이다. 되돌리려면 <code>apt-cache policy nvidia-driver-580-open</code>으로 버전을 확인한 뒤 <code>apt-get install nvidia-driver-580-open=&lt;버전&gt; linux-modules-nvidia-580-open-nvidia-hwe-24.04</code>.</p>
 
@@ -127,13 +127,13 @@ apt-get install -y nvidia-driver-595-open linux-modules-nvidia-595-open-nvidia-h
 fwupdmgr get-updates                  # "GX10 USB-C PD FW Controller Update" 0x516
 fwupdmgr update -y --no-reboot-check  # 캡슐이 /boot/efi/EFI/ubuntu/fw/ 에 준비됨
 # 재부팅 (약 2분) → fwupdmgr get-devices 에서 0x00000516 확인</code></pre>
-<p>드라이버 교체·서버 모드 전환·펌웨어 적용을 한 번의 재부팅으로 처리했다. 같은 경로로 UEFI("GX10 SoC FW")와 EC 펌웨어도 내려온다.</p>
+<p>드라이버 교체, 서버 모드 전환, 펌웨어 적용을 한 번의 재부팅으로 처리했다. 같은 경로로 UEFI("GX10 SoC FW")와 EC 펌웨어도 내려온다.</p>
 
-<h3>1.4 보안·업데이트 기본값</h3>
+<h3>1.4 보안과 업데이트 기본값</h3>
 <table><thead><tr><th>항목</th><th>설정</th><th>메모</th></tr></thead><tbody>
 <tr><td>sshd</td><td><code>PasswordAuthentication no</code>, <code>KbdInteractiveAuthentication no</code>, <code>PermitRootLogin prohibit-password</code></td><td><code>~/.ssh/authorized_keys</code>에 키가 들어간 것을 확인한 뒤 <code>sshd -t &amp;&amp; systemctl reload ssh</code></td></tr>
 <tr><td>ufw</td><td>incoming deny / outgoing allow / routed deny. SSH는 관리망에서만, 서비스 포트는 필요할 때 한 줄씩</td><td>SSH로 작업 중이라면 <code>ufw allow from &lt;관리망/24&gt; to any port 22 proto tcp</code>를 <strong>먼저</strong> 넣고 <code>ufw enable</code>, 기존 세션은 열어 둔 채 새 터미널로 접속을 확인한다. 추론 API 포트(8000, 8888 등)를 LAN에 열 때도 명시적으로 추가한다</td></tr>
-<tr><td>unattended-upgrades</td><td>패키지 목록·업그레이드 자동, <code>Automatic-Reboot "false"</code>, <code>Remove-Unused-Kernel-Packages "true"</code></td><td>추론 중 재부팅되면 안 되므로 자동 재부팅은 끈다</td></tr>
+<tr><td>unattended-upgrades</td><td>패키지 목록과 업그레이드 자동, <code>Automatic-Reboot "false"</code>, <code>Remove-Unused-Kernel-Packages "true"</code></td><td>추론 중 재부팅되면 안 되므로 자동 재부팅은 끈다</td></tr>
 <tr><td>시간대 / Wi-Fi</td><td><code>timedatectl set-timezone</code> / <code>nmcli radio wifi off</code></td><td>공장 상태는 UTC. Wi-Fi는 유선 접속을 확인한 뒤 끈다</td></tr>
 <tr><td>persistenced / journald</td><td>enabled / persistent</td><td>공장 기본값 그대로</td></tr>
 </tbody></table>
@@ -141,17 +141,17 @@ fwupdmgr update -y --no-reboot-check  # 캡슐이 /boot/efi/EFI/ubuntu/fw/ 에 �
 <h2 id="s2">2. 추천 설정</h2>
 <p>여기부터는 안 해도 동작한다. 하지만 별도 냉각 팬 없이 GB10을 오래 돌릴 거라면 전력과 발열을 한 번은 생각해 보는 게 좋고, 아래 수치가 판단 재료다.</p>
 
-<h3>2.1 GPU 클럭 상한 — 전력 −40~50%, LLM 디코드 −5%, 영상 생성 +7~17%</h3>
+<h3>2.1 GPU 클럭 상한: 전력 −40~50%, LLM 디코드 −5%, 영상 생성 +7~17%</h3>
 <p>GB10에는 와트 단위 전력 한도(<code>nvidia-smi -pl</code>)가 없다. 유일한 조절 수단은 클럭 상한(<code>-lgc</code>)이다. 1400MHz부터 무제한까지 200MHz 간격으로 훑어본 결과가 아래 두 그래프다. 디코드는 메모리 대역폭이 병목이라 클럭을 내려도 토큰 속도가 거의 줄지 않는 반면, 전력과 온도는 클럭을 따라 가파르게 오른다.</p>
 <div class="chart" id="c-ds"></div>
-<p class="fcap">그림 2 · LLM 디코드(DeepSeek V4 Flash Q2, llama.cpp, 256토큰 3회 중앙값) — 상한별 tok/s(실선)와 부하 전력(점선). 2000MHz: 16.7 tok/s · 22W, 무제한: 17.5 tok/s · 45W. 2600 이상은 SM 실측 클럭이 ~2495MHz에 머물러 결과가 같다.</p>
+<p class="fcap">그림 2. LLM 디코드(DeepSeek V4 Flash Q2, llama.cpp, 256토큰 3회 중앙값), 상한별 tok/s(실선)와 부하 전력(점선). 2000MHz는 16.7 tok/s에 22W, 무제한은 17.5 tok/s에 45W. 2600 이상은 SM 실측 클럭이 ~2495MHz에 머물러 결과가 같다.</p>
 <div class="chart" id="c-h3"></div>
-<p class="fcap">그림 3 · 영상 생성(MiniMax-H3, 20 step) — 상한별 총 시간(실선)과 부하 전력(점선). 2000MHz: 103s · 50W · 66°C, 2200: 97s · 65W · 73°C, 2400 이상: ~96s · 85W · 80°C+. GPU 연산이 대부분인 작업은 시간 이득이 2200~2400에서 끝난다.</p>
+<p class="fcap">그림 3. 영상 생성(MiniMax-H3, 20 step), 상한별 총 시간(실선)과 부하 전력(점선). 2000MHz는 103s, 50W, 66°C. 2200은 97s, 65W, 73°C. 2400 이상은 약 96s, 85W, 80°C 이상. GPU 연산이 대부분인 작업은 시간 이득이 2200~2400에서 끝난다.</p>
 <table><thead><tr><th>상한</th><th>용도</th><th class="n">LLM 디코드</th><th class="n">영상 생성</th></tr></thead><tbody>
-<tr><td>2200</td><td>속도 우선</td><td class="n">17.1 tok/s · 28W · 57°C</td><td class="n">97s · 65W · 73°C</td></tr>
-<tr class="hi"><td>2000</td><td>균형 (추천값)</td><td class="n">16.7 tok/s · 22W · 55°C</td><td class="n">103s · 50W · 66°C</td></tr>
-<tr><td>1800</td><td>한여름·환기 나쁜 날</td><td class="n">16.2 tok/s · 19W · 53°C</td><td class="n">107s · 41W · 61°C</td></tr>
-<tr><td>1400~1600</td><td>장시간·저열</td><td class="n">15.0~15.7 tok/s · 15~17W · 49~51°C</td><td class="n">113~125s · 28~33W</td></tr>
+<tr><td>2200</td><td>속도 우선</td><td class="n">17.1 tok/s, 28W, 57°C</td><td class="n">97s, 65W, 73°C</td></tr>
+<tr class="hi"><td>2000</td><td>균형 (추천값)</td><td class="n">16.7 tok/s, 22W, 55°C</td><td class="n">103s, 50W, 66°C</td></tr>
+<tr><td>1800</td><td>한여름, 환기 나쁜 날</td><td class="n">16.2 tok/s, 19W, 53°C</td><td class="n">107s, 41W, 61°C</td></tr>
+<tr><td>1400~1600</td><td>장시간, 저열</td><td class="n">15.0~15.7 tok/s, 15~17W, 49~51°C</td><td class="n">113~125s, 28~33W</td></tr>
 </tbody></table>
 <pre><code># /etc/systemd/system/gpu-clock-cap.service
 # 작성 후: systemctl daemon-reload &amp;&amp; systemctl enable --now gpu-clock-cap   (끄려면 systemctl stop)
@@ -165,14 +165,14 @@ ExecStart=/usr/bin/nvidia-smi -lgc 300,2000
 ExecStop=/usr/bin/nvidia-smi -rgc
 [Install]
 WantedBy=multi-user.target</code></pre>
-<p>2000을 넣으면 실제로는 내부 스텝에 맞춰 약 1989MHz가 된다. 한 가지만 기억하면 된다 — 이 상한은 벤치마크 조건이다. 성능 수치를 적을 때 클럭 조건을 함께 적고, 부하 중 <code>nvidia-smi --query-gpu=clocks.sm</code>으로 실제 클럭을 확인한다. 아래 레시피의 숫자는 전부 이 상한이 걸린 상태의 값이다.</p>
+<p>2000을 넣으면 실제로는 내부 스텝에 맞춰 약 1989MHz가 된다. 한 가지만 기억하면 된다. 이 상한은 벤치마크 조건이다. 성능 수치를 적을 때 클럭 조건을 함께 적고, 부하 중 <code>nvidia-smi --query-gpu=clocks.sm</code>으로 실제 클럭을 확인한다. 아래 레시피의 숫자는 전부 이 상한이 걸린 상태의 값이다.</p>
 
-<h3>2.2 CPU 성능코어 상한 — 왜 CPU를 제한하는가</h3>
-<p>CPU 상한은 GPU와 이유가 다르다. 출발점은 "LLM 추론 중인데 왜 CPU가 뜨거운가"였다. GB10 두 대를 연결해 vLLM(TP=2)으로 디코드를 돌렸더니 GPU는 70°C 안팎인데 <strong>성능코어 3~4개가 100%에 고정된 채 SoC 온도를 96°C까지 올렸다.</strong> 원인은 vLLM의 프로세스 간 메시지 큐가 새 메시지를 기다리는 동안 스핀하는 기본값이었다(아래 2.3). 그 수정은 소프트웨어 쪽 해법이고, 엔진·이미지가 바뀌면 다시 살아날 수 있다. 그래서 <strong>호스트 쪽 안전망으로 성능코어 클럭 상한</strong>을 같이 건다. 한 대에서 TP=1로 돌리는 구성에는 2.3의 스핀 자체가 없으므로, 이 상한은 다른 엔진이나 구성이 CPU를 과하게 돌릴 때를 위한 보험이고 선택 사항이다.</p>
+<h3>2.2 CPU 성능코어 상한: 왜 CPU를 제한하는가</h3>
+<p>CPU 상한은 GPU와 이유가 다르다. 출발점은 "LLM 추론 중인데 왜 CPU가 뜨거운가"였다. GB10 두 대를 연결해 vLLM(TP=2)으로 디코드를 돌렸더니 GPU는 70°C 안팎인데 <strong>성능코어 3~4개가 100%에 고정된 채 SoC 온도를 96°C까지 올렸다.</strong> 원인은 vLLM의 프로세스 간 메시지 큐가 새 메시지를 기다리는 동안 스핀하는 기본값이었다(아래 2.3). 그 수정은 소프트웨어 쪽 해법이고, 엔진이나 이미지가 바뀌면 다시 살아날 수 있다. 그래서 <strong>호스트 쪽 안전망으로 성능코어 클럭 상한</strong>을 같이 건다. 한 대에서 TP=1로 돌리는 구성에는 2.3의 스핀 자체가 없으므로, 이 상한은 다른 엔진이나 구성이 CPU를 과하게 돌릴 때를 위한 보험이고 선택 사항이다.</p>
 <p>GB10의 20코어는 성능코어 10개(최대 3.9GHz)와 효율코어 10개(2.8GHz)다. 성능코어를 효율코어와 같은 2.8GHz로 제한했을 때 온도 변화를 존별로 보면, 성능코어에서 멀어질수록 하락 폭이 줄어드는 모양이 나와 열원이 성능코어임이 드러난다.</p>
 <div class="chart" id="c-cpu"></div>
-<p class="fcap">그림 4 · 성능코어 3.9 → 2.8GHz 상한 적용 시 부하 중 온도 변화(°C). 성능코어 −14, 언코어·메모리 −3.7, GPU −1.7, NVMe 0. SoC 종합은 −9. 단일 스트림 속도는 변화가 없었고, 동시 8 스트림에서 −5%.</p>
-<pre><code># /etc/systemd/system/cpu-clock-cap.service — 성능코어(최대 3.9GHz)만 2.8GHz로
+<p class="fcap">그림 4. 성능코어 3.9 → 2.8GHz 상한 적용 시 부하 중 온도 변화(°C). 성능코어 −14, 언코어/메모리 −3.7, GPU −1.7, NVMe 0. SoC 종합은 −9. 단일 스트림 속도는 변화가 없었고, 동시 8 스트림에서 −5%.</p>
+<pre><code># /etc/systemd/system/cpu-clock-cap.service: 성능코어(최대 3.9GHz)만 2.8GHz로
 [Service]
 Type=oneshot
 RemainAfterExit=yes
@@ -183,27 +183,27 @@ ExecStop=/usr/bin/bash -c 'for p in /sys/devices/system/cpu/cpufreq/policy*; do 
   cat $p/cpuinfo_max_freq &gt; $p/scaling_max_freq; done'
 [Install]
 WantedBy=multi-user.target</code></pre>
-<p><code>/sys/devices/system/cpu/cpufreq/boost</code>는 이 플랫폼에서 기본값이 0이라 따로 손댈 게 없다. 정리하면 GPU 상한은 전력·발열의 상한이고, CPU 상한은 소프트웨어가 CPU를 과하게 돌리기 시작했을 때의 안전망이다. 둘 다 숫자만이 아니라 거는 이유까지 알아야 나중에 제때 풀 수 있다.</p>
+<p><code>/sys/devices/system/cpu/cpufreq/boost</code>는 이 플랫폼에서 기본값이 0이라 따로 손댈 게 없다. 정리하면 GPU 상한은 전력과 발열의 상한이고, CPU 상한은 소프트웨어가 CPU를 과하게 돌리기 시작했을 때의 안전망이다. 둘 다 숫자만이 아니라 거는 이유까지 알아야 나중에 제때 풀 수 있다.</p>
 
-<h3>2.3 vLLM 스핀 패치 — 두 대 이상 연결할 때</h3>
+<h3>2.3 vLLM 스핀 패치: 두 대 이상 연결할 때</h3>
 <div class="note">적용 범위부터: 이 스핀은 vLLM의 멀티프로세스 실행기(<code>mp</code> executor)에서만 일어난다. <strong>한 대에서 TP=1로 돌리면 해당하지 않는다</strong>(워커가 같은 프로세스 안에 있어 큐 자체가 없다). 두 대 이상을 연결하거나 <code>--distributed-executor-backend=mp</code>를 명시했을 때의 이야기다.</div>
 <p>vLLM의 <code>shm_broadcast.py</code>에는 메시지 큐를 기다릴 때 1초(<code>busy_loop_s=1</code>) 동안 스핀한 뒤에야 잠드는 기본값이 있다. 디코드 스텝 간격은 1초보다 훨씬 짧으니 사실상 항상 스핀인 셈이다. 코어가 수십 개인 일반 서버에서는 3~4코어 낭비가 눈에 안 띄지만, CPU와 GPU가 한 패키지에 들어 있는 GB10에서는 그 열이 곧 SoC 온도가 된다. py-spy로 스택을 찍어 보고 기본값을 2ms로 바꾸자 vLLM 프로세스 CPU 합이 333%에서 89%로 줄고, SoC 온도는 11°C 내려갔다. 추적 과정은 <a href="../vllm-spin-wait-gb10/">원 기사</a>에, 통제된 재현은 <a href="../vllm-spin-wait-gb10-repro/">후속 실험</a>에 있다.</p>
 <div class="chart" id="c-spin"></div>
-<p class="fcap">그림 5 · 스핀 기본값(1초) 대 2ms 패치. 왼쪽: vLLM 프로세스 CPU 사용량 합(%). 오른쪽: 부하 중 SoC 온도(°C, 외부 팬 없는 노드). 재현 실험에서는 기본값이 부하 90초 만에 85°C, 2분 18초에 90°C, 피크 95°C까지 갔고 패치는 피크 85°C였다.</p>
+<p class="fcap">그림 5. 스핀 기본값(1초) 대 2ms 패치. 왼쪽: vLLM 프로세스 CPU 사용량 합(%). 오른쪽: 부하 중 SoC 온도(°C, 외부 팬 없는 노드). 재현 실험에서는 기본값이 부하 90초 만에 85°C, 2분 18초에 90°C, 피크 95°C까지 갔고 패치는 피크 85°C였다.</p>
 <pre><code># 컨테이너/가상환경 안, vLLM 기동 전 (경로는 설치 위치에 맞게)
 sed -i 's/busy_loop_s: float = [0-9.]*/busy_loop_s: float = 0.002/' \
   $(python -c 'import vllm,os;print(os.path.dirname(vllm.__file__))')/distributed/device_communicators/shm_broadcast.py
 grep -n 'busy_loop_s' $(python -c 'import vllm,os;print(os.path.dirname(vllm.__file__))')/distributed/device_communicators/shm_broadcast.py
-# 바뀐 줄이 보여야 한다 — 패턴이 없으면 sed는 조용히 아무것도 안 한다.
+# 바뀐 줄이 보여야 한다. 패턴이 없으면 sed는 조용히 아무것도 안 한다.
 # 빌드에 따라 환경 변수(VLLM_MQ_SPIN_SECONDS 등)로 노출된 경우는 그쪽을 쓴다.</code></pre>
-<p>솔직하게 덧붙일 것이 있다. 나중에 한 재검증에서 단일 스트림 디코드가 기본값 40.9 대 패치 38.7 tok/s로 약 2~6% 느렸다(반복 분산 안쪽이지만 방향은 일관. 동시 4 스트림에서는 차이 없음, CPU 감소는 그대로 재현). 그래서 우리는 이 패치를 <strong>"발열이 문제일 때 켜는 스위치"</strong>로 둔다 — 외부 냉각이 없고 여름이면 켜고, 단일 스트림 속도가 우선이면 끄는 식이다. 2.2의 CPU 상한은 그 선택과 무관하게 걸어 둔다.</p>
+<p>솔직하게 덧붙일 것이 있다. 나중에 한 재검증에서 단일 스트림 디코드가 기본값 40.9 대 패치 38.7 tok/s로 약 2~6% 느렸다(반복 분산 안쪽이지만 방향은 일관. 동시 4 스트림에서는 차이 없음, CPU 감소는 그대로 재현). 그래서 우리는 이 패치를 <strong>"발열이 문제일 때 켜는 스위치"</strong>로 둔다. 외부 냉각이 없고 여름이면 켜고, 단일 스트림 속도가 우선이면 끄는 식이다. 2.2의 CPU 상한은 그 선택과 무관하게 걸어 둔다.</p>
 
-<h2 id="s3">3. 트러블슈팅 — 겪은 문제와 잘못 알려진 정보</h2>
+<h2 id="s3">3. 트러블슈팅: 겪은 문제와 잘못 알려진 정보</h2>
 <table><thead><tr><th style="width:34%">증상</th><th>원인 / 조치</th></tr></thead><tbody>
-<tr><td>재부팅 후 <code>docker.service</code> 실패 — <code>error creating buildkit instance: invalid database</code></td><td>공장 이미지에 들어 있던 buildkit 로컬 DB(2025-09 생성)가 손상돼 있었다. 빌드 캐시일 뿐이라 <code>systemctl stop docker.socket docker; mv /var/lib/docker/buildkit /var/lib/docker/buildkit.bak; systemctl start docker</code>. 이미지·컨테이너와 무관하다. 이어서 <code>nvidia-ctk runtime configure --runtime=docker</code>로 nvidia 런타임을 등록해 둔다.</td></tr>
+<tr><td>재부팅 후 <code>docker.service</code> 실패: <code>error creating buildkit instance: invalid database</code></td><td>공장 이미지에 들어 있던 buildkit 로컬 DB(2025-09 생성)가 손상돼 있었다. 빌드 캐시일 뿐이라 <code>systemctl stop docker.socket docker; mv /var/lib/docker/buildkit /var/lib/docker/buildkit.bak; systemctl start docker</code>. 이미지나 컨테이너와는 무관하다. 이어서 <code>nvidia-ctk runtime configure --runtime=docker</code>로 nvidia 런타임을 등록해 둔다.</td></tr>
 <tr><td>드라이버 설치 직후 <code>nvidia-smi</code>: Driver/library version mismatch</td><td>커널 모듈은 구버전이 로드된 채 라이브러리만 새것. 재부팅하면 해소. 재부팅 전에 GPU를 쓰는 작업을 돌리지 말 것.</td></tr>
 <tr><td>595에서 <code>nvidia-smi --query-gpu=clocks.applications.graphics</code>, <code>display_mode</code>가 문자열을 돌려준다</td><td>"Requested functionality has been deprecated". 점검 스크립트가 숫자 비교를 하면 깨진다. <code>clocks.sm</code>을 보거나 문자열을 예외 처리한다.</td></tr>
-<tr><td>부하 중 GPU 클럭이 400~950MHz에 머물고 전력 ~10W, 스로틀 플래그는 전부 Not Active</td><td>PD 펌웨어 저클럭 고착(1.3). 재부팅·<code>nvidia-smi -rgc</code>로 안 풀리고, 종료 → 전원 케이블 분리 → 전원 버튼으로 방전 → 1분 뒤 재연결. 의도적으로 건 상한(약 1989MHz)과 구분할 것.</td></tr>
+<tr><td>부하 중 GPU 클럭이 400~950MHz에 머물고 전력 ~10W, 스로틀 플래그는 전부 Not Active</td><td>PD 펌웨어 저클럭 고착(1.3). 재부팅이나 <code>nvidia-smi -rgc</code>로는 안 풀리고, 종료 → 전원 케이블 분리 → 전원 버튼으로 방전 → 1분 뒤 재연결. 의도적으로 건 상한(약 1989MHz)과 구분할 것.</td></tr>
 <tr><td><code>apt autoremove</code> 뒤 부팅 파라미터가 사라졌다</td><td>메타패키지의 의존 패키지였던 플랫폼 패키지가 함께 제거됨(1.1). 큰 purge 뒤에는 <code>/proc/cmdline</code>과 <code>/etc/default/grub.d/</code>를 기준 기계와 대조한다.</td></tr>
 <tr><td>200G ConnectX-7이 <code>lspci</code>에 없다</td><td>케이블이 꽂혀 있지 않으면 NIC이 노출되지 않는다(핫플러그 패키지가 관리). 드라이버 문제가 아니다.</td></tr>
 <tr><td>재부팅했더니 <code>/tmp</code>에 두었던 파일이 사라졌다</td><td>Ubuntu는 부팅 시 <code>/tmp</code>를 비운다. 재부팅 전에 스테이징 파일은 홈으로.</td></tr>
@@ -211,14 +211,14 @@ grep -n 'busy_loop_s' $(python -c 'import vllm,os;print(os.path.dirname(vllm.__f
 <tr><td>모델 서버가 메모리를 90% 넘게 차지하면 유저스페이스 OOM 데몬이 먼저 죽일 수 있다</td><td>earlyoom 같은 데몬이 켜져 있는지 확인한다(<code>systemctl is-active earlyoom</code>). 큰 모델을 의도적으로 꽉 채워 올리는 레시피 중에는 earlyoom을 끄라고 안내하는 것도 있다.</td></tr>
 </tbody></table>
 
-<div class="infobox"><div class="ib-title">잘못 알려진 정보 — "UEFI에서 Display를 끄면 메모리가 는다"</div>
-<p>단일 노드 레시피 쪽에서 "데스크탑/디스플레이가 UMA 7GiB를 차지하니 UEFI의 Display 항목을 끄라"는 조언이 돈다. 확인 결과 GX10 펌웨어(GX10DGX.0105)에 Display·iGPU·iGPU Memory Carveout 같은 항목이 있긴 하지만 전부 숨김(<code>SuppressIf</code>) 처리라 설정 화면에 나오지 않고, NVIDIA 공식 UEFI 가이드에도 없다. 그 7GiB는 펌웨어 예약이 아니라 GNOME/Xorg 같은 유저스페이스의 GPU 할당이라 <strong>서버 모드로 바꾸면 돌아온다.</strong> 펌웨어에서 할 일은 없고, 숨김 변수를 직접 고치는 것은 검증되지 않았으니 권하지 않는다.</p></div>
+<div class="infobox"><div class="ib-title">잘못 알려진 정보: "UEFI에서 Display를 끄면 메모리가 는다"</div>
+<p>단일 노드 레시피 쪽에서 "데스크탑/디스플레이가 UMA 7GiB를 차지하니 UEFI의 Display 항목을 끄라"는 조언이 돈다. 확인 결과 GX10 펌웨어(GX10DGX.0105)에 Display, iGPU, iGPU Memory Carveout 같은 항목이 있긴 하지만 전부 숨김(<code>SuppressIf</code>) 처리라 설정 화면에 나오지 않고, NVIDIA 공식 UEFI 가이드에도 없다. 그 7GiB는 펌웨어 예약이 아니라 GNOME/Xorg 같은 유저스페이스의 GPU 할당이라 <strong>서버 모드로 바꾸면 돌아온다.</strong> 펌웨어에서 할 일은 없고, 숨김 변수를 직접 고치는 것은 검증되지 않았으니 권하지 않는다.</p></div>
 
-<h2 id="s4">4. 한 대에서 바로 돌려볼 레시피 — 직접 검증한 것만</h2>
+<h2 id="s4">4. 한 대에서 바로 돌려볼 레시피: 직접 검증한 것만</h2>
 <p>세팅이 끝난 한 대에서 그대로 따라 할 수 있는 두 가지다. 둘 다 위의 GPU 상한(1989MHz)이 걸린 상태에서 쟀다.</p>
 
-<h3>4.1 ollama + Qwen3.8-27B (GGUF Q4_K_M) — 10분 안에 첫 토큰</h3>
-<p>가장 빠른 동작 확인. 공식 설치 스크립트로 ollama를 올리고, Hugging Face의 <code>ggml-org/Qwen3.8-27B-GGUF</code>에서 <code>Qwen3.8-27B-Q4_K_M.gguf</code>(19GB)를 받아 Modelfile로 등록한다. 한 가지 함정 — 이 환경에서는 ollama의 기본 컨텍스트가 262144로 잡혀(<code>ollama ps</code>로 확인) 작은 모델도 KV 캐시로 수십 GB를 차지할 수 있다. Modelfile에 <code>num_ctx</code>를 명시한다.</p>
+<h3>4.1 ollama + Qwen3.8-27B (GGUF Q4_K_M): 10분 안에 첫 토큰</h3>
+<p>가장 빠른 동작 확인. 공식 설치 스크립트로 ollama를 올리고, Hugging Face의 <code>ggml-org/Qwen3.8-27B-GGUF</code>에서 <code>Qwen3.8-27B-Q4_K_M.gguf</code>(19GB)를 받아 Modelfile로 등록한다. 한 가지 함정이 있다. 이 환경에서는 ollama의 기본 컨텍스트가 262144로 잡혀(<code>ollama ps</code>로 확인) 작은 모델도 KV 캐시로 수십 GB를 차지할 수 있다. Modelfile에 <code>num_ctx</code>를 명시한다.</p>
 <pre><code>curl -fsSL https://ollama.com/install.sh | sh
 pip install -U huggingface_hub          # hf CLI
 hf download ggml-org/Qwen3.8-27B-GGUF Qwen3.8-27B-Q4_K_M.gguf --local-dir ~/models/qwen3.8-27b
@@ -232,10 +232,10 @@ ollama run qwen3.8-27b-q4km --verbose "한 문장으로 자기소개해 줘"</co
 <tr><td>적재</td><td class="n">100% GPU, 20GB</td><td><code>ollama ps</code>. 첫 로드 43초(콜드 페이지캐시), 이후 상주</td></tr>
 <tr><td>디코드</td><td class="n">11.5~11.8 tok/s</td><td>27B dense Q4 19GB는 GB10 메모리 대역폭(273GB/s) 기준 상한이 약 14 tok/s라 정상 범위</td></tr>
 <tr><td>프롬프트 평가</td><td class="n">290 tok/s</td><td>첫 요청은 워밍업으로 36초 걸렸고 두 번째부터 0.3초</td></tr>
-<tr><td>생성 중 GPU</td><td class="n">95% · 1989MHz · 25W · 57°C</td><td>GPU 상한 적용 상태</td></tr>
+<tr><td>생성 중 GPU</td><td class="n">95%, 1989MHz, 25W, 57°C</td><td>GPU 상한 적용 상태</td></tr>
 </tbody></table>
 
-<h3>4.2 DeepSeek V4 Flash를 한 대에서 — MiaAI 레시피 (EXL3 3.0bpw, REAP K216)</h3>
+<h3>4.2 DeepSeek V4 Flash를 한 대에서: MiaAI 레시피 (EXL3 3.0bpw, REAP K216)</h3>
 <p>원본 FP8(166.9GB)은 한 대에 안 들어간다. <a href="https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark">MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark</a>는 <code>0xSero/deepseek-v4-flash-0731-spark</code>를 SparkInfer 커널과 DSpark 스펙 디코딩으로 서빙한다. 이 체크포인트는 전문가 256개 중 216개를 남기고(REAP) EXL3 3.0bpw로 양자화한 106.9GB 빌드다. 따라서 "원본 DeepSeek V4 Flash"가 아니라 프루닝+3bpw 판이라는 점은 알고 써야 한다.</p>
 <pre><code># 전제: docker + compose v2, nvidia 런타임 등록(nvidia-ctk runtime configure --runtime=docker), 사용자가 docker 그룹
 git clone https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark mia-one &amp;&amp; cd mia-one
@@ -243,12 +243,12 @@ git clone https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-One-DGX-Spark mia-one &
 systemctl stop earlyoom ollama   # 레시피 요구(서버가 메모리 94%를 의도적으로 차지한다) + 4.1의 ollama도 내린다. free -h 에서 가용 ≥ 114.3 GiB 확인
 ./start.sh --no-wait     # 기본값: MAX_MODEL_LEN 384000, MAX_NUM_SEQS 1, KV_RECORD=stock432, DSpark 스펙 디코딩
 curl -s -o /dev/null -w '%{http_code}\n' localhost:8888/health   # 200 이면 준비. 이 기계에서 552초 걸렸다</code></pre>
-<p>서버 모드 덕을 여기서 봤다. 기동 시 가용 메모리가 117.4GiB(레시피 README의 호스트는 114.5)라 <strong>KV 풀이 510,778 토큰</strong>으로 확보됐다 — README 최고치 439,622보다 16% 크다.</p>
+<p>서버 모드 덕을 여기서 봤다. 기동 시 가용 메모리가 117.4GiB(레시피 README의 호스트는 114.5)라 <strong>KV 풀이 510,778 토큰</strong>으로 확보됐다. README 최고치 439,622보다 16% 크다.</p>
 <div class="chart" id="c-mia"></div>
-<p class="fcap">그림 6 · 프롬프트 길이별 프리필 속도(tok/s, 프리픽스 캐시 없이). 32k~100k에서 ~1,000 tok/s, 330k에서 843 tok/s. 같은 길이의 니들 테스트(숨겨 둔 암호 문구 찾아내기)는 64k·200k·330k 전부 정확히 맞혔고 선점(preemption)은 0이었다.</p>
+<p class="fcap">그림 6. 프롬프트 길이별 프리필 속도(tok/s, 프리픽스 캐시 없이). 32k~100k에서 ~1,000 tok/s, 330k에서 843 tok/s. 같은 길이의 니들 테스트(숨겨 둔 암호 문구 찾아내기)는 64k, 200k, 330k 전부 정확히 맞혔고 선점(preemption)은 0이었다.</p>
 <table><thead><tr><th>측정</th><th class="n">값</th><th class="n">README 주장</th></tr></thead><tbody>
-<tr><td>기동 (/health 200)</td><td class="n">552s</td><td class="n">—</td></tr>
-<tr><td>디코드 단일 스트림 (thinking off)</td><td class="n">36~37 (512 tok ×3) · 38~44 (인수 테스트 코드 생성)</td><td class="n">44~47 (330k 컨텍스트, structured)</td></tr>
+<tr><td>기동 (/health 200)</td><td class="n">552s</td><td class="n">-</td></tr>
+<tr><td>디코드 단일 스트림 (thinking off)</td><td class="n">36~37 (512 tok ×3), 38~44 (인수 테스트 코드 생성)</td><td class="n">44~47 (330k 컨텍스트, structured)</td></tr>
 <tr><td>프리필 32k / 100k</td><td class="n">1,091 / 1,024 tok/s</td><td class="n">~1,024</td></tr>
 <tr><td>니들 64k / 200k / 330k</td><td class="n">전부 정확</td><td class="n">320k/370k 정확</td></tr>
 <tr><td>레시피 자체 인수 테스트(<code>acceptance_c1.py</code>)</td><td class="n">전부 pass</td><td class="n">게이트 ≥35 tok/s</td></tr>
@@ -257,17 +257,17 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:8888/health   # 200 이면 �
 
 <h2 id="s5">5. 한 화면 체크리스트</h2>
 <ol>
-<li>화면 안내대로 초기 설정 → <code>ip -br a</code>·<code>systemctl status ssh</code> → 작업 PC에서 <code>ssh-copy-id</code></li>
-<li><code>timedatectl set-timezone</code> · <code>apt-get update</code></li>
+<li>화면 안내대로 초기 설정 → <code>ip -br a</code>, <code>systemctl status ssh</code> → 작업 PC에서 <code>ssh-copy-id</code></li>
+<li><code>timedatectl set-timezone</code>, <code>apt-get update</code></li>
 <li>플랫폼 패키지 <code>apt-mark manual</code> (메타 Depends + 설치된 <code>nvidia-spark-*</code> 등)</li>
-<li>ufw·unattended-upgrades·build-essential·python3-dev·jq·htop 등 기본 패키지</li>
-<li>unattended 설정(자동 재부팅 off) · sshd 키 전용 · ufw 기본 거부 · docker 그룹</li>
-<li>(추천) 클럭 상한 유닛 2개 enable — GPU 300,2000 / CPU 성능코어 2.8GHz</li>
-<li>드라이버 595(시뮬레이션 후) · multi-user · purge/autoremove(게이트) · grub 대조 · PD FW 준비 · 보안 업데이트</li>
+<li>ufw, unattended-upgrades, build-essential, python3-dev, jq, htop 등 기본 패키지</li>
+<li>unattended 설정(자동 재부팅 off), sshd 키 전용, ufw 기본 거부, docker 그룹</li>
+<li>(추천) 클럭 상한 유닛 2개 enable (GPU 300,2000 / CPU 성능코어 2.8GHz)</li>
+<li>드라이버 595(시뮬레이션 후), multi-user, purge/autoremove(게이트), grub 대조, PD FW 준비, 보안 업데이트</li>
 <li>임시 파일을 홈으로 옮기고 재부팅 → 검증: 드라이버 버전, 클럭, <code>/proc/cmdline</code>, PD 펌웨어 0x516, failed 유닛 0, docker 정상</li>
 <li>레시피 하나로 동작 확인 (4.1이 가장 빠르다)</li>
 </ol>
-<p class="fcap">기록: 2026-08-21~22. 장비: ASUS Ascent GX10 (NVIDIA GB10, 128GB) — 다른 GB10 제품은 펌웨어·이미지가 다를 수 있다. 펌웨어 GX10DGX.0105, Ubuntu 24.04.4, 커널 6.17.0-1031-nvidia, 드라이버 595.84. 클럭 상한 스윕과 스핀 실험 수치는 같은 기종의 기존 두 대에서 쟀다(각 링크 참조). 네트워크 구성·주소·호스트명 등 환경 의존 항목은 뺐다.</p>
+<p class="fcap">기록: 2026-08-21~22. 장비: ASUS Ascent GX10 (NVIDIA GB10, 128GB). 다른 GB10 제품은 펌웨어와 이미지가 다를 수 있다. 펌웨어 GX10DGX.0105, Ubuntu 24.04.4, 커널 6.17.0-1031-nvidia, 드라이버 595.84. 클럭 상한 스윕과 스핀 실험 수치는 같은 기종의 기존 두 대에서 쟀다(각 링크 참조). 네트워크 구성, 주소, 호스트명 등 환경 의존 항목은 뺐다.</p>
 </div>
 <script src="../vendor/d3.v7.min.js"></script>
 <script>
@@ -277,7 +277,7 @@ function svgIn(id,W,H){return d3.select("#"+id).append("svg").attr("viewBox",[0,
 // 그림 1: 메모리 바
 (function(){
   const W=640,H=132,M={l:190,r:70,t:14,b:26};
-  const data=[{k:"데스크탑 호스트 (README, 기동 시)",v:114.5},{k:"서버 모드 · 기동 시",v:117.4},{k:"서버 모드 · 유휴",v:119.0}];
+  const data=[{k:"데스크탑 호스트 (README, 기동 시)",v:114.5},{k:"서버 모드 (기동 시)",v:117.4},{k:"서버 모드 (유휴)",v:119.0}];
   const svg=svgIn("c-mem",W,H);
   const x=d3.scaleLinear().domain([0,121.6]).range([M.l,W-M.r]);
   const y=d3.scaleBand().domain(data.map(d=>d.k)).range([M.t,H-M.b]).padding(.3);
@@ -317,7 +317,7 @@ dual("c-h3",CAPS,[125.3,113.3,107.3,102.7,97.2,96.8,95.3,97.0,95.2,96.1],[28.3,3
 // 그림 4: CPU 존별 Δ°C
 (function(){
   const W=640,H=170,M={l:150,r:40,t:14,b:26};
-  const data=[{k:"성능코어 (열원)",v:-14},{k:"SoC 종합",v:-9},{k:"언코어·메모리",v:-3.7},{k:"GPU",v:-1.7},{k:"NVMe",v:0}];
+  const data=[{k:"성능코어 (열원)",v:-14},{k:"SoC 종합",v:-9},{k:"언코어/메모리",v:-3.7},{k:"GPU",v:-1.7},{k:"NVMe",v:0}];
   const svg=svgIn("c-cpu",W,H);
   const x=d3.scaleLinear().domain([-15,0]).range([M.l,W-M.r]);
   const y=d3.scaleBand().domain(data.map(d=>d.k)).range([M.t,H-M.b]).padding(.3);
