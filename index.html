@@ -61,6 +61,18 @@
 </header>
 <p class="sub">공개해도 되는 작업 산출물 모음 — 실측 정리 · 리서치 · 시각화. 개인 식별 정보와 자격증명은 제거한 것만 올린다. 최신순.</p>
 
+<a class="item" href="./ws90-zigbee-shelly/">
+  <img class="thumb" src="./ws90-zigbee-shelly/og.png" alt="" loading="lazy" width="1200" height="630">
+  <div class="body">  <h2>지그비 기상 센서에서 바람과 UV와 강우 값이 오지 않았다</h2>
+  <p>7-in-1 기상 관측 센서를 지그비로 연결했더니 온습도와 기압과 조도만 왔다. 기기가 안 보내는 줄 알고 다른 게이트웨이를 찾아다녔는데, 원인은 값을 받아 적는 Zigbee2MQTT 2.6.3이었다. 클러스터 목록에 남의 회사 이름이 보이는 것이 결정적 단서였고, 해석기는 2.7.0에 들어와 있었다. 도커 태그 한 줄과 Reconfigure 한 번으로 내보내는 값이 6개에서 22개가 된 기록. 들어온 값은 실측 그래프로 붙였다.</p>
+  <div class="meta">
+    <span class="tag">실측</span>
+
+    <span>Ecowitt WS90, Shelly, Zigbee, Zigbee2MQTT, 홈랩</span>
+    <time datetime="2026-08-23">2026-08-23</time>
+  </div>
+  </div>
+</a>
 <a class="item" href="./dgx-spark-node-setup/">
   <img class="thumb" src="./dgx-spark-node-setup/og.png" alt="" loading="lazy" width="1200" height="630">
   <div class="body">  <h2>ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기: 필수 설정, 추천 설정, 트러블슈팅, 바로 돌려볼 레시피</h2>

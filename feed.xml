@@ -13,6 +13,13 @@
          URL 만 바뀌었을 뿐 같은 글이므로, guid 를 바꾸면 구독자 리더가 전건을 새 글로 다시 띄운다.
          새 글부터는 artifacts.nacyot.com 기준 guid 를 쓴다. -->
     <item>
+      <title>지그비 기상 센서에서 바람과 UV와 강우 값이 오지 않았다</title>
+      <link>https://artifacts.nacyot.com/ws90-zigbee-shelly/</link>
+      <guid isPermaLink="false">https://artifacts.nacyot.com/ws90-zigbee-shelly/</guid>
+      <pubDate>Sun, 23 Aug 2026 00:00:00 +0000</pubDate>
+      <description><![CDATA[Ecowitt WS90(Powered by Shelly)을 지그비로 연결했더니 7-in-1인데 온습도와 기압과 조도만 왔다. 기기는 제조사 전용 클러스터 0xFC01, 0xFC02, 0xFC03으로 바람과 UV와 강우를 계속 보내고 있었고, Zigbee2MQTT 2.6.3에 그것을 읽는 해석기가 없었을 뿐이다. 클러스터 목록에 엉뚱한 회사 이름이 보이는 진단 신호, 2.7.0이라는 버전 경계, 이미 페어링된 기기에 필요한 Reconfigure까지.]]></description>
+    </item>
+    <item>
       <title>ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로 세팅하기: 필수 설정, 추천 설정, 트러블슈팅, 바로 돌려볼 레시피</title>
       <link>https://artifacts.nacyot.com/dgx-spark-node-setup/</link>
       <guid isPermaLink="false">https://nacyot.github.io/artifacts/dgx-spark-node-setup/</guid>
