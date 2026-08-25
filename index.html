@@ -76,8 +76,8 @@
 
 <a class="item" href="./moe-prefill-quantum/">
   <img class="thumb" src="./moe-prefill-quantum/og.png" alt="" loading="lazy" width="1200" height="630">
-  <div class="body">  <h2>세션을 겹쳐 돌릴 때, 기동 인자 하나가 prefill 을 절반으로 묶는다</h2>
-  <p>MoE 추론 서버의 <code>--mixed-prefill-quantum</code> 기본값 128 이 prefill 을 절반 아래로 묶는다. 전문가 256개 중 95%를 읽어놓고 각 전문가에서 3행짜리 행렬곱만 하니 산술강도가 바닥이다. 다만 조건이 붙는다. prefill 이 도는 그 순간 다른 요청이 생성 중일 때만 적용되고(실측 151분 중 1.4%), 효과도 컨텍스트 2만에서 2.31배, 17.7만에서 1.66배로 줄어든다. 곡선 8점, MoE 원인 분해, 4096 그래프 경계에 걸리는 파편의 실제 비용(5%)까지 실측으로 적었다.</p>
+  <div class="body">  <h2>MoE 추론 서버의 prefill 을 절반으로 묶고 있던 기본값</h2>
+  <p>로컬 서빙 중 프롬프트 재계산이 이상하게 느렸다. 원인은 <code>--mixed-prefill-quantum</code> 의 기본값 128. 전문가 256개 중 95%를 읽어놓고 각각에서 3행짜리 행렬곱만 하니 산술강도가 바닥이었다. 2048 로 올리면 합성 프로브에서 2.31배, 실제 코딩 에이전트 셋을 동시에 돌린 작업에서 2.37배가 된다. 적용 조건(요청이 겹칠 때만 켜진다), 원인 분해, 값 고르는 법, 4096 그래프 경계 파편의 실제 비용(5%)까지. 실제 작업 중 서버가 낸 파형도 붙였다.</p>
   <div class="meta">
     <span class="tag">실측</span>
 

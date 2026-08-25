@@ -6,7 +6,7 @@
   .bar{position:absolute;left:0;top:0;bottom:0;width:12px;background:#b03a1f}
   .wrap{padding:60px 68px;height:100%;display:flex;flex-direction:column}
   .kicker{font-size:22px;font-weight:700;letter-spacing:.06em;color:#b03a1f;margin-bottom:24px}
-  h1{font-size:48px;font-weight:800;line-height:1.26;letter-spacing:-.02em;max-width:18em}
+  h1{font-size:52px;font-weight:800;line-height:1.26;letter-spacing:-.02em;max-width:18em}
   .sub{font-size:25px;color:#5b5b57;margin-top:18px;line-height:1.45;max-width:24em}
   .stats{margin-top:30px;display:flex;gap:13px;flex-wrap:wrap}
   .chip{background:#efeee7;border:1px solid #e4e2da;border-radius:10px;padding:11px 17px;font-size:20px;font-weight:600;color:#3a3a36}
@@ -19,12 +19,12 @@
 <div class="bar"></div>
 <div class="wrap">
   <div class="kicker">DeepSeek V4 Flash / MoE prefill</div>
-  <h1>세션을 겹쳐 돌릴 때<br>기동 인자 하나가 prefill 을<br>절반으로 묶는다</h1>
-  <div class="sub">전문가 256개를 다 읽어놓고<br>각각에서 3행짜리 행렬곱만 한다.</div>
+  <h1>MoE 추론 서버의 prefill 을<br>절반으로 묶고 있던 기본값</h1>
+  <div class="sub">전문가 256개를 다 읽어놓고<br>각각에서 3행짜리 행렬곱만 하고 있었다.</div>
   <div class="stats">
-    <div class="chip">컨텍스트 2만 <b>2.31배</b></div>
-    <div class="chip alt">컨텍스트 17.7만 <b>1.66배</b></div>
-    <div class="chip">혼자 순차면 <b>적용 안 됨</b></div>
+    <div class="chip">합성 프로브 <b>2.31배</b></div>
+    <div class="chip alt">실제 에이전트 <b>2.37배</b></div>
+    <div class="chip">겹쳐 돌 때만 <b>적용됨</b></div>
   </div>
   <div class="foot">
     <div class="brand">nacyot / artifacts</div>

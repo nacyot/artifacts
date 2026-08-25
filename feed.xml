@@ -20,11 +20,11 @@
       <description><![CDATA[개인이 같은 컴퓨터를 여러 대 사서 하나로 묶는 일은 컴퓨팅 역사에서 드물다. 1994년 NASA의 베오울프는 시중 PC 열여섯 대를 이더넷으로 묶어 4만 달러에 슈퍼컴퓨터를 대신했고, 그것을 돌아가게 만든 것은 벤더가 아니라 사용자들이 직접 짠 드라이버와 채널 본딩과 조립법이었다. 3Com이 자기 리눅스 드라이버를 낸 것은 6년 뒤다. 지금 DGX Spark를 두 대씩, 많게는 여덟 대씩 사서 묶는 사람들에게서 같은 구조가 보인다. 1995년 논문 원문과 커널 소스, 지금의 공개 기록을 나란히 놓고, 모델 크기와 지능 지수가 개인 장비의 한계를 언제 넘었는지까지 그래프로 확인했다.]]></description>
     </item>
     <item>
-      <title>세션을 겹쳐 돌릴 때, 기동 인자 하나가 prefill 을 절반으로 묶는다</title>
+      <title>MoE 추론 서버의 prefill 을 절반으로 묶고 있던 기본값</title>
       <link>https://artifacts.nacyot.com/moe-prefill-quantum/</link>
       <guid isPermaLink="false">https://artifacts.nacyot.com/moe-prefill-quantum/</guid>
       <pubDate>Wed, 26 Aug 2026 00:00:00 +0000</pubDate>
-      <description><![CDATA[로컬 MoE 서버(DeepSeek V4 Flash)의 --mixed-prefill-quantum 기본값 128 이 prefill 을 절반 아래로 묶는다. 원인은 전문가 256개를 다 읽어놓고 각각에서 3행만 계산하는 것. 다만 세션이 겹칠 때만 적용되고, 컨텍스트가 길수록 효과가 줄어든다(2만 2.31배, 17.7만 1.66배). 곡선 실측, 원인 분해, 4096 경계 파편의 실제 비용, 적용 전에 따져볼 것까지.]]></description>
+      <description><![CDATA[DeepSeek V4 Flash 로컬 서빙에서 --mixed-prefill-quantum 기본값 128 이 prefill 을 상한의 39%로 묶는다. 원인은 MoE 전문가당 토큰 수다. 2048 로 올리면 합성 프로브 2.31배, 실제 코딩 에이전트 작업 2.37배. 다만 prefill 이 도는 순간 다른 요청이 생성 중일 때만 적용된다. 적용 조건, 원인, 값 고르는 법, 잃는 것을 순서대로 적었다.]]></description>
     </item>
     <item>
       <title>지그비 기상 센서에서 바람과 UV와 강우 값이 오지 않았다</title>
