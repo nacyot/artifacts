@@ -13,6 +13,13 @@
          URL 만 바뀌었을 뿐 같은 글이므로, guid 를 바꾸면 구독자 리더가 전건을 새 글로 다시 띄운다.
          새 글부터는 artifacts.nacyot.com 기준 guid 를 쓴다. -->
     <item>
+      <title>One default was halving prefill in ds4-server</title>
+      <link>https://artifacts.nacyot.com/moe-prefill-quantum-en/</link>
+      <guid isPermaLink="false">https://artifacts.nacyot.com/moe-prefill-quantum-en/</guid>
+      <pubDate>Wed, 26 Aug 2026 01:00:00 +0000</pubDate>
+      <description><![CDATA[In antirez ds4's ds4-server, the --mixed-prefill-quantum default of 128 caps prefill at 39% of the ceiling. The cause is MoE tokens per expert. Raising it to 2048 gives 2.31x on a synthetic probe and 2.20x on real coding agents running concurrently. When it applies, how to pick a value, and what fragments at the 4096 graph boundary actually cost.]]></description>
+    </item>
+    <item>
       <title>DGX Spark: 486 PC 열여섯 대를 묶어 슈퍼컴퓨터를 만들었던 1994년 베오울프 프로젝트의 귀환</title>
       <link>https://artifacts.nacyot.com/beowulf-returns/</link>
       <guid isPermaLink="false">https://artifacts.nacyot.com/beowulf-returns/</guid>
