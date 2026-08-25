@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다 (DeepSeek V4 Flash, --mixed-prefill-quantum)</title>
+<title>ds4-server 기본값 하나가 MoE 프리필을 절반으로 묶고 있었다 (DeepSeek V4 Flash, --mixed-prefill-quantum)</title>
 <meta name="description" content="DeepSeek V4 Flash 로컬 서빙에서 --mixed-prefill-quantum 기본값 128 이 prefill 을 상한의 39%로 묶는다. 원인은 MoE 전문가당 토큰 수. 128 에서도 전문가의 95%를 읽으면서 각각에서 3행만 계산해 산술강도가 바닥이다. 2048 로 올리면 합성 프로브 2.31배, 실제 코딩 에이전트 3개를 동시에 돌린 작업에서 2.20배. 적용 조건(요청이 겹칠 때만), 값 고르는 법, 4096 그래프 경계 파편의 실제 비용까지 실측으로 적었다.">
 <meta name="author" content="nacyot">
 <link rel="canonical" href="https://artifacts.nacyot.com/moe-prefill-quantum/">
@@ -9,24 +9,24 @@
 <meta property="og:site_name" content="nacyot / artifacts">
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://artifacts.nacyot.com/moe-prefill-quantum/">
-<meta property="og:title" content="ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다">
+<meta property="og:title" content="ds4-server 기본값 하나가 MoE 프리필을 절반으로 묶고 있었다">
 <meta property="og:description" content="전문가 256개를 다 읽어놓고 각각에서 3행짜리 행렬곱만 한다. 세션이 겹칠 때만 적용된다.">
 <meta property="og:image" content="https://artifacts.nacyot.com/moe-prefill-quantum/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다">
+<meta property="og:image:alt" content="ds4-server 기본값 하나가 MoE 프리필을 절반으로 묶고 있었다">
 <meta property="article:published_time" content="2026-08-25">
 <meta property="article:modified_time" content="2026-08-26">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다">
+<meta name="twitter:title" content="ds4-server 기본값 하나가 MoE 프리필을 절반으로 묶고 있었다">
 <meta name="twitter:description" content="전문가 256개를 다 읽어놓고 각각에서 3행짜리 행렬곱만 한다. 세션이 겹칠 때만 적용된다.">
 <meta name="twitter:image" content="https://artifacts.nacyot.com/moe-prefill-quantum/og.png">
-<meta name="twitter:image:alt" content="ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다">
+<meta name="twitter:image:alt" content="ds4-server 기본값 하나가 MoE 프리필을 절반으로 묶고 있었다">
 <script type="application/ld+json">{
   "@context": "https://schema.org",
   "@type": "TechArticle",
-  "headline": "ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다",
+  "headline": "ds4-server 기본값 하나가 MoE 프리필을 절반으로 묶고 있었다",
   "description": "DeepSeek V4 Flash 로컬 서빙에서 --mixed-prefill-quantum 기본값 128 이 prefill 을 상한의 39%로 묶는다. 원인은 MoE 전문가당 토큰 수. 128 에서도 전문가의 95%를 읽으면서 각각에서 3행만 계산해 산술강도가 바닥이다. 2048 로 올리면 합성 프로브 2.31배, 실제 코딩 에이전트 3개를 동시에 돌린 작업에서 2.20배. 적용 조건(요청이 겹칠 때만), 값 고르는 법, 4096 그래프 경계 파편의 실제 비용까지 실측으로 적었다.",
   "url": "https://artifacts.nacyot.com/moe-prefill-quantum/",
   "image": "https://artifacts.nacyot.com/moe-prefill-quantum/og.png",
@@ -128,14 +128,14 @@ details[open] summary::before{content:"\25BE "}
 
 .endrule { border:0; border-top:1px solid #e4e2da; margin:44px 0 20px; }
 .byline { color:#5b5b57; font-size:0.92em; }
-</style></head><body><div class="doc"><h1>ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다</h1>
+</style></head><body><div class="doc"><h1>ds4-server 기본값 하나가 MoE 프리필을 절반으로 묶고 있었다</h1>
 
-<p class="lead">DeepSeek V4 Flash 를 로컬에서 서빙하는데 프롬프트 재계산이 이상하게 느렸다.
-원인은 기동 인자 하나, <code>--mixed-prefill-quantum</code> 의 기본값 128 이었다.
-2048 로 올리면 prefill 이 <strong>2.2배</strong> 빨라진다. 합성 프로브와 실제 코딩
-에이전트 양쪽에서 확인했다.</p>
+<p class="lead">DeepSeek V4 Flash 를 로컬에서 서빙하는데 프롬프트를 다시 계산하는 데
+이상하게 오래 걸렸다. 원인은 실행 옵션 하나, <code>--mixed-prefill-quantum</code> 의
+기본값 128 이었다. 2048 로 올리면 프리필이 <strong>2.2배</strong> 빨라진다. 합성 프로브와
+실제 코딩 에이전트 양쪽에서 확인했다.</p>
 
-<p class="lead">다만 조건이 붙는다. 이 인자는 <strong>여러 요청이 겹쳐 돌 때만</strong>
+<p class="lead">다만 조건이 붙는다. 이 설정은 <strong>여러 요청이 동시에 돌 때만</strong>
 적용된다. 이 문서는 그 조건, 효과의 크기, 원인, 값 고르는 법, 잃는 것을 순서대로 적는다.
 측정은 Apple M3 Ultra 512GB 한 대, 엔진은 <a href="https://github.com/antirez/ds4">antirez/ds4</a>
 의 ds4-server 다.</p>
@@ -143,49 +143,49 @@ details[open] summary::before{content:"\25BE "}
 <div class="summary">
 <p>한 줄 요약</p>
 <ul>
-<li><strong>세션을 겹쳐 돌린다면</strong> 기동 인자에 <code>--mixed-prefill-quantum 2048</code>
-을 넣는다. prefill 이 2.2배 빨라지고, 같은 일을 시켰을 때 걸리는 시간이 약 1.75배 줄어든다.</li>
-<li><strong>느려지는 것은 prefill 뿐이다.</strong> 생성 속도는 이 인자가 건드리지 않는다.
-다만 prefill 이 벽시계를 오래 붙들면 생성할 차례가 줄고, 겹치는 구간에서는 생성도 느려진다.</li>
+<li><strong>세션을 동시에 돌린다면</strong> 실행 옵션에 <code>--mixed-prefill-quantum 2048</code>
+을 넣는다. 프리필이 2.2배 빨라지고, 같은 일을 시켰을 때 걸리는 시간이 약 1.75배 줄어든다.</li>
+<li><strong>느려지는 것은 프리필뿐이다.</strong> 디코딩 속도는 이 설정이 건드리지 않는다.
+다만 프리필이 벽시계를 오래 붙들면 디코딩할 차례가 줄고, 동시에 도는 구간에서는 디코딩도 느려진다.</li>
 <li><strong>요청을 하나씩 보내고 답을 기다린다면</strong> 넣어도 아무 일이 없다.
 그때는 서버가 하드코딩된 2048 을 쓴다.</li>
-<li>대가는 재계산이 도는 동안 다른 세션의 토큰 간 간격이 0.6초에서 4초로 벌어지는 것이다.
+<li>대가는 프리필이 도는 동안 다른 세션의 토큰 간 간격이 0.6초에서 4초로 벌어지는 것이다.
 사람이 스트리밍을 본다면 1024 를 고려한다.</li>
 </ul>
 </div>
 
-<h2>1. 나에게 해당되는가</h2>
+<h2>1. 언제 켜지는 설정인가</h2>
 
-<p>소스에서 이 인자는 조건부로 쓰인다.</p>
+<p>소스를 보면 이 값은 조건부로만 쓰인다.</p>
 
 <pre>bool generation_active = s-&gt;active_generations &gt; 0;   /* 서버 전역 카운터 */
 return generation_active ? s-&gt;mixed_prefill_quantum : 2048;</pre>
 
-<p><strong>prefill 이 도는 그 순간 토큰을 뽑고 있는 요청이 하나라도 있어야</strong> 설정값이
+<p><strong>프리필이 도는 그 순간 토큰을 뽑고 있는 요청이 하나라도 있어야</strong> 설정값이
 쓰인다. 없으면 하드코딩된 2048 이다. 그래서 요청을 하나씩 보내고 답을 기다리는 방식이면
-계산과 생성이 시간축에서 겹치지 않아 이 인자가 무시된다.</p>
+프리필과 디코딩이 시간축에서 겹칠 일이 없어 이 설정이 무시된다.</p>
 
-<p class="tcap">표 1. 생성 부하 유무에 따른 같은 구간(5,964 토큰) 측정.</p>
+<p class="tcap">표 1. 디코딩 부하 유무에 따른 같은 구간(5,964 토큰) 측정.</p>
 <table>
 <thead><tr><th>조건</th><th>quantum 128</th><th>quantum 2048</th><th>판정</th></tr></thead>
 <tbody>
-<tr><td>생성 부하 없음</td><td class="num">279.3 tok/s</td><td class="num">279.4 / 279.5 / 279.7</td><td><strong>차이 없음</strong></td></tr>
-<tr><td>생성 세션 3개 동반</td><td class="num">220.3</td><td class="num">508.9</td><td>2.31배</td></tr>
-<tr><td>거의 꺼져가는 생성 1개</td><td class="num">230.3</td><td class="num">520.6</td><td>2.26배</td></tr>
+<tr><td>디코딩 부하 없음</td><td class="num">279.3 tok/s</td><td class="num">279.4 / 279.5 / 279.7</td><td><strong>차이 없음</strong></td></tr>
+<tr><td>디코딩 세션 3개 동반</td><td class="num">220.3</td><td class="num">508.9</td><td>2.31배</td></tr>
+<tr><td>거의 끝나가는 디코딩 하나</td><td class="num">230.3</td><td class="num">520.6</td><td>2.26배</td></tr>
 </tbody></table>
 
 <p>첫 줄이 결정적이다. 네 번을 재서 소수점 첫째 자리까지 같다. 셋째 줄은 문턱을 알려준다.
-프로브가 도는 동안 디코드 로그가 19줄밖에 안 찍힌 거의 꺼져가는 생성 하나만 있어도
+프로브가 도는 동안 디코딩 로그가 19줄밖에 안 찍힌, 거의 끝나가는 디코딩 하나만 있어도
 3세션일 때와 결과가 같다. <strong>문턱은 3세션이 아니라 1세션이고, 그 하나가 얼마나
-활발한지도 상관없다.</strong></p>
+활발한지는 상관없다.</strong></p>
 
-<h3>실제로 얼마나 겹치나</h3>
+<h3>실제로 얼마나 동시에 도나</h3>
 
-<p>서버 메트릭을 15초 간격으로 찍어 prefill 이 돌던 시간 중 다른 요청이 생성 중이던 비율을 셌다.</p>
+<p>서버 메트릭을 15초 간격으로 찍어 프리필이 돌던 시간 중 다른 요청이 디코딩 중이던 비율을 셌다.</p>
 
-<p class="tcap">표 2. 사용 방식별 겹침 비율.</p>
+<p class="tcap">표 2. 사용 방식별 동시 실행 비율.</p>
 <table>
-<thead><tr><th>사용 방식</th><th>겹침</th><th>표본</th></tr></thead>
+<thead><tr><th>사용 방식</th><th>동시 실행</th><th>표본</th></tr></thead>
 <tbody>
 <tr><td>에이전트 하나로 순서대로</td><td class="num">1.4%</td><td class="num">151분, 218칸</td></tr>
 <tr><td>에이전트 셋을 동시에</td><td class="num"><strong>20 ~ 37%</strong></td><td class="num">4회 실행</td></tr>
@@ -203,12 +203,12 @@ return generation_active ? s-&gt;mixed_prefill_quantum : 2048;</pre>
 91% 에 닿는다.</p>
 <div id="cQ" class="chart"></div>
 <p class="fnote">점선은 교대를 아예 하지 않을 때의 상한 559 tok/s. 가로축은 로그 눈금.
-생성 3개 동반, 2만 토큰 콜드 prefill, 3회 반복 편차 0.2% 미만.</p>
+디코딩 3개 동반, 2만 토큰 콜드 프리필, 3회 반복 편차 0.2% 미만.</p>
 </figure>
 
 <p class="tcap">표 3. 합성 프로브 전체 결과.</p>
 <table>
-<thead><tr><th>quantum</th><th>prefill</th><th>상한 대비</th></tr></thead>
+<thead><tr><th>quantum</th><th>프리필</th><th>상한 대비</th></tr></thead>
 <tbody>
 <tr><td><strong>128 (기본)</strong></td><td class="num">220.3 tok/s</td><td class="num">39%</td></tr>
 <tr><td>512</td><td class="num">332.9</td><td class="num">60%</td></tr>
@@ -226,15 +226,15 @@ return generation_active ? s-&gt;mixed_prefill_quantum : 2048;</pre>
 17.8만 토큰까지 자랐고 도구 호출은 44~82회였다.</p>
 
 <figure>
-<p class="fcap">그림 2. 실제 에이전트 작업의 prefill 속도. 순서를 뒤집어도 두 무리가 겹치지 않는다.</p>
+<p class="fcap">그림 2. 실제 에이전트 작업의 프리필 속도. 순서를 뒤집어도 두 무리가 서로 넘나들지 않는다.</p>
 <div id="cMain" class="chart"></div>
-<p class="fnote">분모는 prefill 이 실제로 돌던 시간(요청 구간의 합집합)이다. 작업량이
+<p class="fnote">분모는 프리필이 실제로 돌던 시간(요청 구간의 합집합)이다. 작업량이
 조건마다 다르므로 총 소요 시간 대신 이 값으로 비교한다.</p>
 </figure>
 
 <p class="tcap">표 4. 실제 에이전트 작업 4회.</p>
 <table>
-<thead><tr><th>구간</th><th>요청</th><th>신규 prefill</th><th>계산 시간</th><th>prefill 속도</th><th>도구 호출</th></tr></thead>
+<thead><tr><th>구간</th><th>요청</th><th>신규 프리필</th><th>계산 시간</th><th>프리필 속도</th><th>도구 호출</th></tr></thead>
 <tbody>
 <tr><td>1회차 q2048</td><td class="num">47</td><td class="num">139,599</td><td class="num">485초</td><td class="num"><strong>287.7</strong></td><td class="num">44</td></tr>
 <tr><td>2회차 q2048</td><td class="num">48</td><td class="num">190,262</td><td class="num">722초</td><td class="num"><strong>263.5</strong></td><td class="num">45</td></tr>
@@ -245,42 +245,42 @@ return generation_active ? s-&gt;mixed_prefill_quantum : 2048;</pre>
 <p>합치면 <strong>273.2 대 124.1, 2.20배</strong>다. 합성 프로브의 2.31배와 같은 자리다.</p>
 
 <p class="fnote">계산 시간의 분모는 요청 구간의 <strong>합집합</strong>이다. 에이전트가 셋이라
-prefill 이 동시에 도는 구간이 생기는데, 각 요청의 소요를 단순히 더하면 그 구간을 두 번 센다.
+프리필이 동시에 도는 구간이 생기는데, 각 요청의 소요를 단순히 더하면 그 구간을 두 번 센다.
 q128 쪽이 더 많이 겹쳐서(최대 1.14배 중복) 단순 합산으로는 느린 쪽 속도가 실제보다 더
 낮게 나온다.</p>
 
 <p class="fnote">작업량도 조건마다 다르다. 도구 호출이 44회에서 82회까지 벌어지고 신규
-prefill 도 14만에서 25만까지 흩어진다. 에이전트가 매번 다른 경로를 타기 때문이고 quantum
+프리필도 14만에서 25만까지 흩어진다. 에이전트가 매번 다른 경로를 타기 때문이고 quantum
 탓이 아니다. 그래서 총 소요 시간을 그대로 비교하지 않는다.</p>
 
-<h3>느려지는 것은 prefill 뿐이다</h3>
+<h3>느려지는 것은 프리필뿐이다</h3>
 
-<p>이 인자가 무엇을 건드리고 무엇을 안 건드리는지는 두 작업을 따로 재면 분명해진다.
+<p>이 설정이 무엇을 건드리고 무엇을 안 건드리는지는 두 작업을 따로 재면 분명해진다.
 각자가 실제로 돌던 시간으로 나눈 값이다.</p>
 
 <p class="tcap">표 5. 작업별 속도와 벽시계 점유.</p>
 <table>
-<thead><tr><th></th><th>prefill 속도</th><th>prefill 점유</th><th>생성 속도</th><th>생성 점유</th></tr></thead>
+<thead><tr><th></th><th>프리필 속도</th><th>프리필 점유</th><th>디코딩 속도</th><th>디코딩 점유</th></tr></thead>
 <tbody>
 <tr><td>quantum 2048</td><td class="num"><strong>273.2 t/s</strong></td><td class="num">52%</td><td class="num">29.2 t/s</td><td class="num">59%</td></tr>
 <tr><td>quantum 128</td><td class="num"><strong>124.1</strong></td><td class="num">90%</td><td class="num">21.6</td><td class="num">48%</td></tr>
 <tr><td>배율</td><td class="num"><strong>2.20배</strong></td><td class="num"></td><td class="num">1.35배</td><td class="num"></td></tr>
 </tbody></table>
 
-<p>생성 쪽 1.35배는 이 인자가 생성을 빠르게 해서가 아니다. prefill 이 오래 돌수록 그 위에
-생성이 겹치는 일이 늘고, 겹치면 GPU 를 나눠 쓰니 생성도 느려진다. 겹친 비율이
-q2048 은 20~27%, q128 은 32~37% 였다. <strong>prefill 이 느린 것의 부작용이지 별도
+<p>디코딩 쪽 1.35배는 이 설정이 디코딩을 빠르게 해서가 아니다. 프리필이 오래 돌수록 그 위에
+디코딩이 동시에 도는 일이 늘고, 동시에 돌면 GPU 를 나눠 쓰니 디코딩도 느려진다. 동시에 돈 비율이
+q2048 은 20~27%, q128 은 32~37% 였다. <strong>프리필이 느린 것의 부작용이지 별도
 효과가 아니다.</strong></p>
 
 <div class="key">
 <p>인과는 한 방향이다.</p>
-<p><strong>prefill 이 2.2배 느리다 → 같은 계산에 2.2배 시간이 든다 → 그 시간이 벽시계를
-먹는다(점유 52%에서 90%로) → 생성할 차례가 줄고 겹칠 때는 생성도 느려진다 → 작업이
-오래 걸린다.</strong></p>
-<p>출발점은 prefill 하나이고 나머지 숫자는 전부 그 파생이다.</p>
+<p><strong>프리필이 2.2배 느리다 → 같은 양을 계산하는 데 2.2배 시간이 든다 → 그 시간이
+벽시계를 먹는다(점유 52%에서 90%로) → 디코딩할 차례가 줄고 동시에 돌 때는 디코딩도 느려진다
+→ 작업이 오래 걸린다.</strong></p>
+<p>출발점은 프리필 하나이고 나머지 숫자는 전부 그 파생이다.</p>
 </div>
 
-<h3>실제로 서버가 낸 파형</h3>
+<h3>서버 통계로 본 네 번의 실행</h3>
 
 <p>위 숫자들은 요청 단위 집계다. 같은 작업을 서버 메트릭 쪽에서 15초 간격으로 찍으면
 이렇게 생겼다.</p>
@@ -289,7 +289,7 @@ q2048 은 20~27%, q128 은 32~37% 였다. <strong>prefill 이 느린 것의 부�
 <p class="fcap">그림 3. 네 번의 실행. 같은 과제를 주었는데 걸린 시간이 17분에서 44분까지
 벌어진다.</p>
 <div id="cWave" class="chart"></div>
-<p class="fnote">실행 하나마다 위가 prefill, 아래가 생성이다. 가로축은 네 실행이 공유한다.
+<p class="fnote">실행 하나마다 위가 프리필, 아래가 디코딩이다. 가로축은 네 실행이 공유한다.
 회색 음영은 둘이 동시에 돌던 구간.</p>
 </figure>
 
@@ -298,35 +298,35 @@ q2048 은 20~27%, q128 은 32~37% 였다. <strong>prefill 이 느린 것의 부�
 <ul>
 <li><strong>가로 길이.</strong> 같은 과제인데 2048 쪽 패널이 절반 이하로 짧다.
 17분과 21분 대 37분과 44분이다.</li>
-<li><strong>prefill 패널의 높이.</strong> 2048 은 300~560 tok/s 를 오르내리는데
+<li><strong>프리필 패널의 높이.</strong> 2048 은 300~560 tok/s 를 오르내리는데
 128 은 100~200 대에 눌려 천장에 닿지 못한다.</li>
-<li><strong>생성 패널의 높이.</strong> 봉우리가 네 실행 모두 30~38 tok/s 근처로 같다.
-이 인자가 생성 속도 자체는 건드리지 않는다는 것이 파형으로 보인다. 다만 128 쪽은 그
-봉우리가 드문드문하다. 계산에 붙들려 생성할 차례가 늦게 오기 때문이지, 생성이 느려서가
+<li><strong>디코딩 패널의 높이.</strong> 봉우리가 네 실행 모두 30~38 tok/s 근처로 같다.
+이 설정이 디코딩 속도 자체는 건드리지 않는다는 것이 그래프로 드러난다. 다만 128 쪽은 그
+봉우리가 드문드문하다. 프리필에 붙들려 디코딩할 차례가 늦게 오기 때문이지, 디코딩이 느려서가
 아니다.</li>
 </ul>
 
 <h3>벽시계는 그만큼 줄지 않는다</h3>
 
-<p>prefill 이 2.20배 빠르다고 작업이 2.20배 빨리 끝나지는 않는다. 벽시계에는 생성 시간도
-들어 있고 <strong>그쪽은 이 인자가 건드리지 못한다.</strong></p>
+<p>프리필이 2.20배 빠르다고 작업이 2.20배 빨리 끝나지는 않는다. 벽시계에는 디코딩 시간도
+들어 있고 <strong>그쪽은 이 설정이 건드리지 못한다.</strong></p>
 
-<p class="tcap">표 6. 같은 일(신규 prefill 16.5만, 생성 2만)을 시켰다고 환산한 것.
+<p class="tcap">표 6. 같은 일(신규 프리필 16.5만, 디코딩 2만)을 시켰다고 환산한 것.
 각 조건에서 실측한 속도를 쓴다.</p>
 <table>
-<thead><tr><th>설정</th><th>prefill</th><th>생성</th><th>합계</th></tr></thead>
+<thead><tr><th>설정</th><th>프리필</th><th>디코딩</th><th>합계</th></tr></thead>
 <tbody>
 <tr><td>quantum 2048</td><td class="num">604초</td><td class="num">685초</td><td class="num"><strong>1,289초</strong></td></tr>
 <tr><td>quantum 128</td><td class="num">1,330초</td><td class="num">926초</td><td class="num"><strong>2,256초</strong></td></tr>
 <tr><td>배율</td><td class="num">2.20배</td><td class="num">1.35배</td><td class="num"><strong>1.75배</strong></td></tr>
 </tbody></table>
 
-<p class="fnote">두 작업이 차례로 붙는다고 가정한 값이다. 실제로는 20~37% 구간에서 겹치므로
-실제 소요는 이보다 짧다. 어느 실행 쌍도 prefill 과 생성 양쪽 작업량을 동시에 맞추지 못해
+<p class="fnote">두 작업이 차례로 붙는다고 가정한 값이다. 실제로는 20~37% 구간에서 동시에 돌므로
+실제 소요는 이보다 짧다. 어느 실행 쌍도 프리필과 디코딩 양쪽 작업량을 동시에 맞추지 못해
 이보다 정확하게 좁히지는 못했다.</p>
 
 <div class="key">
-<p>이 인자의 값어치는 <strong>작업에서 prefill 이 차지하는 비중</strong>에 비례한다.
+<p>이 설정의 값어치는 <strong>작업에서 프리필이 차지하는 비중</strong>에 비례한다.
 도구 결과를 계속 밀어 넣는 코딩 에이전트처럼 읽는 양이 쓰는 양보다 훨씬 많으면 크고,
 짧은 질문에 긴 답을 쓰는 작업이라면 거의 없다.</p>
 </div>
@@ -353,26 +353,26 @@ q2048 은 20~27%, q128 은 32~37% 였다. <strong>prefill 이 느린 것의 부�
 <p>절대 속도는 컨텍스트가 길어질수록 떨어지지만 <strong>배율은 2.1~2.4 로 거의 변하지
 않는다.</strong></p>
 
-<p class="fnote">단, 요청이 겹치지 않는 조건에서는 다르다. 프로브 하나만 계산하고 나머지가
-생성만 하는 합성 조건에서는 컨텍스트 2만 2.31배, 17.7만 1.66배로 배율이 줄었다.
-실제 에이전트 환경에서는 prefill 끼리도 부딪히고, 그 경합이 작은 quantum 을 더 크게
+<p class="fnote">단, 요청이 동시에 돌지 않는 조건에서는 다르다. 프로브 하나만 계산하고 나머지가
+디코딩만 하는 합성 조건에서는 컨텍스트 2만 2.31배, 17.7만 1.66배로 배율이 줄었다.
+실제 에이전트 환경에서는 프리필끼리도 부딪히고, 그 경합이 작은 quantum 을 더 크게
 깎아내려 줄어드는 몫을 메우는 것으로 보인다. 그것만 분리해 확인하지는 못했다.</p>
 
 <h2>3. 왜 그런가</h2>
 
-<p>원인은 이 모델이 MoE 라는 사실에 있다. 먼저 디코드가 prefill 의 몫을 빼앗는 것인지부터
+<p>원인은 이 모델이 MoE 라는 사실에 있다. 먼저 디코딩이 프리필의 몫을 빼앗는 것인지부터
 확인했다. 각 자원을 단독 최대치로 나눠 시간 점유를 계산하면 된다.</p>
 
-<p class="tcap">표 8. 디코드가 쓴 시간을 빼고 나면 prefill 이 얼마나 나와야 하는가.</p>
+<p class="tcap">표 8. 디코딩이 쓴 시간을 빼고 나면 프리필이 얼마나 나와야 하는가.</p>
 <table>
-<thead><tr><th>quantum</th><th>디코드 점유</th><th>기대치</th><th>실측</th><th>차이</th></tr></thead>
+<thead><tr><th>quantum</th><th>디코딩 점유</th><th>기대치</th><th>실측</th><th>차이</th></tr></thead>
 <tbody>
 <tr><td>2048</td><td class="num">9.3%</td><td class="num">507</td><td class="num">509</td><td>없음</td></tr>
 <tr><td>128</td><td class="num">15.2%</td><td class="num">474</td><td class="num"><strong>220</strong></td><td><strong>절반 이하</strong></td></tr>
 </tbody></table>
 
-<p>2048 은 예측과 실측이 일치한다. 교과서적인 시분할이다. 128 은 디코드가 쓴 시간을 다 빼줘도
-474 가 나와야 하는데 220 이다. <strong>디코드가 뺏은 것이 아니라 prefill 이 자기 차례에
+<p>2048 은 예측과 실측이 일치한다. 교과서적인 시분할이다. 128 은 디코딩이 쓴 시간을 다 빼줘도
+474 가 나와야 하는데 220 이다. <strong>디코딩이 뺏은 것이 아니라 프리필이 자기 차례에
 제 속도를 못 낸다.</strong></p>
 
 <h3>전문가당 토큰 수</h3>
@@ -381,7 +381,7 @@ q2048 은 20~27%, q128 은 32~37% 였다. <strong>prefill 이 느린 것의 부�
 기대값은 <code>256 × (1 - (1 - 6/256)^Q)</code> 다.</p>
 
 <figure>
-<p class="fcap">그림 5. 디코드 스텝을 뺀 순수 prefill 의 토큰당 비용. 전문가당 48토큰에서
+<p class="fcap">그림 5. 디코딩 스텝을 뺀 순수 프리필의 토큰당 비용. 전문가당 48토큰에서
 평평해진다.</p>
 <div id="cE" class="chart"></div>
 <p class="fnote">전문가당 토큰 = <code>Q × 6 / 256</code>. 가로축은 로그 눈금.</p>
@@ -426,7 +426,7 @@ MXFP4 를 풀어 스케일을 곱하고 누적하는 연산까지 붙여도 672 
 
 <p>고를 때 보는 축은 둘이다. <strong>위로 가면</strong> 토큰당 비용이 바닥(1.79 ms)에
 가까워지지만 2048 에서 이미 바닥 대비 5% 안쪽이라 얻을 것이 거의 없다.
-<strong>아래로 가면</strong> 재계산이 도는 동안 다른 세션의 토큰 간 간격이 짧아진다.
+<strong>아래로 가면</strong> 프리필이 도는 동안 다른 세션의 토큰 간 간격이 짧아진다.
 2048 이면 4초에 한 번, 1024 면 2.4초에 한 번 나온다.</p>
 
 <p class="tcap">표 10. 후보값.</p>
@@ -436,7 +436,7 @@ MXFP4 를 풀어 스케일을 곱하고 누적하는 연산까지 붙여도 672 
 <tr><td>128 (기본)</td><td class="num">3</td><td class="num">3.22 ms</td><td class="num">0.58초</td><td class="neg">너무 작다</td></tr>
 <tr><td>1024</td><td class="num">24</td><td class="num">2.18</td><td class="num">2.40초</td><td>스트리밍을 사람이 볼 때</td></tr>
 <tr><td><strong>2048</strong></td><td class="num">48</td><td class="num"><strong>1.88</strong></td><td class="num">4.02초</td><td><strong>권장</strong></td></tr>
-<tr><td>4096 이상</td><td class="num">96 이상</td><td class="num">1.79</td><td class="num">7.6초 이상</td><td class="neg">생성이 완전히 멎는다</td></tr>
+<tr><td>4096 이상</td><td class="num">96 이상</td><td class="num">1.79</td><td class="num">7.6초 이상</td><td class="neg">디코딩이 완전히 멎는다</td></tr>
 </tbody></table>
 
 <p><strong>후보는 2의 거듭제곱으로 한정한다.</strong> 역산식이 내놓는 값(예: 36토큰 → 1536)을
@@ -445,13 +445,13 @@ MXFP4 를 풀어 스케일을 곱하고 누적하는 연산까지 붙여도 672 
 
 <h2>5. 무엇을 잃는가</h2>
 
-<p>대가는 하나다. <strong>재계산이 도는 동안 다른 세션의 생성이 더 확실히 멈춘다.</strong>
+<p>대가는 하나다. <strong>프리필이 도는 동안 다른 세션의 디코딩이 더 확실히 멈춘다.</strong>
 quantum 이 클수록 양보하는 횟수가 줄기 때문이다.</p>
 
 <figure>
-<p class="fcap">그림 6. quantum 을 올리면 prefill 은 오르고 그동안의 생성은 내려간다.</p>
+<p class="fcap">그림 6. quantum 을 올리면 프리필은 오르고 그동안의 디코딩은 내려간다.</p>
 <div id="cD" class="chart"></div>
-<p class="fnote">회색 띠가 사람이 멈췄다고 느끼는 영역이다. 정상 생성이 세션당 11~12 tok/s
+<p class="fnote">회색 띠가 사람이 멈췄다고 느끼는 영역이다. 정상 디코딩이 세션당 11~12 tok/s
 이므로 이 구간은 어느 값에서든 멈춘 상태다.</p>
 </figure>
 
@@ -460,9 +460,9 @@ quantum 이 클수록 양보하는 횟수가 줄기 때문이다.</p>
 같은 벽시계 112초 동안 옆 세션 3개가 뽑는 토큰은 약 600개에서 약 2,300개로 오히려 늘어난다.
 멈춘 동안 조금 더 나오느냐가 아니라 <strong>얼마나 빨리 끝나느냐</strong>가 결과를 가른다.</p>
 
-<p>동시 요청이 밀리는 일은 없었다. 생성 3개를 동반한 채 2만 토큰 콜드 prefill 3개를 동시에
+<p>동시 요청이 밀리는 일은 없었다. 디코딩 3개를 동반한 채 2만 토큰 콜드 프리필 3개를 동시에
 던지니 어느 설정에서든 세 요청이 0.5초 안에 함께 끝났다(q128 447.5/447.7/448.0초,
-q2048 152.8/153.0/153.2초). prefill 슬롯 라운드로빈이 quantum 과 무관하게 공정성을 지킨다.</p>
+q2048 152.8/153.0/153.2초). 프리필 슬롯 라운드로빈이 quantum 과 무관하게 공정성을 지킨다.</p>
 
 <h3>4096 경계에 걸리는 파편</h3>
 
@@ -504,14 +504,14 @@ if (mod != 0) {
 
 <h2>6. 적용</h2>
 
-<p>기동 스크립트에 한 줄을 더한다.</p>
+<p>실행 스크립트에 한 줄을 더한다.</p>
 
 <pre>exec /opt/ds4/ds4-server \
   ...
   --batched-session 6 \
   <b>--mixed-prefill-quantum 2048</b></pre>
 
-<p>확인은 기동 로그에서 한다. 같은 인자를 두 번 지정하면 뒤가 이기므로, 값이 안 먹는 것처럼
+<p>확인은 서버 시작 로그에서 한다. 같은 인자를 두 번 지정하면 뒤가 이기므로, 값이 안 먹는 것처럼
 보이면 먼저 이 줄을 본다.</p>
 
 <pre>ds4-server: batched mode enabled resident_sessions=6 prefill_quantum=2048 <b>mixed_prefill_quantum=2048</b></pre>
@@ -521,9 +521,9 @@ if (mod != 0) {
 <h3>적용 전에 따져볼 것</h3>
 
 <ul>
-<li><strong>토큰 간 타임아웃.</strong> 2048 이면 재계산 중 다른 세션의 토큰이 4초에 한 번
+<li><strong>토큰 간 타임아웃.</strong> 2048 이면 프리필이 도는 중 다른 세션의 토큰이 4초에 한 번
 나온다. 클라이언트나 중간 프록시에 그보다 짧은 타임아웃이 있으면 끊길 수 있다.</li>
-<li><strong>동시 prefill 이 4개 이상일 때.</strong> 3개까지는 공정했지만 그 위는 재보지
+<li><strong>동시 프리필이 4개 이상일 때.</strong> 3개까지는 공정했지만 그 위는 재보지
 않았다. 슬롯이 6개인 서버라 그 위를 볼 수 없었다.</li>
 <li><strong>모델이 다르면 값도 다르다.</strong> 2048 은 전문가 256개 중 6개를 쓰는 이
 모델의 수다. dense 모델이라면 이 글의 전제 자체가 다르다.</li>
@@ -535,14 +535,14 @@ if (mod != 0) {
 
 <h2>7. 근거</h2>
 
-<p>공개 담론과도 대조했다. 이 인자를 다룬 글은 찾지 못했고 기본값 128 의 근거도 못 찾았다.
+<p>공개 담론과도 대조했다. 이 설정을 다룬 글은 찾지 못했고 기본값 128 의 근거도 못 찾았다.
 다만 주변 사실이 결과를 받쳐준다. 같은 M3 Ultra 512GB 에서 같은 모델을 돌린 공개 벤치가
 2k 입력에서 560 tok/s 로, 이 실험의 상한 559 와 사실상 같다. llama.cpp 진영은
-<code>ubatch 2048</code> 이 prefill 이 가장 빠르다는 쪽으로 의견이 모여 있고, Sarathi 논문은
-dense 모델에서 chunk 128 이 prefill 을 2배 이상 느리게 하고 256~512 에서는 손실이 20%와
+<code>ubatch 2048</code> 이 프리필이 가장 빠르다는 쪽으로 의견이 모여 있고, Sarathi 논문은
+dense 모델에서 chunk 128 이 프리필을 2배 이상 느리게 하고 256~512 에서는 손실이 20%와
 10% 이내라고 보고했다. 다른 모델 다른 GPU 인데 같은 자리에서 비슷한 폭으로 무너진다.</p>
 
-<p>반대 진영도 있다. vLLM 의 chunked prefill 처럼 일부러 잘게 쪼개 생성 중인 세션을 살리는
+<p>반대 진영도 있다. vLLM 의 chunked prefill 처럼 일부러 잘게 쪼개 디코딩 중인 세션을 살리는
 설계다. 기본값 128 은 그 진영의 값이다. 다만 그 문헌이 실제로 쓰는 청크는 8K 근처이지
 128 이 아니다.</p>
 
@@ -552,28 +552,28 @@ dense 모델에서 chunk 128 이 prefill 을 2배 이상 느리게 하고 256~51
 <tbody>
 <tr><td>기본값 128 은 상한의 39%</td><td>8개 값 3회 반복, 편차 0.2% 미만</td><td>확인</td></tr>
 <tr><td>상한은 약 559 tok/s</td><td>교대 없는 측정 + 공개 벤치 560 일치</td><td>확인</td></tr>
-<tr><td>생성이 없으면 적용 안 됨</td><td>같은 구간 4회, 279.3 대 279.4/279.5/279.7</td><td>확인</td></tr>
-<tr><td>생성이 하나만 있어도 적용됨</td><td>거의 꺼져가는 생성 1개에서 230 대 521</td><td>확인</td></tr>
+<tr><td>디코딩이 없으면 적용 안 됨</td><td>같은 구간 4회, 279.3 대 279.4/279.5/279.7</td><td>확인</td></tr>
+<tr><td>디코딩이 하나만 있어도 적용됨</td><td>거의 꺼져가는 디코딩 1개에서 230 대 521</td><td>확인</td></tr>
 <tr><td>실제 에이전트 작업 2.20배</td><td>2회 반복 순서 반전, 구간 합집합 기준</td><td>확인</td></tr>
 <tr><td>end-to-end 약 1.75배</td><td>작업량 환산값, 두 작업이 차례로 붙는다고 가정</td><td>추정</td></tr>
 <tr><td>원인은 MoE 전문가당 토큰 수</td><td>대역폭 실측으로 대안 가설 배제 + 48토큰에서 포화</td><td>확인</td></tr>
 <tr><td>파편 비용 약 5%</td><td>호출 1.6배에 348.3 대 367.0</td><td>확인</td></tr>
-<tr><td>2048 이 적절한 지점</td><td>prefill 91% + 생성 대가</td><td>판단</td></tr>
-<tr><td>겹침이 배율을 유지시킨다</td><td>정황 일치, 분리 실험 없음</td><td class="neg">가설</td></tr>
+<tr><td>2048 이 적절한 지점</td><td>프리필 91% + 디코딩 대가</td><td>판단</td></tr>
+<tr><td>동시 실행이 배율을 유지시킨다</td><td>정황 일치, 분리 실험 없음</td><td class="neg">가설</td></tr>
 </tbody></table>
 
 <details>
 <summary>부록: 측정 방법</summary>
-<p><strong>합성 프로브</strong>: 생성 세션 3개가 계속 글을 쓰는 상태에서 2만 토큰짜리 새
+<p><strong>합성 프로브</strong>: 디코딩 세션 3개가 계속 글을 쓰는 상태에서 2만 토큰짜리 새
 프롬프트를 하나 던진다. 맨 앞에 고유한 문자열을 넣어 디스크 KV 캐시가 붙지 못하게 했다.
 조건마다 서버를 재시작하며(7~9초, 모델이 페이지 캐시에 남아 다시 읽지 않는다) 인자만 바꿨다.</p>
 <p><strong>실제 에이전트</strong>: 읽기와 bash 도구를 가진 코딩 에이전트 셋을 15초 간격으로
-띄운다. 같은 순간에 시작하면 전부 prefill 만 하다가 전부 생성으로 넘어가서 정작 재려는
+띄운다. 같은 순간에 시작하면 전부 프리필만 하다가 전부 디코딩으로 넘어가서 정작 재려는
 상황이 안 생긴다. 서버 로그에 구간 마커를 직접 써 넣고 그 사이의 요청을 센다.</p>
-<p><strong>검증</strong>: 조건마다 기동 로그에서 실제 적용된 값을 읽어 요청한 값과 다르면
-무효로 표시한다. 이 검증 없이 돌렸다가, 기동 스크립트 안에서 같은 인자가 두 번 지정되는
+<p><strong>검증</strong>: 조건마다 서버 시작 로그에서 실제 적용된 값을 읽어 요청한 값과 다르면
+무효로 표시한다. 이 검증 없이 돌렸다가, 실행 스크립트 안에서 같은 인자가 두 번 지정되는
 바람에 설정이 조용히 무시된 채로 측정된 적이 있다.</p>
-<p><strong>작업량 동일성</strong>: 합성 실험은 어시스턴트 턴을 고정 문자열로 박고 생성량을
+<p><strong>작업량 동일성</strong>: 합성 실험은 어시스턴트 턴을 고정 문자열로 넣고 출력량을
 <code>max_tokens</code> 로 강제해 글자 단위까지 맞췄고, 조건마다 빈 디스크 KV 디렉터리를
 써서 앞 조건의 체크포인트를 물려받지 않게 했다. 실제 에이전트에서는 그럴 수 없으므로
 실효 처리량으로 비교한다.</p>
@@ -614,7 +614,7 @@ function svgIn(sel,h){const el=document.querySelector(sel);if(!el)return null;
     .attr('cx',d=>x(d.quantum)).attr('cy',d=>y(d.prefill_tps))
     .attr('r',d=>(d.quantum===128||d.quantum===2048)?5.5:4)
     .attr('fill',d=>d.quantum===128?P.accent:(d.quantum===2048?P.alt:P.ink))
-    .on('mousemove',(e,d)=>show(e,'quantum '+d.quantum+'<br>prefill <b>'+d.prefill_tps+' tok/s</b><br>프로브 '+d.probe_sec+'초<br>천장의 '+(100*d.prefill_tps/558.7).toFixed(0)+'%'))
+    .on('mousemove',(e,d)=>show(e,'quantum '+d.quantum+'<br>프리필 <b>'+d.prefill_tps+' tok/s</b><br>프로브 '+d.probe_sec+'초<br>천장의 '+(100*d.prefill_tps/558.7).toFixed(0)+'%'))
     .on('mouseleave',hide);
   svg.append('text').attr('x',x(128)).attr('y',y(220.3)+20).attr('text-anchor','middle')
     .attr('fill',P.accent).style('font-size','11px').text('기본 128');
@@ -624,7 +624,7 @@ function svgIn(sel,h){const el=document.querySelector(sel);if(!el)return null;
     .call(d3.axisBottom(x).tickValues([128,512,2048,8192,65536]).tickFormat(d3.format('d')));
   svg.append('g').attr('class','ax').attr('transform','translate('+M.l+',0)')
     .call(d3.axisLeft(y).ticks(5).tickSize(0)).call(g=>g.select('.domain').remove());
-  svg.append('text').attr('x',M.l-40).attr('y',M.t-10).text('prefill tok/s');
+  svg.append('text').attr('x',M.l-40).attr('y',M.t-10).text('프리필 tok/s');
   svg.append('text').attr('x',(M.l+w-M.r)/2).attr('y',H-8).attr('text-anchor','middle')
     .text('mixed-prefill-quantum (로그 눈금)');
 })();
@@ -659,7 +659,7 @@ function svgIn(sel,h){const el=document.querySelector(sel);if(!el)return null;
     .call(d3.axisBottom(x).tickValues([128,512,2048,8192,65536]).tickFormat(d3.format('d')));
   svg.append('g').attr('class','ax').attr('transform','translate('+M.l+',0)')
     .call(d3.axisLeft(y).ticks(5).tickSize(0)).call(g=>g.select('.domain').remove());
-  svg.append('text').attr('x',M.l-46).attr('y',M.t-10).text('토큰당 prefill 비용 (ms)');
+  svg.append('text').attr('x',M.l-46).attr('y',M.t-10).text('토큰당 프리필 비용 (ms)');
   svg.append('text').attr('x',(M.l+w-M.r)/2).attr('y',H-8).attr('text-anchor','middle')
     .text('mixed-prefill-quantum (로그 눈금)');
 })();
@@ -673,24 +673,25 @@ function svgIn(sel,h){const el=document.querySelector(sel);if(!el)return null;
   const y=d3.scaleLinear().domain([0,13]).range([H-M.b,M.t]);
   svg.append('rect').attr('x',M.l).attr('y',y(3)).attr('width',w-M.r-M.l).attr('height',(H-M.b)-y(3))
     .attr('fill',P.faint).attr('opacity',0.18);
-  svg.append('text').attr('x',M.l+8).attr('y',y(1.6)).style('font-size','10.5px').attr('fill',P.soft)
-    .text('사람이 "멈췄다"고 느끼는 영역');
+  svg.append('text').attr('x',w-M.r-10).attr('y',y(2.55)).attr('text-anchor','end')
+    .style('font-size','10.5px').attr('fill',P.soft)
+    .text('사람이 멈췄다고 느끼는 영역');
   svg.append('line').attr('x1',M.l).attr('x2',w-M.r).attr('y1',y(11.7)).attr('y2',y(11.7))
     .attr('stroke',P.alt).attr('stroke-dasharray','4 3').attr('stroke-width',1.3);
   svg.append('text').attr('x',w-M.r).attr('y',y(11.7)-7).attr('text-anchor','end')
-    .attr('fill',P.alt).style('font-size','10.5px').text('평소 생성 속도 11~12 tok/s');
+    .attr('fill',P.alt).style('font-size','10.5px').text('평소 디코딩 속도 11~12 tok/s');
   svg.append('path').datum(R).attr('fill','none').attr('stroke',P.ink).attr('stroke-width',1.8)
     .attr('d',d3.line().x(d=>x(d.quantum)).y(d=>y(d.decode_tps_per_window)).curve(d3.curveMonotoneX));
   svg.append('g').selectAll('circle').data(R).join('circle')
     .attr('cx',d=>x(d.quantum)).attr('cy',d=>y(d.decode_tps_per_window)).attr('r',4.5)
     .attr('fill',d=>d.quantum===2048?P.alt:P.ink)
-    .on('mousemove',(e,d)=>show(e,'quantum '+d.quantum+'<br>동반 생성 <b>'+d.decode_tps_per_window+' tok/s</b><br>평소의 '+(100*d.decode_tps_per_window/11.7).toFixed(0)+'%'))
+    .on('mousemove',(e,d)=>show(e,'quantum '+d.quantum+'<br>동반 디코딩 <b>'+d.decode_tps_per_window+' tok/s</b><br>평소의 '+(100*d.decode_tps_per_window/11.7).toFixed(0)+'%'))
     .on('mouseleave',hide);
   svg.append('g').attr('class','ax').attr('transform','translate(0,'+(H-M.b)+')')
     .call(d3.axisBottom(x).tickValues([128,512,2048,4096]).tickFormat(d3.format('d')));
   svg.append('g').attr('class','ax').attr('transform','translate('+M.l+',0)')
     .call(d3.axisLeft(y).ticks(5).tickSize(0)).call(g=>g.select('.domain').remove());
-  svg.append('text').attr('x',M.l-42).attr('y',M.t-10).text('동반 생성 tok/s (세션당)');
+  svg.append('text').attr('x',M.l-42).attr('y',M.t-10).text('동반 디코딩 tok/s (세션당)');
   svg.append('text').attr('x',(M.l+w-M.r)/2).attr('y',H-8).attr('text-anchor','middle')
     .text('mixed-prefill-quantum');
 })();
@@ -806,7 +807,7 @@ const COL=k=>k.includes('2048')?P.alt:P.accent;
       const wd=(i+1<S.t.length? x(S.t[i+1]) : x(t)+2)-x(t);
       g.append('rect').attr('x',x(t)).attr('y',0).attr('width',Math.max(1,wd))
         .attr('height',hgt).attr('fill','transparent')
-        .on('mousemove',e=>show(e,'+'+t+'초<br>prefill <b>'+S.p[i]+'</b> tok/s<br>생성 <b>'
+        .on('mousemove',e=>show(e,'+'+t+'초<br>프리필 <b>'+S.p[i]+'</b> tok/s<br>디코딩 <b>'
           +S.d[i]+'</b> tok/s<br>GPU '+S.g[i]+'%'
           +(S.pa[i]&&S.da[i]?'<br><span style="color:#c33">동시 실행</span>':'')))
         .on('mouseleave',hide);
@@ -835,7 +836,7 @@ const COL=k=>k.includes('2048')?P.alt:P.accent;
     gp.append('text').attr('x',ML-42).attr('y',30).attr('text-anchor','end')
       .style('font-size','10px').attr('fill',P.soft).text('전체 '+Math.round(S.dur/60)+'분');
     gp.append('text').attr('x',ML-42).attr('y',PH-2).attr('text-anchor','end')
-      .style('font-size','10px').attr('fill',col).text('prefill tok/s');
+      .style('font-size','10px').attr('fill',col).text('프리필 tok/s');
 
     // --- 생성 패널 ---
     const gd=svg.append('g').attr('transform','translate(0,'+(top+PH+PAD)+')');
@@ -851,7 +852,7 @@ const COL=k=>k.includes('2048')?P.alt:P.accent;
       .call(d3.axisLeft(yD).tickValues([20,40]));
     hover(gd,S,DH);
     gd.append('text').attr('x',ML-42).attr('y',DH-2).attr('text-anchor','end')
-      .style('font-size','10px').attr('fill',GREEN).text('생성 tok/s');
+      .style('font-size','10px').attr('fill',GREEN).text('디코딩 tok/s');
 
     top += PH+PAD+DH+GRP;
   });
