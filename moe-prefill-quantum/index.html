@@ -170,7 +170,7 @@ return generation_active ? s-&gt;mixed_prefill_quantum : 2048;</pre>
 <thead><tr><th>조건</th><th>quantum 128</th><th>quantum 2048</th><th>판정</th></tr></thead>
 <tbody>
 <tr><td>디코딩 부하 없음</td><td class="num">279.3 tok/s</td><td class="num">279.4 / 279.5 / 279.7</td><td><strong>차이 없음</strong></td></tr>
-<tr><td>디코딩 세션 3개 동반</td><td class="num">220.3</td><td class="num">508.9</td><td>2.31배</td></tr>
+<tr><td>다른 세션 3개가 디코딩 중</td><td class="num">220.3</td><td class="num">508.9</td><td>2.31배</td></tr>
 <tr><td>거의 끝나가는 디코딩 하나</td><td class="num">230.3</td><td class="num">520.6</td><td>2.26배</td></tr>
 </tbody></table>
 
@@ -203,7 +203,7 @@ return generation_active ? s-&gt;mixed_prefill_quantum : 2048;</pre>
 91% 에 닿는다.</p>
 <div id="cQ" class="chart"></div>
 <p class="fnote">점선은 교대를 아예 하지 않을 때의 상한 559 tok/s. 가로축은 로그 눈금.
-디코딩 3개 동반, 2만 토큰 콜드 프리필, 3회 반복 편차 0.2% 미만.</p>
+다른 세션 3개가 디코딩하는 상태에서 2만 토큰 콜드 프리필, 3회 반복 편차 0.2% 미만.</p>
 </figure>
 
 <p class="tcap">표 3. 합성 프로브 전체 결과.</p>
@@ -460,7 +460,7 @@ quantum 이 클수록 양보하는 횟수가 줄기 때문이다.</p>
 같은 벽시계 112초 동안 옆 세션 3개가 뽑는 토큰은 약 600개에서 약 2,300개로 오히려 늘어난다.
 멈춘 동안 조금 더 나오느냐가 아니라 <strong>얼마나 빨리 끝나느냐</strong>가 결과를 가른다.</p>
 
-<p>동시 요청이 밀리는 일은 없었다. 디코딩 3개를 동반한 채 2만 토큰 콜드 프리필 3개를 동시에
+<p>동시 요청이 밀리는 일은 없었다. 다른 세션 3개가 디코딩하는 상태에서 2만 토큰 콜드 프리필 3개를 동시에
 던지니 어느 설정에서든 세 요청이 0.5초 안에 함께 끝났다(q128 447.5/447.7/448.0초,
 q2048 152.8/153.0/153.2초). 프리필 슬롯 라운드로빈이 quantum 과 무관하게 공정성을 지킨다.</p>
 
@@ -664,7 +664,7 @@ function svgIn(sel,h){const el=document.querySelector(sel);if(!el)return null;
     .text('mixed-prefill-quantum (로그 눈금)');
 })();
 
-/* 그림 4: 대가 (동반 생성 속도) */
+/* 그림 4: 대가 (프리필 중 다른 세션의 디코딩 속도) */
 (function(){
   const R=DATA.quantum_sweep.filter(d=>d.decode_tps_per_window!==null);
   const M={t:26,r:20,b:48,l:52},H=250;
@@ -685,13 +685,13 @@ function svgIn(sel,h){const el=document.querySelector(sel);if(!el)return null;
   svg.append('g').selectAll('circle').data(R).join('circle')
     .attr('cx',d=>x(d.quantum)).attr('cy',d=>y(d.decode_tps_per_window)).attr('r',4.5)
     .attr('fill',d=>d.quantum===2048?P.alt:P.ink)
-    .on('mousemove',(e,d)=>show(e,'quantum '+d.quantum+'<br>동반 디코딩 <b>'+d.decode_tps_per_window+' tok/s</b><br>평소의 '+(100*d.decode_tps_per_window/11.7).toFixed(0)+'%'))
+    .on('mousemove',(e,d)=>show(e,'quantum '+d.quantum+'<br>다른 세션의 디코딩 <b>'+d.decode_tps_per_window+' tok/s</b><br>평소의 '+(100*d.decode_tps_per_window/11.7).toFixed(0)+'%'))
     .on('mouseleave',hide);
   svg.append('g').attr('class','ax').attr('transform','translate(0,'+(H-M.b)+')')
     .call(d3.axisBottom(x).tickValues([128,512,2048,4096]).tickFormat(d3.format('d')));
   svg.append('g').attr('class','ax').attr('transform','translate('+M.l+',0)')
     .call(d3.axisLeft(y).ticks(5).tickSize(0)).call(g=>g.select('.domain').remove());
-  svg.append('text').attr('x',M.l-42).attr('y',M.t-10).text('동반 디코딩 tok/s (세션당)');
+  svg.append('text').attr('x',M.l-42).attr('y',M.t-10).text('프리필이 도는 동안 다른 세션의 디코딩 (세션당 tok/s)');
   svg.append('text').attr('x',(M.l+w-M.r)/2).attr('y',H-8).attr('text-anchor','middle')
     .text('mixed-prefill-quantum');
 })();
