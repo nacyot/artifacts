@@ -1,0 +1,34 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{width:1200px;height:630px;background:#faf9f7;color:#1c1c1c;
+    font-family:"Noto Sans CJK KR","Noto Sans KR",Pretendard,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    position:relative;overflow:hidden}
+  .bar{position:absolute;left:0;top:0;bottom:0;width:12px;background:#b03a1f}
+  .wrap{padding:60px 68px;height:100%;display:flex;flex-direction:column}
+  .kicker{font-size:22px;font-weight:700;letter-spacing:.06em;color:#b03a1f;margin-bottom:24px}
+  h1{font-size:54px;font-weight:800;line-height:1.26;letter-spacing:-.02em;max-width:18em}
+  .sub{font-size:25px;color:#5b5b57;margin-top:18px;line-height:1.45;max-width:24em}
+  .stats{margin-top:30px;display:flex;gap:13px;flex-wrap:wrap}
+  .chip{background:#efeee7;border:1px solid #e4e2da;border-radius:10px;padding:11px 17px;font-size:20px;font-weight:600;color:#3a3a36}
+  .chip b{color:#b03a1f;font-weight:800}
+  .chip.alt b{color:#0f6ea3}
+  .foot{margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between}
+  .brand{font-size:22px;font-weight:700;color:#1c1c1c}
+  .cmd{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:19px;color:#b03a1f;background:#efeee7;border:1px solid #e4e2da;border-radius:10px;padding:11px 15px}
+</style></head><body>
+<div class="bar"></div>
+<div class="wrap">
+  <div class="kicker">DeepSeek V4 Flash / MoE prefill</div>
+  <h1>기본값 하나가 prefill 을<br>2.3배 느리게 하고 있었다</h1>
+  <div class="sub">전문가 256개 중 95%를 다 읽어놓고<br>각 전문가에서 3행짜리 행렬곱만 하고 있었다.</div>
+  <div class="stats">
+    <div class="chip">prefill <b>220 to 509</b> tok/s</div>
+    <div class="chip alt">에이전트 작업 <b>1.57배</b></div>
+    <div class="chip">전문가당 토큰 <b>3 to 48</b></div>
+  </div>
+  <div class="foot">
+    <div class="brand">nacyot / artifacts</div>
+    <div class="cmd">--mixed-prefill-quantum 2048</div>
+  </div>
+</div>
+</body></html>
