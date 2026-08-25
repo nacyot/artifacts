@@ -24,7 +24,7 @@
       <link>https://artifacts.nacyot.com/moe-prefill-quantum/</link>
       <guid isPermaLink="false">https://artifacts.nacyot.com/moe-prefill-quantum/</guid>
       <pubDate>Wed, 26 Aug 2026 00:00:00 +0000</pubDate>
-      <description><![CDATA[DeepSeek V4 Flash 로컬 서빙에서 --mixed-prefill-quantum 기본값 128 이 prefill 을 상한의 39%로 묶는다. 원인은 MoE 전문가당 토큰 수다. 2048 로 올리면 합성 프로브 2.31배, 실제 코딩 에이전트 작업 2.37배. 다만 prefill 이 도는 순간 다른 요청이 생성 중일 때만 적용된다. 적용 조건, 원인, 값 고르는 법, 잃는 것을 순서대로 적었다.]]></description>
+      <description><![CDATA[DeepSeek V4 Flash 로컬 서빙에서 --mixed-prefill-quantum 기본값 128 이 prefill 을 상한의 39%로 묶는다. 원인은 MoE 전문가당 토큰 수다. 2048 로 올리면 합성 프로브 2.31배, 실제 코딩 에이전트 작업 2.20배. 다만 prefill 이 도는 순간 다른 요청이 생성 중일 때만 적용된다. 적용 조건, 원인, 값 고르는 법, 잃는 것을 순서대로 적었다.]]></description>
     </item>
     <item>
       <title>지그비 기상 센서에서 바람과 UV와 강우 값이 오지 않았다</title>

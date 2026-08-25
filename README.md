@@ -12,7 +12,7 @@
 
 | 날짜 | 산출물 | 설명 |
 |---|---|---|
-| 2026-08-26 | [moe-prefill-quantum](./moe-prefill-quantum/) | MoE 추론 서버의 prefill 을 절반으로 묶던 기본값 128(전문가당 3토큰). 합성 프로브 2.31배, 실제 코딩 에이전트 2.37배. 요청이 겹칠 때만 적용된다 |
+| 2026-08-26 | [moe-prefill-quantum](./moe-prefill-quantum/) | MoE 추론 서버의 prefill 을 절반으로 묶던 기본값 128(전문가당 3토큰). 합성 프로브 2.31배, 실제 코딩 에이전트 2.20배. 요청이 겹칠 때만 적용된다 |
 | 2026-08-22 | [dgx-spark-node-setup](./dgx-spark-node-setup/) | ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로: 필수(서버 모드, 드라이버 595, PD FW, 보안) / 추천(GPU와 CPU 클럭 상한 스윕 그래프, vLLM 스핀 패치) / 트러블슈팅 / 직접 검증한 레시피(ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3) |
 | 2026-08-22 | [dgx-spark-node-setup-en](./dgx-spark-node-setup-en/) | 위 글의 영어판 (English) |
 | 2026-08-22 | [dgx-spark-node-setup-ja](./dgx-spark-node-setup-ja/) | 위 글의 일본어판 (日本語) |
