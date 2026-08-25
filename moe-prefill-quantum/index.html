@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MoE 추론 서버의 prefill 을 절반으로 묶고 있던 기본값 (DeepSeek V4 Flash, --mixed-prefill-quantum)</title>
+<title>ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다 (DeepSeek V4 Flash, --mixed-prefill-quantum)</title>
 <meta name="description" content="DeepSeek V4 Flash 로컬 서빙에서 --mixed-prefill-quantum 기본값 128 이 prefill 을 상한의 39%로 묶는다. 원인은 MoE 전문가당 토큰 수. 128 에서도 전문가의 95%를 읽으면서 각각에서 3행만 계산해 산술강도가 바닥이다. 2048 로 올리면 합성 프로브 2.31배, 실제 코딩 에이전트 3개를 동시에 돌린 작업에서 2.20배. 적용 조건(요청이 겹칠 때만), 값 고르는 법, 4096 그래프 경계 파편의 실제 비용까지 실측으로 적었다.">
 <meta name="author" content="nacyot">
 <link rel="canonical" href="https://artifacts.nacyot.com/moe-prefill-quantum/">
@@ -9,24 +9,24 @@
 <meta property="og:site_name" content="nacyot / artifacts">
 <meta property="og:locale" content="ko_KR">
 <meta property="og:url" content="https://artifacts.nacyot.com/moe-prefill-quantum/">
-<meta property="og:title" content="MoE 추론 서버의 prefill 을 절반으로 묶고 있던 기본값">
+<meta property="og:title" content="ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다">
 <meta property="og:description" content="전문가 256개를 다 읽어놓고 각각에서 3행짜리 행렬곱만 한다. 세션이 겹칠 때만 적용된다.">
 <meta property="og:image" content="https://artifacts.nacyot.com/moe-prefill-quantum/og.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="MoE 추론 서버의 prefill 을 절반으로 묶고 있던 기본값">
+<meta property="og:image:alt" content="ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다">
 <meta property="article:published_time" content="2026-08-25">
 <meta property="article:modified_time" content="2026-08-26">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="MoE 추론 서버의 prefill 을 절반으로 묶고 있던 기본값">
+<meta name="twitter:title" content="ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다">
 <meta name="twitter:description" content="전문가 256개를 다 읽어놓고 각각에서 3행짜리 행렬곱만 한다. 세션이 겹칠 때만 적용된다.">
 <meta name="twitter:image" content="https://artifacts.nacyot.com/moe-prefill-quantum/og.png">
-<meta name="twitter:image:alt" content="MoE 추론 서버의 prefill 을 절반으로 묶고 있던 기본값">
+<meta name="twitter:image:alt" content="ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다">
 <script type="application/ld+json">{
   "@context": "https://schema.org",
   "@type": "TechArticle",
-  "headline": "MoE 추론 서버의 prefill 을 절반으로 묶고 있던 기본값",
+  "headline": "ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다",
   "description": "DeepSeek V4 Flash 로컬 서빙에서 --mixed-prefill-quantum 기본값 128 이 prefill 을 상한의 39%로 묶는다. 원인은 MoE 전문가당 토큰 수. 128 에서도 전문가의 95%를 읽으면서 각각에서 3행만 계산해 산술강도가 바닥이다. 2048 로 올리면 합성 프로브 2.31배, 실제 코딩 에이전트 3개를 동시에 돌린 작업에서 2.20배. 적용 조건(요청이 겹칠 때만), 값 고르는 법, 4096 그래프 경계 파편의 실제 비용까지 실측으로 적었다.",
   "url": "https://artifacts.nacyot.com/moe-prefill-quantum/",
   "image": "https://artifacts.nacyot.com/moe-prefill-quantum/og.png",
@@ -128,7 +128,7 @@ details[open] summary::before{content:"\25BE "}
 
 .endrule { border:0; border-top:1px solid #e4e2da; margin:44px 0 20px; }
 .byline { color:#5b5b57; font-size:0.92em; }
-</style></head><body><div class="doc"><h1>MoE 추론 서버의 prefill 을 절반으로 묶고 있던 기본값</h1>
+</style></head><body><div class="doc"><h1>ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다</h1>
 
 <p class="lead">DeepSeek V4 Flash 를 로컬에서 서빙하는데 프롬프트 재계산이 이상하게 느렸다.
 원인은 기동 인자 하나, <code>--mixed-prefill-quantum</code> 의 기본값 128 이었다.

@@ -20,7 +20,7 @@
       <description><![CDATA[개인이 같은 컴퓨터를 여러 대 사서 하나로 묶는 일은 컴퓨팅 역사에서 드물다. 1994년 NASA의 베오울프는 시중 PC 열여섯 대를 이더넷으로 묶어 4만 달러에 슈퍼컴퓨터를 대신했고, 그것을 돌아가게 만든 것은 벤더가 아니라 사용자들이 직접 짠 드라이버와 채널 본딩과 조립법이었다. 3Com이 자기 리눅스 드라이버를 낸 것은 6년 뒤다. 지금 DGX Spark를 두 대씩, 많게는 여덟 대씩 사서 묶는 사람들에게서 같은 구조가 보인다. 1995년 논문 원문과 커널 소스, 지금의 공개 기록을 나란히 놓고, 모델 크기와 지능 지수가 개인 장비의 한계를 언제 넘었는지까지 그래프로 확인했다.]]></description>
     </item>
     <item>
-      <title>MoE 추론 서버의 prefill 을 절반으로 묶고 있던 기본값</title>
+      <title>ds4-server 기본값 하나가 MoE prefill 을 절반으로 묶고 있었다</title>
       <link>https://artifacts.nacyot.com/moe-prefill-quantum/</link>
       <guid isPermaLink="false">https://artifacts.nacyot.com/moe-prefill-quantum/</guid>
       <pubDate>Wed, 26 Aug 2026 00:00:00 +0000</pubDate>
