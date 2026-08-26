@@ -12,6 +12,7 @@
 
 | 날짜 | 산출물 | 설명 |
 |---|---|---|
+| 2026-08-26 | [beowulf-returns](./beowulf-returns/) | 1994년 NASA 고다드의 베오울프와 2026년 DGX Spark. 개인이 컴퓨터를 여러 대 사서 하나로 묶는 드문 일이 두 번째로 벌어지는 중이다. 1995년 논문 원문과 커널 소스, 오픈웨이트 모델 272개의 실측 크기와 지능 지수 |
 | 2026-08-26 | [moe-prefill-quantum-en](./moe-prefill-quantum-en/) | 위 글의 영어판 (English) |
 | 2026-08-26 | [moe-prefill-quantum](./moe-prefill-quantum/) | antirez ds4(ds4-server)의 기본값 128 이 MoE prefill 을 절반으로 묶던 문제(전문가당 3토큰). 합성 프로브 2.31배, 실제 코딩 에이전트 2.20배. 요청이 겹칠 때만 적용된다 |
 | 2026-08-22 | [dgx-spark-node-setup](./dgx-spark-node-setup/) | ASUS Ascent GX10(DGX Spark) 한 대를 추론 서버로: 필수(서버 모드, 드라이버 595, PD FW, 보안) / 추천(GPU와 CPU 클럭 상한 스윕 그래프, vLLM 스핀 패치) / 트러블슈팅 / 직접 검증한 레시피(ollama Qwen3.8-27B, DeepSeek V4 Flash EXL3) |
