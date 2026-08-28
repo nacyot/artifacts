@@ -12,6 +12,7 @@
 
 | 날짜 | 산출물 | 설명 |
 |---|---|---|
+| 2026-08-28 | [dgx-spark-4node-200g-switch](./dgx-spark-4node-200g-switch/) | 2대 직결 클러스터를 MikroTik CRS812와 400G 브레이크아웃 DAC 두 가닥으로 4노드 200G 풀메시로 확장. 초기 접속, 자동 협상 실패, 점보 드롭, VLAN 격리까지 브링업 전 과정과 모든 노드쌍 195.7Gb/s 검증. TP/PP 구성별 데이터 흐름 시각화 |
 | 2026-08-26 | [beowulf-returns](./beowulf-returns/) | 1994년 NASA 고다드의 베오울프와 2026년 DGX Spark. 개인이 컴퓨터를 여러 대 사서 하나로 묶는 드문 일이 두 번째로 벌어지는 중이다. 1995년 논문 원문과 커널 소스, 오픈웨이트 모델 272개의 실측 크기와 지능 지수 |
 | 2026-08-26 | [moe-prefill-quantum-en](./moe-prefill-quantum-en/) | 위 글의 영어판 (English) |
 | 2026-08-26 | [moe-prefill-quantum](./moe-prefill-quantum/) | antirez ds4(ds4-server)의 기본값 128 이 MoE prefill 을 절반으로 묶던 문제(전문가당 3토큰). 합성 프로브 2.31배, 실제 코딩 에이전트 2.20배. 요청이 겹칠 때만 적용된다 |

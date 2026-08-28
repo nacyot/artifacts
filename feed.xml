@@ -5,13 +5,20 @@
     <link>https://artifacts.nacyot.com/</link>
     <description>공개해도 되는 작업 산출물 모음 — 실측 정리, 리서치, 시각화.</description>
     <language>ko</language>
-    <lastBuildDate>Wed, 26 Aug 2026 12:12:21 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 28 Aug 2026 03:00:00 +0000</lastBuildDate>
     <atom:link href="https://artifacts.nacyot.com/feed.xml" rel="self" type="application/rss+xml"/>
 
     <!-- newest first -->
     <!-- guid 는 이전 도메인(nacyot.github.io/artifacts) 값을 그대로 유지한다.
          URL 만 바뀌었을 뿐 같은 글이므로, guid 를 바꾸면 구독자 리더가 전건을 새 글로 다시 띄운다.
          새 글부터는 artifacts.nacyot.com 기준 guid 를 쓴다. -->
+    <item>
+      <title>DGX Spark 4대를 스위치로 묶기: 노드당 케이블 한 가닥으로 200G 풀메시</title>
+      <link>https://artifacts.nacyot.com/dgx-spark-4node-200g-switch/</link>
+      <guid isPermaLink="false">https://artifacts.nacyot.com/dgx-spark-4node-200g-switch/</guid>
+      <pubDate>Fri, 28 Aug 2026 03:00:00 +0000</pubDate>
+      <description><![CDATA[2대 직결 클러스터를 MikroTik CRS812와 400G 브레이크아웃 DAC 두 가닥으로 4노드 200G 풀메시로 확장한 기록. 공장 초기 상태 스위치 접속, 자동 협상 실패와 강제 속도 지정, L2MTU 점보 드롭, VLAN 격리까지 브링업 전 과정과, 모든 노드쌍 195.7Gb/s(직결과 동일, 스위치 손실 0) 검증. TP=2, TP=2 x2, TP=2+PP=2, TP=4 병렬화 구성별 데이터 흐름 시각화.]]></description>
+    </item>
     <item>
       <title>One default was halving prefill in ds4-server</title>
       <link>https://artifacts.nacyot.com/moe-prefill-quantum-en/</link>
