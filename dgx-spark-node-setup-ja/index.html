@@ -46,7 +46,7 @@ a{color:var(--hi)}
 </style><link rel="canonical" href="https://artifacts.nacyot.com/dgx-spark-node-setup-ja/"></head><body><div class="doc">
 <div class="kicker">ASUS Ascent GX10 (NVIDIA GB10) セットアップガイド</div>
 <h1>ASUS Ascent GX10(DGX Spark) 1台を推論サーバーとしてセットアップする: 必須設定、推奨設定、トラブルシューティング、すぐ試せるレシピ</h1>
-<p class="fcap" style="margin:0 0 1.4rem">関連記事: <a href="../gb10-clock-cap/">GB10にクロック上限をかける方法 → (韓国語)</a> / <a href="../vllm-spin-wait-gb10-en/">LLM推論で最も熱いのはGPUではなかった → (英語)</a> / <a href="../deepseek-v4-flash-2x-dgx-spark/">DGX Spark 2台でDeepSeek V4 Flashを動かす → (韓国語)</a></p>
+<p class="fcap" style="margin:0 0 1.4rem">関連記事: <a href="../gb10-clock-cap/">GB10にクロック上限をかける方法 → (韓国語)</a> / <a href="../vllm-spin-wait-gb10-en/">LLM推論で最も熱いのはGPUではなかった → (英語)</a> / <a href="../deepseek-v4-flash-2x-dgx-spark/">DGX Spark 2台でDeepSeek V4 Flashを動かす → (韓国語)</a> / <a href="../dgx-spark-4node-200g-switch/">DGX Spark 4台をスイッチで接続する → (韓国語)</a></p>
 <p class="fcap" style="margin:0 0 1.4rem"><a href="../dgx-spark-node-setup/">한국어 원문 →</a> / <a href="../dgx-spark-node-setup-en/">English →</a></p>
 
 <div class="note"><strong>2026-08-28更新。</strong> 4台目のセットアップで確認した内容を反映した。工場イメージの壊れたnetplanファイル(3章)、ファームウェアカプセル同時適用の失敗と再試行(1.3)、purge保護ゲートの修正(1.1)、サーバーモード後も残るdgx-dashboard(1.1)、Wi-Fiを切るタイミング(1.4)、200Gのレールあたり上限の実測更新(3章)。</div>
@@ -277,6 +277,7 @@ for i in enp1s0f0np0 enp1s0f1np1 enP2p1s0f0np0 enP2p1s0f1np1; do ufw allow in on
 <li><strong>ケーブルを別のケージに移すと設定が壊れる。</strong> NetworkManagerが作ったプロファイルにポートのMACが埋め込まれており、<code>permanent MAC address doesn't match</code> で有効化が失敗する。<code>nmcli con mod ic200g 802-3-ethernet.mac-address "" connection.interface-name &lt;新しいインターフェース&gt;</code> でMACの固定を解除し、インターフェース名で紐付け直す。ファイアウォールルールもポート名基準なので、上のように4個すべて開けておく。</li>
 </ol>
 <p>切り分けの際は二つ覚えておきたい。ufwはICMPをデフォルト許可するので、<strong>pingは通るのにTCPが通らない</strong>状態が生じる(<code>ib_write_bw</code> が「Couldn't connect」なのにpingは通る)。そしてGB10では <code>ib_write_bw</code> が低く出てもNCCLは正常という事例が報告されているので(<a href="https://forums.developer.nvidia.com/t/nccl-single-cable-test-caps-at-100gbps/362403">NVIDIAフォーラム</a>)、最終判定はNCCL(nccl-tests)で行う。NCCLログの <code>GPU_DIRECT_RDMA_SUPPORTED=False</code> はGB10では正常だ。</p>
+<p>ここまでは2台をケーブルで直結する話だ。ノードが3台以上になるとポートが2個しかないためフルメッシュの直結が成り立たず、スイッチが必要になる。その構成は<a href="../dgx-spark-4node-200g-switch/">DGX Spark 4台をスイッチで接続する</a>(韓国語)に別途書いた。</p>
 
 <h2 id="s4">4. 1台ですぐ試せるレシピ: 直接検証したものだけ</h2>
 <p>セットアップの終わった1台でそのまま再現できるレシピを二つ挙げる。どちらも上のGPU上限(1989MHz)がかかった状態で測った。</p>
