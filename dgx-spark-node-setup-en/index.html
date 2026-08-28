@@ -49,6 +49,8 @@ a{color:var(--hi)}
 <p class="fcap" style="margin:0 0 1.4rem">Related: <a href="../gb10-clock-cap/">How to set a clock cap on the GB10 →</a> (Korean) / <a href="../vllm-spin-wait-gb10-en/">Why vLLM pegs four CPU cores at 100% on the DGX Spark →</a> / <a href="../deepseek-v4-flash-2x-dgx-spark/">Running DeepSeek V4 Flash on two DGX Sparks →</a> (Korean)</p>
 <p class="fcap" style="margin:0 0 1.4rem"><a href="../dgx-spark-node-setup/">한국어 원문 →</a> / <a href="../dgx-spark-node-setup-ja/">日本語 →</a></p>
 
+<div class="note"><strong>Updated 2026-08-28.</strong> Reflects what we confirmed while setting up a fourth machine: a corrupt netplan file in the factory image (section 3), a firmware capsule failure when several apply at once, and the retry (1.3), a fix to the purge protection gate (1.1), dgx-dashboard surviving server mode (1.1), when to turn Wi-Fi off (1.4), and an updated per-rail ceiling for the 200G link (section 3).</div>
+
 <p>While bringing in our third ASUS Ascent GX10 (NVIDIA GB10, part of the DGX Spark family), we walked through the procedure of turning a factory-state machine into an inference server once more, from the beginning. This article is about the <strong>ASUS Ascent GX10</strong>. The NVIDIA DGX Spark and GB10 machines from other vendors are probably similar, but firmware, base image, and package composition can differ by product, so check on your own hardware before following along. This time we applied in one pass everything we had worked out piece by piece over several weeks on the first two machines, and we also record the problems we hit along the way. The article splits the procedure into four parts: what you must do, what is worth doing, the problems we ran into, and recipes you can run right away on a single node once setup is done. Settings specific to our home network (VLANs, addresses, switches) are left out.</p>
 
 <div class="warn"><p><b>Caution.</b> This article describes system changes that are hard to undo or can cut off remote access: firmware upgrades, driver replacement, removal of desktop packages, firewall configuration. Before running any command, check what it changes on your own hardware and version, and proceed at your own risk. The numbers are measurements from our machines, not guarantees.</p></div>
@@ -73,7 +75,7 @@ systemctl status ssh           # check the SSH server is running (if missing: su
 # On your workstation
 ssh-copy-id user@&lt;spark-ip&gt;     # copy the public key. No password needed from here on
 ssh user@&lt;spark-ip&gt;</code></pre>
-<p>This is what the factory state looked like. Driver and firmware versions can differ from machine to machine, so check first.</p>
+<p>This is what the factory state looked like. Driver and firmware versions can differ from machine to machine, so check first. The fourth machine came with the timezone already set to Asia/Seoul and a newer OTA metapackage, so it differed from the table in small ways.</p>
 <table><thead><tr><th>Item</th><th>Factory state (delivered 2026-08)</th><th>Target in this article</th></tr></thead><tbody>
 <tr><td>OS / kernel</td><td>Ubuntu 24.04.4 / 6.17.0-1031-nvidia</td><td>unchanged</td></tr>
 <tr><td>Default target</td><td>graphical (GNOME, gdm3, 13 snaps, setup wizard app)</td><td>multi-user</td></tr>
@@ -98,7 +100,7 @@ for z in /sys/class/thermal/thermal_zone*; do printf '%s=%s°C ' $(cat $z/device
 fwupdmgr get-devices | grep 'Current version'                      # EC, SoC FW, PD, NVMe firmware
 sudo dmesg --level=err,crit | grep -v -i tpm | tail                # kernel errors
 systemctl list-units --state=failed                                # failed units</code></pre>
-<table><thead><tr><th>Item</th><th>Expected on the GX10 (identical on all three machines)</th></tr></thead><tbody>
+<table><thead><tr><th>Item</th><th>Expected on the GX10 (identical on all four machines)</th></tr></thead><tbody>
 <tr><td>PCI devices</td><td>1 NVIDIA VGA (GB10), 1 NVMe (Phison), 1 Realtek 8127 10G, 1 MediaTek 7925 Wi-Fi, <strong>4 ConnectX-7 (only while a cable is plugged in)</strong></td></tr>
 <tr><td>Network interfaces</td><td><code>enP7s7</code> (10G RJ45) UP 10000Mb/s, <code>wlP9s9</code> (Wi-Fi), and four 200G interfaces: <code>enp1s0f0np0</code>, <code>enp1s0f1np1</code>, <code>enP2p1s0f0np0</code>, <code>enP2p1s0f1np1</code> (two physical ports, each exposed as two PCIe functions). A port with a cable shows <code>up 200000</code></td></tr>
 <tr><td>USB</td><td>12 root hubs (6 USB 2.0 + 6 USB 3.0), one built-in Wi-Fi/BT combo device</td></tr>
@@ -125,7 +127,7 @@ systemctl list-units --state=failed                                # failed unit
 
 # 1) Protect: mark the metapackage's dependencies (except snap-related) + installed NVIDIA/DGX/docker/CUDA packages as manually installed
 apt-cache depends dgx-spark-ota-update-meta | awk '/Depends:/{print $2}' | grep -v snaps | xargs apt-mark manual
-apt-mark manual $(dpkg -l | awk '/^ii/{print $2}' | grep -E '^(nvidia-|dgx-|docker|containerd|cuda|lldpd)')
+apt-mark manual $(dpkg -l | awk '/^ii/{print $2}' | grep -E '^(nvidia-|dgx-|docker|containerd|cuda|lldpd|mlnx)')
 # (if you have a reference machine, compare against its `apt-mark showmanual` list and add what is missing)
 
 # 2) Switch + simulation gate (stops if protected packages appear in the removal list)
@@ -134,10 +136,10 @@ CAND="ubuntu-desktop ubuntu-desktop-minimal gdm3 gnome-shell xorg xwayland gnome
       libreoffice-core network-manager-gnome snapd nvidia-desktop-default-snaps nvidia-system-station \
       dgxstation-desktop dgx-oobe-desktop dgx-spark-ota-update-meta ubuntu-server-minimal"
 PURGE=""; for p in $CAND; do dpkg -s "$p" &gt;/dev/null 2&gt;&amp;1 &amp;&amp; PURGE="$PURGE $p"; done   # installed ones only
-apt-get -s purge $PURGE | grep ^Remv | grep -E 'nvidia-driver|linux-modules-nvidia|cuda|docker|nvidia-spark' \
+apt-get -s purge $PURGE | awk '/^Remv/{print $2}' | grep -E '^(nvidia-driver|linux-modules-nvidia|cuda|docker|nvidia-spark|network-manager$|netplan|openssh-server$|ufw$)' \
   &amp;&amp; { echo "protected package in removal list, aborting"; exit 1; }
 apt-get purge -y $PURGE
-apt-get -s autoremove --purge | grep ^Remv | grep -E 'nvidia-|dgx-|lldpd|docker|cuda' \
+apt-get -s autoremove --purge | awk '/^Remv/{print $2}' | grep -E '^(nvidia-|dgx-|lldpd|docker|cuda|mlnx)' \
   &amp;&amp; { echo "protected package in removal list, aborting"; exit 1; }
 apt-get autoremove --purge -y
 rm -rf /snap /var/snap /var/lib/snapd /home/*/snap
@@ -145,7 +147,9 @@ rm -rf /snap /var/snap /var/lib/snapd /home/*/snap
 # 3) Compare (once more after the reboot)
 update-grub
 grep -o 'initcall_blacklist=[^ ]*\|pci=pcie_bus_safe\|iommu.passthrough=[0-9]' /boot/grub/grub.cfg | sort -u</code></pre>
+<p>The gate must judge on the package name field alone, not the whole <code>Remv</code> line. The line carries a version string (<code>Remv network-manager [1.46.0-1]</code>), so a pattern anchored at the end of a name silently fails to match, and dropping the anchors produces false positives on <code>network-manager-gnome</code>, which is a legitimate removal target. On the fourth machine we found the whole-line gate was effectively inert, and fixed it as above.</p>
 <p>We do not restore the OTA metapackage. Restoring it brings snapd back through <code>nvidia-desktop-default-snaps</code> and breaks server mode. What the metapackage does is "pull in the packages NVIDIA adds in the next release", so every so often compare its <code>Depends</code> list with what is installed and install only the missing ones individually. Individual platform packages update normally through <code>apt upgrade</code>.</p>
+<p>One more thing. Even after the switch to server mode, <code>dgx-dashboard</code> and <code>dgx-dashboard-admin</code> stay behind. They are the desktop web management UI (port 11000) and its root D-Bus backend; a server managed over SSH has no use for them, and the admin process's resident memory grows to hundreds of MB over time (270-360MB measured on our nodes). Turn them off with <code>systemctl disable --now dgx-dashboard dgx-dashboard-admin</code>.</p>
 
 <h3>1.2 Driver 580 → 595</h3>
 <p>The reason to switch is a defect, not speed. On 580.173.02, a GPU error (<code>Xid 13</code>) reproduced on the path that offloads KV cache to disk, and it disappeared with the same code on 595.84. We put new machines on 595 from the start as well.</p>
@@ -161,15 +165,16 @@ apt-get install -y nvidia-driver-595-open linux-modules-nvidia-595-open-nvidia-h
 <pre><code>fwupdmgr refresh --force
 fwupdmgr get-updates                  # "GX10 USB-C PD FW Controller Update" 0x516
 fwupdmgr update -y --no-reboot-check  # the capsule is staged in /boot/efi/EFI/ubuntu/fw/
-# Reboot (about 2 minutes) → check 0x00000516 in fwupdmgr get-devices</code></pre>
+# Reboot (about 2 minutes with a single capsule) → check 0x00000516 in fwupdmgr get-devices</code></pre>
 <p>We handled the driver replacement, the server mode switch, and the firmware update into a single reboot. The UEFI ("GX10 SoC FW") and EC firmware also arrive through the same channel.</p>
+<p>When several capsules are pending, watch out for two things. On the fourth machine, the EC, SoC FW, and PD capsules were bundled into one reboot; it took about 9 minutes to get SSH back, and the PD update alone failed (<code>expected 0x516 and got 0x1</code>). Running <code>fwupdmgr refresh --force</code> and then <code>update</code> again re-staged the failed capsule, and the reboot that applied only the PD capsule succeeded. Judge the results with <code>fwupdmgr get-devices --json</code>: in the text output every device is named "UEFI Device Firmware", which makes them hard to tell apart, while the JSON <code>UpdateState</code> field (2=success, 3=failed, 4=needs reboot) is unambiguous.</p>
 
 <h3>1.4 Security and update defaults</h3>
 <table><thead><tr><th>Item</th><th>Setting</th><th>Notes</th></tr></thead><tbody>
 <tr><td>sshd</td><td><code>PasswordAuthentication no</code>, <code>KbdInteractiveAuthentication no</code>, <code>PermitRootLogin prohibit-password</code></td><td>After confirming the key is in <code>~/.ssh/authorized_keys</code>, <code>sshd -t &amp;&amp; systemctl reload ssh</code></td></tr>
 <tr><td>ufw</td><td>incoming deny / outgoing allow / routed deny. SSH only from the management network; service ports one line at a time as needed</td><td>If you are working over SSH, add <code>ufw allow from &lt;mgmt-net/24&gt; to any port 22 proto tcp</code> <strong>first</strong>, then <code>ufw enable</code>, and confirm a new connection from a second terminal while keeping the existing session open. Add inference API ports (8000, 8888, and so on) explicitly when opening them to the LAN</td></tr>
 <tr><td>unattended-upgrades</td><td>automatic package lists and upgrades, <code>Automatic-Reboot "false"</code>, <code>Remove-Unused-Kernel-Packages "true"</code></td><td>A reboot in the middle of inference is unacceptable, so automatic reboot is off</td></tr>
-<tr><td>Timezone / Wi-Fi</td><td><code>timedatectl set-timezone</code> / <code>nmcli radio wifi off</code></td><td>Factory state is UTC. Turn Wi-Fi off after confirming the wired connection</td></tr>
+<tr><td>Timezone / Wi-Fi</td><td><code>timedatectl set-timezone</code> / <code>nmcli radio wifi off</code></td><td>Factory state is UTC (varies by machine). Keep Wi-Fi alive as a second path until the desktop purge, the reboot, and the wired verification are all done, then turn it off last</td></tr>
 <tr><td>persistenced / journald</td><td>enabled / persistent</td><td>factory defaults, unchanged</td></tr>
 </tbody></table>
 
@@ -243,11 +248,13 @@ ufw allow in on tailscale0        # if the firewall is on, allow the tailnet int
 
 <h2 id="s3">3. Troubleshooting: problems we hit and misinformation</h2>
 <table><thead><tr><th style="width:34%">Symptom</th><th>Cause / fix</th></tr></thead><tbody>
-<tr><td><code>docker.service</code> fails after reboot: <code>error creating buildkit instance: invalid database</code></td><td>The buildkit local DB shipped in the factory image (created 2025-09) was corrupt. It is only build cache, so <code>systemctl stop docker.socket docker; mv /var/lib/docker/buildkit /var/lib/docker/buildkit.bak; systemctl start docker</code>. Unrelated to images or containers. Then register the nvidia runtime with <code>nvidia-ctk runtime configure --runtime=docker</code>.</td></tr>
+<tr><td><code>docker.service</code> fails after reboot: <code>error creating buildkit instance: invalid database</code></td><td>The buildkit local DB shipped in the factory image (created 2025-09) was corrupt. The two machines we brought in most recently reproduced it identically, so it looks like a defect common to the image. It is only build cache, so <code>systemctl stop docker.socket docker; mv /var/lib/docker/buildkit /var/lib/docker/buildkit.bak; systemctl start docker</code>. Unrelated to images or containers. Then register the nvidia runtime with <code>nvidia-ctk runtime configure --runtime=docker</code>.</td></tr>
 <tr><td><code>nvidia-smi</code> right after the driver install: Driver/library version mismatch</td><td>The old kernel module is still loaded while only the libraries are new. Resolved by a reboot. Do not run GPU jobs before rebooting.</td></tr>
 <tr><td>On 595, <code>nvidia-smi --query-gpu=clocks.applications.graphics</code> and <code>display_mode</code> return strings</td><td>"Requested functionality has been deprecated". Health-check scripts that do numeric comparisons will break. Read <code>clocks.sm</code> or handle the string as an exception.</td></tr>
 <tr><td>GPU clock stays at 400-950MHz under load, power ~10W, all throttle flags Not Active</td><td>PD firmware low-clock lock (1.3), reports <a href="https://x.com/runsonai/status/2051757564019212657">1</a>, <a href="https://x.com/hnakamur2/status/2086253048050159846">2</a>). Neither a reboot nor <code>nvidia-smi -rgc</code> clears it: shut down → unplug the power cable → press the power button to drain → reconnect after 1 minute. Distinguish it from an intentional cap (about 1989MHz).</td></tr>
 <tr><td>Boot parameters disappeared after <code>apt autoremove</code></td><td>Platform packages that were dependencies of the metapackage were removed with it (1.1). After a large purge, compare <code>/proc/cmdline</code> and <code>/etc/default/grub.d/</code> with a reference machine.</td></tr>
+<tr><td><code>netplan generate</code> fails with <code>Invalid YAML: aliases are not supported</code> and no netplan configuration takes effect</td><td>The factory image can carry a corrupt netplan file whose entire content is null bytes (our fourth machine: 715 bytes, all 0x00). One broken file makes netplan give up on everything, so the symptom shows up far from the cause. Sweep <code>/etc/netplan/*</code> with <code>file</code>, move the broken file away, and run <code>netplan generate</code> again.</td></tr>
+<tr><td>A static IP reverts to DHCP after a reboot</td><td>On this image netplan is the source of truth for the network. On some machines the NM profiles exist only under <code>/run</code> (volatile), so settings made with <code>nmcli con mod</code> can vanish on reboot. Put persistent configuration in <code>/etc/netplan/</code>. An empty <code>/etc/NetworkManager/system-connections/</code> is not a fault; it is the netplan renderer working as designed.</td></tr>
 <tr><td>200G ConnectX-7 missing from <code>lspci</code></td><td>The NIC is not exposed unless a cable is plugged in (managed by the hotplug package). Not a driver problem.</td></tr>
 <tr><td>Files left in <code>/tmp</code> vanished after a reboot</td><td>Ubuntu clears <code>/tmp</code> at boot. Move staging files to home before rebooting.</td></tr>
 <tr><td>Waited for a remote script to finish with <code>pgrep -f scriptname</code> and it stayed "running" forever</td><td>The waiting side's ssh command line contains the same string, so it matches itself. Use a bracket pattern like <code>pgrep -f "[d]ownload.sh"</code>. <code>pkill -f</code> kills itself for the same reason.</td></tr>
@@ -266,7 +273,7 @@ ufw allow in on tailscale0        # if the firewall is on, allow the tailnet int
 nmcli con add type ethernet con-name ic200g-b ifname enP2p1s0f0np0 ipv4.method manual ipv4.addresses &lt;rail-B&gt;/24 ipv4.never-default yes 802-3-ethernet.mtu 9000
 # The peer machine uses the same two subnets. In the firewall, allow all four port names (so it survives moving the cable to the other cage)
 for i in enp1s0f0np0 enp1s0f1np1 enP2p1s0f0np0 enP2p1s0f1np1; do ufw allow in on $i; done</code></pre></li>
-<li><strong>Every indicator is normal but throughput is 1/8.</strong> Link 200000Mb/s, RoCE 4X×50G, PCIe Gen5 x4, zero error counters, jumbo frames pass, yet both <code>ib_write_bw</code> and <code>iperf3</code> stall around 13Gb/s (normal is about 98Gb/s per path, 196Gb/s combined; NVIDIA's playbook <a href="https://github.com/NVIDIA/dgx-spark-playbooks/blob/main/nvidia/connect-two-sparks/assets/performance_benchmarking_guide.md">benchmarking guide</a> expects about 197Gb/s from ib_write_bw, and the same 13Gb/s ceiling is reported on the <a href="https://forums.developer.nvidia.com/t/connectx-7-inter-spark-link-capped-at-13-gbps-expected-200-gbps-pcie-power-throttling-27w/363461">NVIDIA forums</a>). If two processes on the same device split it 6.9+6.9, you are hitting a device ceiling, and if two interfaces within one machine sending to each other also give 13, the cable and the peer machine are ruled out. <strong>A reboot does not fix it. Shut down both machines, unplug the power cables, press the power button to drain, and reconnect after 1 minute</strong>; that cleared it (13.3 → 108Gb/s, 196Gb/s over both paths). It held through several normal reboots afterwards. This looks like the same family of power-side issue as the PD firmware low-clock lock.</li>
+<li><strong>Every indicator is normal but throughput is 1/8.</strong> Link 200000Mb/s, RoCE 4X×50G, PCIe Gen5 x4, zero error counters, jumbo frames pass, yet both <code>ib_write_bw</code> and <code>iperf3</code> stall around 13Gb/s (normal is 98-110Gb/s per path, about 196Gb/s combined; the per-path ceiling is the PCIe Gen5 x4 link, not the cable, and in a later switch-based setup <code>ib_send_bw</code> read a uniform 109Gb/s per path. NVIDIA's playbook <a href="https://github.com/NVIDIA/dgx-spark-playbooks/blob/main/nvidia/connect-two-sparks/assets/performance_benchmarking_guide.md">benchmarking guide</a> expects about 197Gb/s from ib_write_bw, and the same 13Gb/s ceiling is reported on the <a href="https://forums.developer.nvidia.com/t/connectx-7-inter-spark-link-capped-at-13-gbps-expected-200-gbps-pcie-power-throttling-27w/363461">NVIDIA forums</a>). If two processes on the same device split it 6.9+6.9, you are hitting a device ceiling, and if two interfaces within one machine sending to each other also give 13, the cable and the peer machine are ruled out. <strong>A reboot does not fix it. Shut down both machines, unplug the power cables, press the power button to drain, and reconnect after 1 minute</strong>; that cleared it (13.3 → 108Gb/s, 196Gb/s over both paths). It held through several normal reboots afterwards. This looks like the same family of power-side issue as the PD firmware low-clock lock.</li>
 <li><strong>Moving the cable to the other cage breaks the configuration.</strong> The NetworkManager profile has the port MAC baked in, so activation fails with <code>permanent MAC address doesn't match</code>. Clear the MAC lock with <code>nmcli con mod ic200g 802-3-ethernet.mac-address "" connection.interface-name &lt;new interface&gt;</code> and bind by name again. Firewall rules are also by port name, so open all four as above.</li>
 </ol>
 <p>Two things to remember when diagnosing. ufw allows ICMP by default, so you can get a state where <strong>ping works but TCP does not</strong> (<code>ib_write_bw</code> says "Couldn't connect" while ping is fine). And on the GB10 there are reports of <code>ib_write_bw</code> reading low while NCCL is fine (<a href="https://forums.developer.nvidia.com/t/nccl-single-cable-test-caps-at-100gbps/362403">NVIDIA forums</a>), so make the final call with NCCL (nccl-tests). <code>GPU_DIRECT_RDMA_SUPPORTED=False</code> in the NCCL log is normal on the GB10.</p>

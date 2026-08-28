@@ -49,6 +49,8 @@ a{color:var(--hi)}
 <p class="fcap" style="margin:0 0 1.4rem">관련 글: <a href="../gb10-clock-cap/">GB10 클럭 상한 거는 법 →</a> / <a href="../vllm-spin-wait-gb10/">LLM 추론에서 가장 뜨거운 것은 GPU가 아니었다 →</a> / <a href="../deepseek-v4-flash-2x-dgx-spark/">DGX Spark 2대로 DeepSeek V4 Flash 돌리기 →</a></p>
 <p class="fcap" style="margin:0 0 1.4rem"><a href="../dgx-spark-node-setup-en/">In English →</a> / <a href="../dgx-spark-node-setup-ja/">日本語 →</a></p>
 
+<div class="note"><strong>2026-08-28 업데이트.</strong> 네 대째 기계를 세팅하며 확인한 것을 반영했다. 공장 이미지의 깨진 netplan 파일(3장), 펌웨어 캡슐 동시 적용 실패와 재시도(1.3), purge 보호 게이트 수정(1.1), 서버 모드 후에도 남는 dgx-dashboard(1.1), Wi-Fi 종료 시점(1.4), 200G 경로당 상한 실측 갱신(3장).</div>
+
 <p>ASUS Ascent GX10(NVIDIA GB10, DGX Spark 제품군)을 세 대째 들이면서, 공장 상태의 기계를 추론 서버로 만드는 절차를 처음부터 다시 밟았다. 이 글의 대상은 <strong>ASUS Ascent GX10</strong>이다. NVIDIA DGX Spark나 다른 제조사의 GB10 기기도 비슷할 가능성이 높지만, 펌웨어, 기본 이미지, 패키지 구성은 제품에 따라 다를 수 있으니 그대로 따라 하기 전에 각자 장비에서 확인해야 한다. 앞의 두 대에서 몇 주에 걸쳐 하나씩 알아낸 것들을 이번에는 한 번에 적용했고, 그 과정에서 겪은 문제도 같이 적는다. 이 글은 그 절차를 네 덩어리로 나눈다. 꼭 해야 하는 것, 하면 좋은 것, 겪은 문제, 그리고 세팅이 끝난 한 대에서 바로 돌려볼 수 있는 레시피다. 집 네트워크에만 해당하는 설정(VLAN, 주소, 스위치)은 뺐다.</p>
 
 <div class="warn"><p><b>주의.</b> 이 글에는 펌웨어 업그레이드, 드라이버 교체, 데스크탑 패키지 삭제, 방화벽 설정처럼 되돌리기 어렵거나 원격 접속을 끊을 수 있는 시스템 변경이 들어 있다. 명령을 실행하기 전에 각자의 장비와 버전에서 무엇이 바뀌는지 직접 확인하고, 본인 책임으로 진행하기 바란다. 수치는 우리 장비의 실측이며 보증이 아니다.</p></div>
@@ -73,7 +75,7 @@ systemctl status ssh           # SSH 서버 동작 확인 (없으면 sudo apt in
 # 작업 PC 쪽
 ssh-copy-id user@&lt;spark-ip&gt;     # 공개키 복사. 이후 비밀번호 없이 접속
 ssh user@&lt;spark-ip&gt;</code></pre>
-<p>공장 상태는 이랬다. 드라이버와 펌웨어 버전은 기계마다 다를 수 있으니 먼저 확인한다.</p>
+<p>공장 상태는 이랬다. 드라이버와 펌웨어 버전은 기계마다 다를 수 있으니 먼저 확인한다. 네 대째 기계는 시간대가 처음부터 Asia/Seoul이었고 OTA 메타패키지도 신버전이라, 아래 표와 조금씩 달랐다.</p>
 <table><thead><tr><th>항목</th><th>공장 상태 (2026-08 입고분)</th><th>이 글의 목표</th></tr></thead><tbody>
 <tr><td>OS / 커널</td><td>Ubuntu 24.04.4 / 6.17.0-1031-nvidia</td><td>그대로</td></tr>
 <tr><td>기본 타깃</td><td>graphical (GNOME, gdm3, snap 13개, 설정 마법사 앱)</td><td>multi-user</td></tr>
@@ -98,7 +100,7 @@ for z in /sys/class/thermal/thermal_zone*; do printf '%s=%s°C ' $(cat $z/device
 fwupdmgr get-devices | grep 'Current version'                      # EC, SoC FW, PD, NVMe 펌웨어
 sudo dmesg --level=err,crit | grep -v -i tpm | tail                # 커널 에러
 systemctl list-units --state=failed                                # 실패한 유닛</code></pre>
-<table><thead><tr><th>항목</th><th>GX10에서 기대하는 값 (세 대 모두 동일했다)</th></tr></thead><tbody>
+<table><thead><tr><th>항목</th><th>GX10에서 기대하는 값 (네 대 모두 동일했다)</th></tr></thead><tbody>
 <tr><td>PCI 장치</td><td>NVIDIA VGA(GB10) 1, NVMe(Phison) 1, Realtek 8127 10G 1, MediaTek 7925 Wi-Fi 1, <strong>ConnectX-7 4개(케이블이 꽂혀 있을 때만)</strong></td></tr>
 <tr><td>네트워크 인터페이스</td><td><code>enP7s7</code>(10G RJ45) UP 10000Mb/s, <code>wlP9s9</code>(Wi-Fi), 200G는 <code>enp1s0f0np0</code>, <code>enp1s0f1np1</code>, <code>enP2p1s0f0np0</code>, <code>enP2p1s0f1np1</code> 4개(물리 포트는 2개, 각 포트가 PCIe 함수 2개로 보인다). 케이블 꽂힌 포트는 <code>up 200000</code></td></tr>
 <tr><td>USB</td><td>루트허브 12개(USB 2.0 6 + 3.0 6), 내장 장치로 Wi-Fi/BT 콤보 1개</td></tr>
@@ -125,7 +127,7 @@ systemctl list-units --state=failed                                # 실패한 �
 
 # 1) 보호: 메타패키지의 의존 패키지(snap 관련 제외) + 설치된 NVIDIA/DGX/docker/CUDA 패키지를 수동 설치로 표시
 apt-cache depends dgx-spark-ota-update-meta | awk '/Depends:/{print $2}' | grep -v snaps | xargs apt-mark manual
-apt-mark manual $(dpkg -l | awk '/^ii/{print $2}' | grep -E '^(nvidia-|dgx-|docker|containerd|cuda|lldpd)')
+apt-mark manual $(dpkg -l | awk '/^ii/{print $2}' | grep -E '^(nvidia-|dgx-|docker|containerd|cuda|lldpd|mlnx)')
 # (기준 기계가 있으면 그쪽 `apt-mark showmanual` 목록과 대조해 빠진 것을 더한다)
 
 # 2) 전환 + 시뮬레이션 게이트 (보호 대상이 제거 목록에 섞이면 멈춘다)
@@ -134,10 +136,10 @@ CAND="ubuntu-desktop ubuntu-desktop-minimal gdm3 gnome-shell xorg xwayland gnome
       libreoffice-core network-manager-gnome snapd nvidia-desktop-default-snaps nvidia-system-station \
       dgxstation-desktop dgx-oobe-desktop dgx-spark-ota-update-meta ubuntu-server-minimal"
 PURGE=""; for p in $CAND; do dpkg -s "$p" &gt;/dev/null 2&gt;&amp;1 &amp;&amp; PURGE="$PURGE $p"; done   # 설치된 것만
-apt-get -s purge $PURGE | grep ^Remv | grep -E 'nvidia-driver|linux-modules-nvidia|cuda|docker|nvidia-spark' \
+apt-get -s purge $PURGE | awk '/^Remv/{print $2}' | grep -E '^(nvidia-driver|linux-modules-nvidia|cuda|docker|nvidia-spark|network-manager$|netplan|openssh-server$|ufw$)' \
   &amp;&amp; { echo "보호 대상 포함, 중단"; exit 1; }
 apt-get purge -y $PURGE
-apt-get -s autoremove --purge | grep ^Remv | grep -E 'nvidia-|dgx-|lldpd|docker|cuda' \
+apt-get -s autoremove --purge | awk '/^Remv/{print $2}' | grep -E '^(nvidia-|dgx-|lldpd|docker|cuda|mlnx)' \
   &amp;&amp; { echo "보호 대상 포함, 중단"; exit 1; }
 apt-get autoremove --purge -y
 rm -rf /snap /var/snap /var/lib/snapd /home/*/snap
@@ -145,7 +147,9 @@ rm -rf /snap /var/snap /var/lib/snapd /home/*/snap
 # 3) 대조 (재부팅 뒤에도 한 번 더)
 update-grub
 grep -o 'initcall_blacklist=[^ ]*\|pci=pcie_bus_safe\|iommu.passthrough=[0-9]' /boot/grub/grub.cfg | sort -u</code></pre>
+<p>게이트는 <code>Remv</code> 줄 전체가 아니라 패키지 이름 필드만 뽑아 판정해야 한다. 줄에 버전 문자열이 붙어서(<code>Remv network-manager [1.46.0-1]</code>) 이름 끝을 고정한 패턴은 조용히 안 맞고, 앵커를 빼면 정상 제거 대상인 <code>network-manager-gnome</code>까지 잡는 오탐이 난다. 네 대째 기계에서 줄 전체를 보던 게이트가 실제로는 무력했던 것을 발견하고 위처럼 고쳤다.</p>
 <p>OTA 메타패키지는 되살리지 않는다. 되살리면 <code>nvidia-desktop-default-snaps</code>를 통해 snapd가 돌아와 서버 모드가 깨진다. 메타패키지가 하는 일은 "다음 릴리스에서 NVIDIA가 추가하는 패키지를 끌어오는 것"이라, 가끔 <code>Depends</code> 목록과 설치 상태를 대조해 빠진 것만 개별 설치하면 된다. 개별 플랫폼 패키지는 <code>apt upgrade</code>로 정상 갱신된다.</p>
+<p>하나 더. 서버 모드로 바꿔도 <code>dgx-dashboard</code>와 <code>dgx-dashboard-admin</code>은 남는다. 데스크탑용 웹 관리 UI(포트 11000)와 그 뒤의 root D-Bus 백엔드인데, SSH로만 관리하는 서버에서는 쓸 일이 없고 admin 쪽 상주 메모리가 시간이 지나며 수백 MB까지 자란다(우리 노드 실측 270~360MB). <code>systemctl disable --now dgx-dashboard dgx-dashboard-admin</code>으로 꺼 둔다.</p>
 
 <h3>1.2 드라이버 580 → 595</h3>
 <p>바꾸는 이유는 속도가 아니라 결함이다. 우리 2노드 실험에서 580.173.02는 KV 캐시를 디스크로 내리는 경로에서 GPU 오류(<code>Xid 13</code>)가 재현됐고, 595.84로 올리자 같은 코드에서 사라졌다. 새 기계도 처음부터 595로 맞춘다.</p>
@@ -161,15 +165,16 @@ apt-get install -y nvidia-driver-595-open linux-modules-nvidia-595-open-nvidia-h
 <pre><code>fwupdmgr refresh --force
 fwupdmgr get-updates                  # "GX10 USB-C PD FW Controller Update" 0x516
 fwupdmgr update -y --no-reboot-check  # 캡슐이 /boot/efi/EFI/ubuntu/fw/ 에 준비됨
-# 재부팅 (약 2분) → fwupdmgr get-devices 에서 0x00000516 확인</code></pre>
+# 재부팅 (캡슐 1개면 약 2분) → fwupdmgr get-devices 에서 0x00000516 확인</code></pre>
 <p>드라이버 교체, 서버 모드 전환, 펌웨어 적용을 한 번의 재부팅으로 처리했다. 같은 경로로 UEFI("GX10 SoC FW")와 EC 펌웨어도 내려온다.</p>
+<p>캡슐이 여러 개 대기 중이면 둘을 조심한다. 네 대째 기계는 EC, SoC FW, PD 세 캡슐이 한 재부팅에 묶이며 SSH 복귀까지 약 9분이 걸렸고, 그중 PD만 실패했다(<code>expected 0x516 and got 0x1</code>). <code>fwupdmgr refresh --force</code> 후 다시 <code>update</code>하면 실패한 캡슐이 재스테이징되고, PD 하나만 적용하는 재부팅에서는 성공했다. 결과 판정은 <code>fwupdmgr get-devices --json</code>이 정확하다. 텍스트 출력은 디바이스 이름이 전부 "UEFI Device Firmware"로 같아 구분이 어렵고, JSON의 <code>UpdateState</code>(2=성공, 3=실패, 4=재부팅 대기)를 보면 된다.</p>
 
 <h3>1.4 보안과 업데이트 기본값</h3>
 <table><thead><tr><th>항목</th><th>설정</th><th>메모</th></tr></thead><tbody>
 <tr><td>sshd</td><td><code>PasswordAuthentication no</code>, <code>KbdInteractiveAuthentication no</code>, <code>PermitRootLogin prohibit-password</code></td><td><code>~/.ssh/authorized_keys</code>에 키가 들어간 것을 확인한 뒤 <code>sshd -t &amp;&amp; systemctl reload ssh</code></td></tr>
 <tr><td>ufw</td><td>incoming deny / outgoing allow / routed deny. SSH는 관리망에서만, 서비스 포트는 필요할 때 한 줄씩</td><td>SSH로 작업 중이라면 <code>ufw allow from &lt;관리망/24&gt; to any port 22 proto tcp</code>를 <strong>먼저</strong> 넣고 <code>ufw enable</code>, 기존 세션은 열어 둔 채 새 터미널로 접속을 확인한다. 추론 API 포트(8000, 8888 등)를 LAN에 열 때도 명시적으로 추가한다</td></tr>
 <tr><td>unattended-upgrades</td><td>패키지 목록과 업그레이드 자동, <code>Automatic-Reboot "false"</code>, <code>Remove-Unused-Kernel-Packages "true"</code></td><td>추론 중 재부팅되면 안 되므로 자동 재부팅은 끈다</td></tr>
-<tr><td>시간대 / Wi-Fi</td><td><code>timedatectl set-timezone</code> / <code>nmcli radio wifi off</code></td><td>공장 상태는 UTC. Wi-Fi는 유선 접속을 확인한 뒤 끈다</td></tr>
+<tr><td>시간대 / Wi-Fi</td><td><code>timedatectl set-timezone</code> / <code>nmcli radio wifi off</code></td><td>공장 상태는 UTC(기계에 따라 다르다). Wi-Fi는 데스크탑 purge와 재부팅, 유선 검증이 끝날 때까지 두 번째 경로로 살려 두고 마지막에 끈다</td></tr>
 <tr><td>persistenced / journald</td><td>enabled / persistent</td><td>공장 기본값 그대로</td></tr>
 </tbody></table>
 
@@ -243,11 +248,13 @@ ufw allow in on tailscale0        # 방화벽을 켰다면 tailnet 인터페이�
 
 <h2 id="s3">3. 트러블슈팅: 겪은 문제와 잘못 알려진 정보</h2>
 <table><thead><tr><th style="width:34%">증상</th><th>원인 / 조치</th></tr></thead><tbody>
-<tr><td>재부팅 후 <code>docker.service</code> 실패: <code>error creating buildkit instance: invalid database</code></td><td>공장 이미지에 들어 있던 buildkit 로컬 DB(2025-09 생성)가 손상돼 있었다. 빌드 캐시일 뿐이라 <code>systemctl stop docker.socket docker; mv /var/lib/docker/buildkit /var/lib/docker/buildkit.bak; systemctl start docker</code>. 이미지나 컨테이너와는 무관하다. 이어서 <code>nvidia-ctk runtime configure --runtime=docker</code>로 nvidia 런타임을 등록해 둔다.</td></tr>
+<tr><td>재부팅 후 <code>docker.service</code> 실패: <code>error creating buildkit instance: invalid database</code></td><td>공장 이미지에 들어 있던 buildkit 로컬 DB(2025-09 생성)가 손상돼 있었다. 최근 들인 두 대에서도 똑같이 재현된 이미지 공통 결함이다. 빌드 캐시일 뿐이라 <code>systemctl stop docker.socket docker; mv /var/lib/docker/buildkit /var/lib/docker/buildkit.bak; systemctl start docker</code>. 이미지나 컨테이너와는 무관하다. 이어서 <code>nvidia-ctk runtime configure --runtime=docker</code>로 nvidia 런타임을 등록해 둔다.</td></tr>
 <tr><td>드라이버 설치 직후 <code>nvidia-smi</code>: Driver/library version mismatch</td><td>커널 모듈은 구버전이 로드된 채 라이브러리만 새것. 재부팅하면 해소. 재부팅 전에 GPU를 쓰는 작업을 돌리지 말 것.</td></tr>
 <tr><td>595에서 <code>nvidia-smi --query-gpu=clocks.applications.graphics</code>, <code>display_mode</code>가 문자열을 돌려준다</td><td>"Requested functionality has been deprecated". 점검 스크립트가 숫자 비교를 하면 깨진다. <code>clocks.sm</code>을 보거나 문자열을 예외 처리한다.</td></tr>
 <tr><td>부하 중 GPU 클럭이 400~950MHz에 머물고 전력 ~10W, 스로틀 플래그는 전부 Not Active</td><td>PD 펌웨어 저클럭 고착(1.3, 사례 <a href="https://x.com/runsonai/status/2051757564019212657">1</a>, <a href="https://x.com/hnakamur2/status/2086253048050159846">2</a>). 재부팅이나 <code>nvidia-smi -rgc</code>로는 안 풀리고, 종료 → 전원 케이블 분리 → 전원 버튼으로 방전 → 1분 뒤 재연결. 의도적으로 건 상한(약 1989MHz)과 구분할 것.</td></tr>
 <tr><td><code>apt autoremove</code> 뒤 부팅 파라미터가 사라졌다</td><td>메타패키지의 의존 패키지였던 플랫폼 패키지가 함께 제거됨(1.1). 큰 purge 뒤에는 <code>/proc/cmdline</code>과 <code>/etc/default/grub.d/</code>를 기준 기계와 대조한다.</td></tr>
+<tr><td><code>netplan generate</code>가 <code>Invalid YAML: aliases are not supported</code>로 실패하고 어떤 netplan 설정도 안 먹는다</td><td>공장 이미지에 내용 전체가 널 바이트인 깨진 netplan 파일이 남아 있는 경우가 있었다(네 대째 기계, 715바이트 전부 0x00). 파일 하나가 깨지면 netplan이 전체를 포기하므로 증상이 엉뚱한 곳에서 난다. <code>/etc/netplan/*</code>을 <code>file</code>로 훑어 깨진 파일을 치우고 <code>netplan generate</code>를 다시 돌린다.</td></tr>
+<tr><td>정적 IP를 넣어도 재부팅하면 DHCP로 돌아온다</td><td>이 이미지는 netplan이 네트워크 정본이다. NM 프로파일이 <code>/run</code>에만 생기는(휘발성) 기계가 있어 <code>nmcli con mod</code>로 넣은 설정이 재부팅에서 사라질 수 있다. 영속 설정은 <code>/etc/netplan/</code>에 쓴다. <code>/etc/NetworkManager/system-connections/</code>가 비어 있는 것은 고장이 아니라 netplan 렌더러의 정상 동작이다.</td></tr>
 <tr><td>200G ConnectX-7이 <code>lspci</code>에 없다</td><td>케이블이 꽂혀 있지 않으면 NIC이 노출되지 않는다(핫플러그 패키지가 관리). 드라이버 문제가 아니다.</td></tr>
 <tr><td>재부팅했더니 <code>/tmp</code>에 두었던 파일이 사라졌다</td><td>Ubuntu는 부팅 시 <code>/tmp</code>를 비운다. 재부팅 전에 스테이징 파일은 홈으로.</td></tr>
 <tr><td>원격 스크립트 종료를 <code>pgrep -f 스크립트명</code>으로 기다렸는데 영원히 "실행 중"</td><td>기다리는 쪽 ssh 명령줄에 같은 문자열이 있어 자기 자신을 잡는다. <code>pgrep -f "[d]ownload.sh"</code>처럼 괄호 패턴을 쓴다. <code>pkill -f</code>도 같은 이유로 자기 자신을 죽인다.</td></tr>
@@ -266,7 +273,7 @@ ufw allow in on tailscale0        # 방화벽을 켰다면 tailnet 인터페이�
 nmcli con add type ethernet con-name ic200g-b ifname enP2p1s0f0np0 ipv4.method manual ipv4.addresses &lt;rail-B&gt;/24 ipv4.never-default yes 802-3-ethernet.mtu 9000
 # 상대 기계도 같은 두 서브넷으로. 방화벽은 포트 이름 네 개를 전부 허용해 둔다(케이블을 다른 케이지로 옮겨도 깨지지 않게)
 for i in enp1s0f0np0 enp1s0f1np1 enP2p1s0f0np0 enP2p1s0f1np1; do ufw allow in on $i; done</code></pre></li>
-<li><strong>모든 지표가 정상인데 처리량만 1/8이다.</strong> 링크 200000Mb/s, RoCE 4X×50G, PCIe Gen5 x4, 에러 카운터 0, 점보프레임 통과인데 <code>ib_write_bw</code>도 <code>iperf3</code>도 13Gb/s 언저리에 멈춘다(정상은 경로당 약 98, 합산 196Gb/s. NVIDIA 플레이북의 <a href="https://github.com/NVIDIA/dgx-spark-playbooks/blob/main/nvidia/connect-two-sparks/assets/performance_benchmarking_guide.md">벤치마크 가이드</a>는 ib_write_bw 약 197Gb/s를 기대치로 적고, 같은 13Gb/s 고착은 <a href="https://forums.developer.nvidia.com/t/connectx-7-inter-spark-link-capped-at-13-gbps-expected-200-gbps-pcie-power-throttling-27w/363461">NVIDIA 포럼</a>에도 보고돼 있다). 같은 장치에 프로세스 두 개를 돌려 6.9+6.9로 나눠 가지면 장치 상한에 걸린 것이고, 한 기계 안에서 두 인터페이스끼리 쏴도 13이면 케이블과 상대 기계는 혐의를 벗는다. <strong>재부팅으로는 안 풀린다. 두 기계를 종료하고 전원 케이블을 뽑은 뒤 전원 버튼을 눌러 방전하고 1분 뒤 다시 연결</strong>하면 풀렸다(13.3 → 108Gb/s, 두 경로 합 196Gb/s). 이후 정규 재부팅을 여러 번 해도 유지됐다. PD 펌웨어 저클럭 고착과 같은 계열의 전원 쪽 현상으로 보인다.</li>
+<li><strong>모든 지표가 정상인데 처리량만 1/8이다.</strong> 링크 200000Mb/s, RoCE 4X×50G, PCIe Gen5 x4, 에러 카운터 0, 점보프레임 통과인데 <code>ib_write_bw</code>도 <code>iperf3</code>도 13Gb/s 언저리에 멈춘다(정상은 경로당 98~110, 합산 약 196Gb/s. 경로당 상한은 케이블이 아니라 PCIe Gen5 x4 쪽이고, 이후 스위치 구성에서 <code>ib_send_bw</code>로 재면 경로당 109Gb/s로 균일했다. NVIDIA 플레이북의 <a href="https://github.com/NVIDIA/dgx-spark-playbooks/blob/main/nvidia/connect-two-sparks/assets/performance_benchmarking_guide.md">벤치마크 가이드</a>는 ib_write_bw 약 197Gb/s를 기대치로 적고, 같은 13Gb/s 고착은 <a href="https://forums.developer.nvidia.com/t/connectx-7-inter-spark-link-capped-at-13-gbps-expected-200-gbps-pcie-power-throttling-27w/363461">NVIDIA 포럼</a>에도 보고돼 있다). 같은 장치에 프로세스 두 개를 돌려 6.9+6.9로 나눠 가지면 장치 상한에 걸린 것이고, 한 기계 안에서 두 인터페이스끼리 쏴도 13이면 케이블과 상대 기계는 혐의를 벗는다. <strong>재부팅으로는 안 풀린다. 두 기계를 종료하고 전원 케이블을 뽑은 뒤 전원 버튼을 눌러 방전하고 1분 뒤 다시 연결</strong>하면 풀렸다(13.3 → 108Gb/s, 두 경로 합 196Gb/s). 이후 정규 재부팅을 여러 번 해도 유지됐다. PD 펌웨어 저클럭 고착과 같은 계열의 전원 쪽 현상으로 보인다.</li>
 <li><strong>케이블을 다른 케이지로 옮기면 설정이 깨진다.</strong> NetworkManager가 만든 프로파일에 포트 MAC이 박혀 있어 <code>permanent MAC address doesn't match</code>로 활성화가 실패한다. <code>nmcli con mod ic200g 802-3-ethernet.mac-address "" connection.interface-name &lt;새 인터페이스&gt;</code>로 MAC 잠금을 비우고 이름으로 다시 묶는다. 방화벽 규칙도 포트 이름 기준이라 위처럼 네 개를 다 열어 둔다.</li>
 </ol>
 <p>판정할 때 두 가지를 기억하자. ufw는 ICMP를 기본 허용하므로 <strong>ping은 되는데 TCP가 안 되는</strong> 상태가 생긴다(<code>ib_write_bw</code>가 "Couldn't connect"인데 ping은 멀쩡). 그리고 GB10에서는 <code>ib_write_bw</code>가 낮게 나와도 NCCL은 정상인 사례가 보고돼 있어(<a href="https://forums.developer.nvidia.com/t/nccl-single-cable-test-caps-at-100gbps/362403">NVIDIA 포럼</a>), 최종 판정은 NCCL(nccl-tests)로 한다. NCCL 로그의 <code>GPU_DIRECT_RDMA_SUPPORTED=False</code>는 GB10에서 정상이다.</p>
