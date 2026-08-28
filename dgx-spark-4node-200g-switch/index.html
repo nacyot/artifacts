@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DGX Spark 4대를 스위치로 묶기: MikroTik CRS812와 400G 브레이크아웃 DAC</title><meta name="description" content="DGX Spark(GB10) 2대 직결 클러스터를 MikroTik CRS812 스위치 기반 4노드 200G 패브릭으로 확장한 기록. QSFP-DD 400G를 2x200G로 나누는 브레이크아웃 DAC, 자동 협상 실패와 강제 속도 지정, L2MTU 점보 드롭, VLAN 격리까지. 모든 노드쌍 195.7Gb/s로 직결과 동일함을 실측."><meta property="og:title" content="DGX Spark 4대를 스위치로 묶기"><meta property="og:description" content="MikroTik CRS812와 400G 브레이크아웃 DAC 두 가닥으로 만든 4노드 200G 풀메시. 모든 노드쌍 195.7Gb/s, 직결과 동일."><meta property="og:type" content="article"><meta property="og:url" content="https://artifacts.nacyot.com/dgx-spark-4node-200g-switch/"><meta property="og:image" content="https://artifacts.nacyot.com/dgx-spark-4node-200g-switch/og.png"><meta name="twitter:card" content="summary_large_image"><style>
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DGX Spark 4대를 스위치로 연결하기: 200G 풀메시 네트워크 구축</title><meta name="description" content="DGX Spark(GB10) 2대 직결 클러스터를 MikroTik CRS812 스위치 기반 4노드 200G 패브릭으로 확장한 기록. QSFP-DD 400G를 2x200G로 나누는 브레이크아웃 DAC, 자동 협상 실패와 강제 속도 지정, L2MTU 점보 드롭, VLAN 격리까지. 모든 노드쌍 195.7Gb/s로 직결과 동일함을 실측."><meta property="og:title" content="DGX Spark 4대를 스위치로 연결하기"><meta property="og:description" content="MikroTik CRS812와 400G 브레이크아웃 DAC 두 가닥으로 만든 4노드 200G 풀메시. 모든 노드쌍 195.7Gb/s, 직결과 동일."><meta property="og:type" content="article"><meta property="og:url" content="https://artifacts.nacyot.com/dgx-spark-4node-200g-switch/"><meta property="og:image" content="https://artifacts.nacyot.com/dgx-spark-4node-200g-switch/og.png"><meta name="twitter:card" content="summary_large_image"><style>
 :root{--paper:#faf9f7;--ink:#1c1c1c;--soft:#5b5b57;--faint:#b7b5ad;--rule:#e4e2da;--box:#f3f2ec;
       --hi:#46537a;--bar:#cbc9bf;--barhi:#46537a}
 *{box-sizing:border-box}
@@ -43,7 +43,7 @@ details[open] summary::before{content:"▾ "}
  .bar{grid-template-columns:1fr auto}.bar .bl{text-align:left;grid-column:1/-1}}
 </style><link rel="canonical" href="https://artifacts.nacyot.com/dgx-spark-4node-200g-switch/"></head><body><div class="doc">
 <div class="kicker">DGX Spark ×4 / MikroTik CRS812</div>
-<h1>DGX Spark 4대를 스위치로 묶기:<br>노드당 케이블 한 가닥으로 200G 풀메시</h1>
+<h1>DGX Spark 4대를 스위치로 연결하기:<br>200G 풀메시 네트워크 구축</h1>
 
 <p><a href="../deepseek-v4-flash-2x-dgx-spark/">앞선 기록</a>에서 GB10(DGX Spark) 2대를 DAC 한 가닥으로 직결해 196Gb/s 인터커넥트를 만들었다. 노드가 4대가 되면서 직결로는 답이 없어졌고, 스위치를 들였다. 이 글은 그 과정 전체다. 장비와 케이블 선택, 링크가 하나도 안 올라오던 브링업, 그리고 "스위치를 거치면 얼마나 느려지는가"에 대한 실측 답까지.</p>
 
